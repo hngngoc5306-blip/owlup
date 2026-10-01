@@ -246,11 +246,23 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 2: Recommended recovery routine' : 'Bước 2: Lịch phục hồi đề xuất'}
+                      {isEn ? 'Step 2: Choose recovery goal' : 'Bước 2: Chọn mục tiêu phục hồi'}
                     </strong>{' '}
                     {isEn
-                      ? 'Calculates quality score (90+ standard), optimal bedtime, wake time, and afternoon power nap.'
-                      : 'Hệ thống tính điểm chất lượng (chuẩn từ 90+ điểm), đề xuất giờ ngủ đêm và chợp mắt buổi trưa.'}
+                      ? 'Pick 1 of 4 recovery targets (Balanced, Peak Productivity, Sleep Debt Catch-up, or Night Owl Routine).'
+                      : 'Lựa chọn 1 trong 4 mục tiêu phục hồi (Cân bằng, Tối đa năng suất, Ngủ bù nợ giấc, hoặc Nhịp sống Cú đêm).'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-[#2D3748]/50 bg-slate-100 dark:bg-[#233355]/40 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
+                  <div className="leading-relaxed">
+                    <strong className="text-slate-900 dark:text-white font-bold">
+                      {isEn ? 'Step 3: Recommended sleep & caffeine curfew' : 'Bước 3: Lịch ngủ & Giờ ngắt caffeine'}
+                    </strong>{' '}
+                    {isEn
+                      ? 'Calculates sleep target score (90+), bedtime, power nap, and your recommended caffeine curfew (10h before bed).'
+                      : 'Tính điểm phục hồi (90+), giờ ngủ tối ưu, giấc chợp trưa và đề xuất giờ ngắt caffeine chuẩn xác (10 tiếng trước ngủ).'}
                   </div>
                 </div>
 
@@ -258,7 +270,7 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 3: Flexible customization' : 'Bước 3: Tùy chỉnh linh hoạt'}
+                      {isEn ? 'Step 4: Flexible fine-tuning' : 'Bước 4: Tùy chỉnh linh hoạt & Đồng bộ'}
                     </strong>{' '}
                     {isEn
                       ? 'Fine-tune sleep hours and nap duration to your liking, then agree to sync directly to your 24h Timeline.'

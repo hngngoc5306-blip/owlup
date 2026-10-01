@@ -62,11 +62,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     }
   })();
 
-  // If user already applied schedule today, start at Step 4; otherwise start at Step 1
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(() => {
-    return isScheduleAppliedToday ? 4 : 1;
+  // Step states:
+  // 1: Busy commitments
+  // 2: Recovery Goal selection (NOT PRESELECTED)
+  // 3: Recommended recovery routine & caffeine curfew
+  // 4: Flexible customization
+  // 5: Schedule applied success
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
+    return isScheduleAppliedToday ? 5 : 1;
   });
   
+  // Selected recovery goal: NOT PRESELECTED per user requirement
+  const [selectedGoal, setSelectedGoal] = useState<'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl' | null>(null);
+
   // Step 1 states with LocalStorage persistence
   const [isAdding, setIsAdding] = useState(false);
   const [commitments, setCommitments] = useState<{title: string, start: string, end: string}[]>(() => {
@@ -84,7 +92,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [timeError, setTimeError] = useState<string | null>(null);
 
-  // Customization states (Step 3) with LocalStorage persistence
+  // Customization states (Step 4) with LocalStorage persistence
   const [customBedtime, setCustomBedtime] = useState(() => {
     return bedtime || (() => {
       try { return localStorage.getItem('owlup_bedtime') || '22:30'; } catch { return '22:30'; }
@@ -124,7 +132,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
   // Synchronize with App-level schedule when props update
   React.useEffect(() => {
-    if (step !== 3) {
+    if (step !== 4) {
       if (bedtime) setCustomBedtime(bedtime);
       if (wakeTime) setCustomWakeTime(wakeTime);
       if (plannedNap?.start) setNapStart(plannedNap.start);
@@ -656,9 +664,30 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const isNightOwl = userProfile?.chronotype === 'night_owl';
   const isEarlyBird = userProfile?.chronotype === 'early_bird';
   
-  // Target Sleep Duration: 8 hours (480 mins) + extra restorative time if user has sleep debt
+  // Target Sleep Duration & parameters driven by selectedGoal
+  let goalTargetSleepMins = 8 * 60; // default 480m
+  let goalBaseNap = 20;
+
+  if (selectedGoal === 'catch_up') {
+    // Ngủ bù: mục tiêu ngủ nhiều hơn (8h45m), nap 30m
+    goalTargetSleepMins = 8 * 60 + 45;
+    goalBaseNap = 30;
+  } else if (selectedGoal === 'max_productivity') {
+    // Năng suất tối đa: 7h15m ban đêm, nap 20m nhanh gọn
+    goalTargetSleepMins = 7 * 60 + 15;
+    goalBaseNap = 20;
+  } else if (selectedGoal === 'night_owl') {
+    // Cú đêm / ca muộn: 7h45m ngủ đêm, nap 25m
+    goalTargetSleepMins = 7 * 60 + 45;
+    goalBaseNap = 25;
+  } else {
+    // healthy_balanced (hoặc mặc định): 8h00m cân bằng tự nhiên, nap 20m
+    goalTargetSleepMins = 8 * 60;
+    goalBaseNap = 20;
+  }
+
   const extraDebtMins = historyAnalysis.hasDebt ? Math.min(60, Math.round(historyAnalysis.sleepDebtHours * 30)) : 0;
-  const targetDurationMins = 8 * 60 + extraDebtMins; 
+  const targetDurationMins = goalTargetSleepMins + extraDebtMins; 
 
   // 1. Determine Required Wake Time (Giờ thức dậy)
   const morningComms = commitments
@@ -667,26 +696,30 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     .sort((a, b) => a.startMins - b.startMins);
 
   const hasMorningComm = morningComms.length > 0;
+
+  let naturalWakeMins = 7 * 60; // 07:00
+  if (selectedGoal === 'max_productivity') {
+    naturalWakeMins = 6 * 60 + 15; // 06:15 dậy sớm cho năng suất
+  } else if (selectedGoal === 'catch_up') {
+    naturalWakeMins = 7 * 60 + 30; // 07:30 dậy muộn hơn để hồi sức
+  } else if (selectedGoal === 'night_owl') {
+    naturalWakeMins = 8 * 60 + 30; // 08:30 dậy muộn theo nhịp cú đêm
+  }
+
   let requiredWakeMins = hasMorningComm
     ? Math.max(4 * 60 + 30, morningComms[0].startMins - 15) // 15 mins buffer before first class/shift
-    : 7 * 60; // Default natural wake: 07:00
+    : naturalWakeMins;
 
   // 2. Continuous time helper: maps minutes so evening -> night -> next morning is monotonic
   // 12:00 PM = 720, 23:59 = 1439, 01:00 AM next day = 1500, 06:00 AM next day = 1800
   const toContMins = (mins: number) => (mins < 12 * 60 ? mins + 24 * 60 : mins);
 
   // Find latest busy commitment in the evening/night (after 18:00 or past midnight)
-  // IMPORTANT: Daytime commitments (e.g. morning classes 06:45 - 09:20, afternoon 12:45 - 15:00)
-  // belong to the day and do NOT keep the user awake tonight.
   let latestBusyContMins = 0;
   commitments.forEach(c => {
     const s = parseMins(c.start);
     const e = parseMins(c.end);
 
-    // Check if this commitment is in the evening/night:
-    // - Starts at or after 18:00 (e.g. 19:00 - 22:00, 22:00 - 01:00)
-    // - Starts in late night / early hours past midnight before 04:00 (e.g. 00:30 - 02:30)
-    // - Starts in afternoon and ends after 19:00 (e.g. 15:00 - 21:00)
     const isEveningNight = 
       s >= 18 * 60 || 
       s < 4 * 60 || 
@@ -705,44 +738,53 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   // Earliest possible bedtime after evening commitments (plus 20 mins wind-down)
   const earliestBedContMins = latestBusyContMins > 0 ? latestBusyContMins + 20 : 0;
 
-  // 3. Adaptive Bedtime Selection:
-  // - Ideal circadian sleep duration: 8 hours (480 mins)
-  // - If the user has early free time: prioritize the healthy circadian window (21:00 - 23:30)
-  // - If the user is busy late into the night: flexibly start bedtime after their commitment + wind-down.
+  // 3. Adaptive Bedtime Selection based on Goal:
   let idealBedContMins: number;
 
-  if (hasMorningComm) {
-    // Back-calculate 8 hours from required wake time:
-    const wakeCont = toContMins(requiredWakeMins);
-    let calcBed = wakeCont - targetDurationMins;
-
-    // Healthy circadian priority window: 21:00 (1260) to 23:30 (1410)
-    if (calcBed < toContMins(21 * 60)) calcBed = toContMins(21 * 60);
-    if (calcBed > toContMins(23 * 60 + 30)) calcBed = toContMins(23 * 60 + 30);
-    idealBedContMins = calcBed;
+  if (selectedGoal === 'night_owl') {
+    if (hasMorningComm) {
+      const wakeCont = toContMins(requiredWakeMins);
+      let calcBed = wakeCont - targetDurationMins;
+      idealBedContMins = Math.max(toContMins(23 * 60), calcBed);
+    } else {
+      idealBedContMins = toContMins(0 * 60 + 30); // 00:30 AM
+    }
+  } else if (selectedGoal === 'catch_up') {
+    if (hasMorningComm) {
+      const wakeCont = toContMins(requiredWakeMins);
+      idealBedContMins = wakeCont - targetDurationMins;
+    } else {
+      idealBedContMins = toContMins(21 * 60 + 45); // 21:45
+    }
+  } else if (selectedGoal === 'max_productivity') {
+    if (hasMorningComm) {
+      const wakeCont = toContMins(requiredWakeMins);
+      idealBedContMins = wakeCont - targetDurationMins;
+    } else {
+      idealBedContMins = toContMins(23 * 60); // 23:00
+    }
   } else {
-    // No morning commitment: comfortable circadian bedtime
-    idealBedContMins = isNightOwl ? toContMins(23 * 60) : toContMins(22 * 60 + 30);
+    // healthy_balanced
+    if (hasMorningComm) {
+      const wakeCont = toContMins(requiredWakeMins);
+      let calcBed = wakeCont - targetDurationMins;
+      if (calcBed < toContMins(21 * 60)) calcBed = toContMins(21 * 60);
+      if (calcBed > toContMins(23 * 60 + 30)) calcBed = toContMins(23 * 60 + 30);
+      idealBedContMins = calcBed;
+    } else {
+      idealBedContMins = isNightOwl ? toContMins(23 * 60) : toContMins(22 * 60 + 30);
+    }
   }
 
   let chosenBedContMins: number;
 
   if (earliestBedContMins > 0) {
-    // User has commitments in the evening/night:
-    // Bedtime cannot be before earliestBedContMins.
-    // If they finish early (e.g. 21:00 + 20m = 21:20), they sleep at idealBedContMins (22:30).
-    // If they finish late (e.g. 23:30 + 20m = 23:50 or 01:00 + 20m = 01:20), bedtime shifts flexibly!
     chosenBedContMins = Math.max(idealBedContMins, earliestBedContMins);
-
-    // If user has NO morning commitment, wake time flexibly extends to guarantee 8h:
     if (!hasMorningComm) {
       requiredWakeMins = (chosenBedContMins + targetDurationMins) % (24 * 60);
     }
   } else {
-    // Completely free in the evening: use ideal circadian bedtime
     chosenBedContMins = idealBedContMins;
-
-    // If user has NO morning commitment, wake time guarantees 8h:
     if (!hasMorningComm) {
       requiredWakeMins = (chosenBedContMins + targetDurationMins) % (24 * 60);
     }
@@ -761,22 +803,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
   const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
 
-  // 4. Calculate Afternoon Power Nap (12:00 - 16:30)
-  // If night sleep was shortened due to late commitments, automatically extend nap duration to compensate!
+  // 4. Calculate Afternoon Power Nap
   const userHasNapCrave = userProfile?.craves?.includes('nap') 
     || userProfile?.energyCraves?.includes('nap')
     || userProfile?.energyCrave === 'nap'
     || (Array.isArray(userProfile?.energyCrave) && userProfile.energyCrave.includes('nap'));
   
-  let baseNap = userHasNapCrave ? 30 : 20;
+  let baseNap = userHasNapCrave ? Math.max(goalBaseNap, 30) : goalBaseNap;
   if (historyAnalysis.hasDebt) {
     baseNap = Math.max(baseNap, 25);
   }
-  // If lost sleep > 30m, add compensatory nap time (up to 45-60m max)
   let calcNapDuration = Math.min(60, baseNap + Math.min(30, Math.floor(lostSleepMins / 30) * 15));
 
-  // Ideal afternoon nap start: 12:30 PM (750 mins)
-  let napStartMins = 12 * 60 + 30;
+  let napStartMins = selectedGoal === 'night_owl' ? 13 * 60 + 30 : 12 * 60 + 30;
   
   // Nap Collision with Commitments
   if (commitments.length > 0) {
@@ -791,9 +830,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       }
     }
 
-    // Safety guard: power nap should stay in the afternoon (12:00 - 16:30)
     if (napStartMins > 16 * 60 + 30 || napStartMins < 11 * 60) {
-      napStartMins = 12 * 60 + 30;
+      napStartMins = selectedGoal === 'night_owl' ? 13 * 60 + 30 : 12 * 60 + 30;
     }
   }
 
@@ -811,6 +849,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const recNapStart = formatMins(napStartMins);
   const recNapEnd = formatMins(napStartMins + calcNapDuration);
   const recNapDurationMins = calcNapDuration;
+
+  // 5. Calculate Recommended Caffeine Curfew (10 hours before bedtime)
+  let cutoffMins = finalBedtimeMins - 10 * 60;
+  while (cutoffMins < 0) cutoffMins += 24 * 60;
+  const recCaffeineCutoff = formatMins(cutoffMins);
 
   // Calculate Free Recovery Windows
   const getFreeWindows = () => {
@@ -867,13 +910,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   };
   const freeWindows = getFreeWindows();
 
-  // Score calculation
-  let score = 100;
-  const shiftDiffMins = getShiftMins(finalBedtimeMins, baseBedtimeMins);
-  if (shiftDiffMins > 30) {
-    score -= Math.floor(shiftDiffMins / 30) * 2; // -2 points for every 30m deviation from their natural chronotype/bedtime
-  }
-  if (score < 60) score = 60; // floor
+  // Score calculation: standardized 90+ standard score
+  let score = 96;
+  if (selectedGoal === 'max_productivity') score = 94;
+  else if (selectedGoal === 'catch_up') score = 95;
+  else if (selectedGoal === 'night_owl') score = 93;
+  if (historyAnalysis.hasDebt) score -= 2;
+  if (lostSleepMins > 45) score -= 2;
+  if (score < 90) score = 90;
 
 
 
@@ -1054,11 +1098,164 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         </div>
       )}
 
-      {/* STEP 2: RECOMMENDATION */}
+      {/* STEP 2: RECOVERY GOAL SELECTION (NOT PRESELECTED) */}
       {step === 2 && (
-        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-8 sm:p-14 relative animate-fade-in">
-          <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-8">
-            {isEn ? "Step 2: Recommended recovery routine" : "Bước 2: Lịch phục hồi đề xuất"}
+        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[24px] sm:rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-4 sm:p-8 md:p-14 relative animate-fade-in text-left">
+          <div className="inline-block px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-6 sm:mb-8">
+            {isEn ? "Step 2: Recovery goal for today" : "Bước 2: Mục tiêu phục hồi hôm nay"}
+          </div>
+
+          <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-3">
+            {isEn ? "Choose your recovery goal today" : "Hôm nay mục tiêu phục hồi của bạn là gì?"}
+          </h3>
+          <p className="text-slate-500 mb-8 sm:mb-10 text-sm sm:text-base md:text-lg leading-relaxed">
+            {isEn 
+              ? "Select one of the 4 goals below. OwlUp will calculate your optimal night sleep, power nap, and caffeine curfew." 
+              : "Chọn 1 trong 4 mục tiêu dưới đây để OwlUp đề xuất thời gian ngủ đêm, chợp mắt và mốc ngừng caffeine tối ưu."}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-12">
+            {[
+              {
+                id: 'healthy_balanced' as const,
+                icon: '🌱',
+                title: isEn ? 'Healthy Balanced' : 'Cân bằng lành mạnh',
+                subtitle: isEn ? 'Balanced rest & steady energy' : 'Nghỉ ngơi điều độ & năng lượng ổn định',
+                desc: isEn 
+                  ? 'Naturally aligned with biological circadian rhythms, guaranteeing a full 8-hour restorative sleep window.'
+                  : 'Đồng bộ hoàn hảo với nhịp sinh học tự nhiên, đảm bảo giấc ngủ trọn vẹn 8 tiếng để cơ thể luôn tràn đầy sinh lực.',
+                badge: isEn ? 'Circadian Optimal' : 'Chuẩn sinh học',
+              },
+              {
+                id: 'max_productivity' as const,
+                icon: '🚀',
+                title: isEn ? 'Max Productivity' : 'Năng suất tối đa',
+                subtitle: isEn ? 'Peak focus & deep work' : 'Tập trung cao độ & làm việc sâu',
+                desc: isEn 
+                  ? 'Maximizes awake hours for deep work while using strategic power naps for sustained alertness.'
+                  : 'Tối ưu hóa thời gian tỉnh táo ban ngày để học tập và làm việc, kết hợp giấc chợp mắt nhanh để duy trì độ sắc bén.',
+                badge: isEn ? 'Focus Mode' : 'Chế độ tập trung',
+              },
+              {
+                id: 'catch_up' as const,
+                icon: '⚡',
+                title: isEn ? 'Catch Up & Sleep' : 'Ngủ bù & Phục hồi',
+                subtitle: isEn ? 'Extra sleep for full recharge' : 'Thêm giờ ngủ để phục hồi năng lượng',
+                desc: isEn 
+                  ? 'Prioritizes an earlier bedtime and longer sleep duration to pay down accumulated sleep debt and fatigue.'
+                  : 'Ưu tiên đi ngủ sớm hơn và kéo dài thời gian ngủ sâu để bù đắp nợ ngủ, xua tan cảm giác mệt mỏi.',
+                badge: isEn ? 'Deep Recharge' : 'Nạp lại năng lượng',
+              },
+              {
+                id: 'night_owl' as const,
+                icon: '🦉',
+                title: isEn ? 'Night Owl / Shift' : 'Cú đêm / Ca muộn',
+                subtitle: isEn ? 'Late-night routines & shifts' : 'Lịch làm việc & hoạt động ban đêm',
+                desc: isEn 
+                  ? 'Accommodates evening and late-night schedules smoothly while protecting total recovery sleep.'
+                  : 'Linh hoạt điều chỉnh khung giờ ngủ muộn hơn, bảo vệ giấc ngủ sau các buổi làm việc hoặc học tập ca muộn.',
+                badge: isEn ? 'Shift Friendly' : 'Lịch ca muộn',
+              },
+            ].map(goal => {
+              const isSelected = selectedGoal === goal.id;
+              return (
+                <div 
+                  key={goal.id}
+                  onClick={() => setSelectedGoal(goal.id)}
+                  className={`p-5 sm:p-6 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/15 shadow-md transform scale-[1.01]'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f172a] hover:border-[#4CB28E]/60 dark:hover:border-[#62D2FB]/60 hover:-translate-y-1 hover:shadow-sm'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-2xl">{goal.icon}</span>
+                        <h4 className="font-heading font-bold text-lg sm:text-xl text-[#1F2937] dark:text-white">
+                          {goal.title}
+                        </h4>
+                      </div>
+                      <span className={`text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                        isSelected 
+                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] text-white dark:text-[#0E172A]' 
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                      }`}>
+                        {goal.badge}
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold text-[#007b4d] dark:text-[#62D2FB] mb-2">
+                      {goal.subtitle}
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                      {goal.desc}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-end">
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? 'border-[#4CB28E] bg-[#4CB28E] dark:border-[#62D2FB] dark:bg-[#62D2FB] text-white dark:text-[#0E172A]'
+                        : 'border-slate-300 dark:border-slate-600'
+                    }`}>
+                      {isSelected && <span className="text-xs font-bold">✓</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-between items-center mt-6">
+            <button 
+              onClick={() => setStep(1)} 
+              className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
+            </button>
+            <button 
+              onClick={() => {
+                if (selectedGoal) {
+                  setStep(3);
+                }
+              }}
+              disabled={!selectedGoal}
+              className={`rounded-full px-8 sm:px-12 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md ${
+                selectedGoal 
+                  ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1' 
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
+              }`}
+            >
+              {isEn ? "View Recommended Schedule" : "Xem đề xuất lịch ngủ"} →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: RECOMMENDATION (BASED ON SELECTED GOAL) */}
+      {step === 3 && (
+        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-8 sm:p-14 relative animate-fade-in text-left">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider">
+              {isEn ? "Step 3: Recommended recovery routine" : "Bước 3: Lịch phục hồi đề xuất"}
+            </div>
+
+            {selectedGoal && (
+              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
+                <span>
+                  {selectedGoal === 'healthy_balanced' && '🌱 Cân bằng lành mạnh'}
+                  {selectedGoal === 'max_productivity' && '🚀 Năng suất tối đa'}
+                  {selectedGoal === 'catch_up' && '⚡ Ngủ bù & Phục hồi'}
+                  {selectedGoal === 'night_owl' && '🦉 Cú đêm / Ca muộn'}
+                </span>
+                <button 
+                  onClick={() => setStep(2)}
+                  className="text-[#007b4d] dark:text-[#62D2FB] hover:underline ml-1 cursor-pointer"
+                >
+                  ({isEn ? "Change" : "Đổi"})
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="flex justify-between items-center mb-10">
@@ -1117,11 +1314,31 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recSleepDuration} hours` : `Thời lượng: ${recSleepDuration} giờ`}</div>
               <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">{isEn ? "Aligned with open windows to maximize restorative REM." : "Đồng bộ hóa với lịch rảnh để tối ưu giấc ngủ REM."}</div>
             </div>
+
+            {/* 3. Recommended Caffeine Curfew */}
+            <div className="border border-red-200 dark:border-red-500/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-[#FEF5F5] dark:bg-red-950/20 shadow-sm overflow-hidden md:col-span-2">
+              <div className="flex items-center gap-2 text-sm font-bold text-red-600 dark:text-red-400 tracking-wider mb-4 uppercase">
+                <span>🚫</span> {isEn ? "RECOMMENDED CAFFEINE CURFEW" : "NGỪNG CAFFEINE ĐỀ XUẤT"}
+              </div>
+              <div className="text-xl sm:text-2xl md:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-2 tabular-nums">
+                {isEn ? `Before ${formatDisplayTime(recCaffeineCutoff, isEn)}` : `Trước ${formatDisplayTime(recCaffeineCutoff, isEn)}`}
+              </div>
+              <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
+                {isEn 
+                  ? `(10 hours before your ${formatDisplayTime(recBedtime, isEn)} bedtime)` 
+                  : `(10 tiếng trước giờ đi ngủ ${formatDisplayTime(recBedtime, isEn)})`}
+              </div>
+              <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
+                {isEn 
+                  ? "This bedtime is used to determine your optimal caffeine curfew, ensuring your body eliminates caffeine before entering deep sleep cycles."
+                  : "Thời gian ngủ này được dùng làm cơ sở đề xuất giờ ngừng nạp caffeine, đảm bảo cơ thể kịp đào thải sạch trước khi bước vào chu kỳ ngủ sâu."}
+              </div>
+            </div>
           </div>
           
           <div className="flex justify-between items-center mt-4">
             <button 
-              onClick={() => setStep(1)} 
+              onClick={() => setStep(2)} 
               className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-lg flex items-center gap-2 transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
@@ -1133,7 +1350,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 setNapStart(recNapStart);
                 setNapDuration(recNapDurationMins.toString());
                 setHasAppliedOptimal(false);
-                setStep(3);
+                setStep(4);
               }} className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer transition-colors">{isEn ? "Adjust Sleep Times" : "Tùy chỉnh giờ ngủ"}</button>
               <button 
                 onClick={() => {
@@ -1143,9 +1360,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   setNapDuration(recNapDurationMins.toString());
                   try {
                     localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                    localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                   } catch {}
                   onApplySchedule(recBedtime, recWake, recSleepDuration, recNapStart, recNapDurationMins.toString());
-                  setStep(4);
+                  setStep(5);
                 }}
                 className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white rounded-full px-14 py-4 text-lg font-bold transition-all duration-300 shadow-md cursor-pointer hover:-translate-y-1"
               >
@@ -1156,11 +1374,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         </div>
       )}
 
-      {/* STEP 3: CUSTOMIZE */}
-      {step === 3 && (
+      {/* STEP 4: CUSTOMIZE */}
+      {step === 4 && (
         <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-8 sm:p-14 relative animate-fade-in">
           <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-8">
-            {isEn ? "Step 3: Flexible customization" : "Bước 3: Tùy chỉnh linh hoạt"}
+            {isEn ? "Step 4: Flexible customization" : "Bước 4: Tùy chỉnh linh hoạt"}
           </div>
           
           <h3 className="text-3xl sm:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-8 text-left">
@@ -1342,7 +1560,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <button 
-              onClick={() => setStep(2)} 
+              onClick={() => setStep(3)} 
               className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center justify-center sm:justify-start gap-2 transition-colors cursor-pointer py-2 sm:py-0"
             >
               <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
@@ -1350,7 +1568,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             
             {isQualified ? (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-8 animate-fade-in">
-                <button onClick={() => setStep(2)} className="text-[#999999] hover:text-[#1F2937] font-bold text-base sm:text-lg cursor-pointer transition-colors py-2 text-center">
+                <button onClick={() => setStep(3)} className="text-[#999999] hover:text-[#1F2937] font-bold text-base sm:text-lg cursor-pointer transition-colors py-2 text-center">
                   {isEn ? "Cancel" : "Hủy"}
                 </button>
                 <button 
@@ -1358,9 +1576,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     if (!isStep3Valid) return;
                     try {
                       localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                      localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                     } catch {}
                     onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
-                    setStep(4);
+                    setStep(5);
                   }} 
                   disabled={!isStep3Valid}
                   className={`rounded-full px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-bold transition-all shadow-md text-center ${
@@ -1369,7 +1588,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
                   }`}
                 >
-                  {isEn ? "Next" : "Tiếp theo"}
+                  {isEn ? "Agree" : "Đồng ý"}
                 </button>
               </div>
             ) : (
@@ -1379,9 +1598,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     if (!isStep3Valid) return;
                     try {
                       localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                      localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                     } catch {}
                     onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
-                    setStep(4);
+                    setStep(5);
                   }} 
                   disabled={!isStep3Valid}
                   className={`font-bold text-sm sm:text-base md:text-lg px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-dashed rounded-full text-center transition-all ${
@@ -1412,8 +1632,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         </div>
       )}
 
-      {/* STEP 4: SUCCESS / QUALIFIED */}
-      {step === 4 && (() => {
+      {/* STEP 5: SUCCESS / SUMMARY */}
+      {step === 5 && (() => {
         const effectiveBed = customBedtime || bedtime || '22:30';
         const effectiveWake = customWakeTime || wakeTime || '06:30';
         const effectiveNStart = napStart || plannedNap?.start || '12:30';
@@ -1431,6 +1651,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         const formattedNightDuration = Number.isInteger(nightHours)
           ? `${nightHours} ${isEn ? "hrs" : "giờ"}`
           : `${nightHours.toFixed(1)} ${isEn ? "hrs" : "giờ"}`;
+
+        let summaryCurfewMins = (bh * 60 + bm) - 10 * 60;
+        while (summaryCurfewMins < 0) summaryCurfewMins += 24 * 60;
+        const summaryCurfew = formatMins(summaryCurfewMins);
 
         return (
         <div className="max-w-lg mx-auto animate-fade-in">
@@ -1464,7 +1688,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 </div>
               </div>
 
-              <div className="py-3.5">
+              <div className="py-3.5 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex justify-between items-baseline gap-3 sm:gap-4">
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                     {isEn ? "Main Sleep" : "Giấc ngủ đêm"}
@@ -1479,6 +1703,17 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400 whitespace-nowrap">
                     {formattedNightDuration}
                   </span>
+                </div>
+              </div>
+
+              <div className="py-3.5">
+                <div className="flex justify-between items-baseline gap-3 sm:gap-4">
+                  <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
+                    {isEn ? "Caffeine Curfew" : "Ngừng Caffeine"}
+                  </div>
+                  <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-red-500 dark:text-red-400 tabular-nums text-right whitespace-nowrap shrink-0">
+                    {isEn ? `Before ${formatDisplayTime(summaryCurfew, isEn)}` : `Trước ${formatDisplayTime(summaryCurfew, isEn)}`}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1502,16 +1737,22 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 {isEn ? "Back to Dashboard" : "Về Tổng quan"}
               </button>
 
-              <div className="flex flex-col sm:flex-row gap-3 mt-1">
+              <div className="flex flex-col sm:flex-row gap-2.5 mt-1">
                 <button 
                   onClick={() => setStep(1)}
-                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3.5 text-base font-bold transition-colors cursor-pointer"
+                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer"
                 >
                   {isEn ? "Edit Busy Schedule" : "Sửa lịch bận"}
                 </button>
                 <button 
-                  onClick={() => setStep(3)}
-                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3.5 text-base font-bold transition-colors cursor-pointer"
+                  onClick={() => setStep(2)}
+                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer"
+                >
+                  {isEn ? "Change Goal" : "Đổi mục tiêu"}
+                </button>
+                <button 
+                  onClick={() => setStep(4)}
+                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer"
                 >
                   {isEn ? "Adjust Sleep Times" : "Tùy chỉnh giờ ngủ"}
                 </button>
