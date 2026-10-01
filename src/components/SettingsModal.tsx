@@ -73,6 +73,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     };
   });
 
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   // Synchronize draft states when modal opens or settings change
   useEffect(() => {
     if (isOpen) {
