@@ -85,7 +85,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // States
-  const [language, setLanguage] = useState<'en'|'vi'>(initialLang || 'en');
+  const [language, setLanguage] = useState<'en'|'vi'|null>(null);
   const [bedtime, setBedtime] = useState('22:30');
   const [isCustomBedtime, setIsCustomBedtime] = useState(false);
   const [customBedtime, setCustomBedtime] = useState('22:30');
@@ -149,7 +149,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
     setIsSigningIn(true);
     setTimeout(() => {
       onCompleteProfile({
-        language,
+        language: language || 'en',
         name: name.trim() || (isEn ? 'Guest' : 'Khách'),
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
@@ -230,8 +230,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
               </span>
             } 
             subtitle="Select the language you are most comfortable with. / Chọn ngôn ngữ bạn cảm thấy thuận tiện nhất."
-            buttonText={language === 'vi' ? 'Tiếp tục' : 'Next'}
-            isNextValid={true}
+            buttonText={language === 'vi' ? 'Tiếp tục' : language === 'en' ? 'Next' : 'Next / Tiếp tục'}
+            isNextValid={language !== null}
           >
             <div className="space-y-4">
               <OptionCard 
