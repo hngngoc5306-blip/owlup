@@ -251,9 +251,11 @@ export default function App() {
 
   // Onboarding pop-up state
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isGuestOnboarding, setIsGuestOnboarding] = useState<boolean>(false);
 
   const handleCloseOnboarding = () => {
     setIsOnboardingOpen(false);
+    setIsGuestOnboarding(false);
   };
 
   const handleCloseInstruction = () => {
@@ -589,18 +591,8 @@ export default function App() {
   };
 
   const handleContinueAsGuest = () => {
-    const guestProfile: UserProfile = {
-      name: settings?.language === 'vi' ? 'Khách' : 'Guest',
-      age: 22,
-      usualBedtime: '23:00',
-      chronotype: 'night_owl',
-      energyCrave: 'nap',
-      energyCraves: ['nap'],
-      caffeineFrequency: 'once_a_day',
-      authProvider: 'guest',
-      createdAt: new Date().toISOString(),
-    };
-    handleCompleteProfile(guestProfile);
+    setIsGuestOnboarding(true);
+    setIsOnboardingOpen(true);
   };
 
   const handleSignOut = () => {
@@ -953,8 +945,9 @@ export default function App() {
           language={settings.language || 'en'}
           initialProfile={userProfile}
           onCompleteProfile={handleCompleteProfile}
-        onLanguageChange={(lang) => handleUpdateSettings({ language: lang })}
+          onLanguageChange={(lang) => handleUpdateSettings({ language: lang })}
           defaultEmail="k63.2412550051@ftu.edu.vn"
+          isGuestMode={isGuestOnboarding}
         />
       </div>
     );

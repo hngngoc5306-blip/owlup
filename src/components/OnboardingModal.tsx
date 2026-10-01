@@ -13,6 +13,7 @@ interface OnboardingProps {
   onCompleteProfile: (profileData: any) => void;
   onLanguageChange?: (lang: 'en' | 'vi') => void;
   defaultEmail?: string;
+  isGuestMode?: boolean;
 }
 
 const GoogleIcon = ({ className = "" }: { className?: string }) => (
@@ -79,9 +80,17 @@ const StepLayout = ({ children, title, subtitle, isNextValid, handleNext, isEn, 
   </div>
 );
 
-export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteProfile, onClose, isNight = false, language: initialLang, onLanguageChange }) => {
+export const OnboardingModal: React.FC<OnboardingProps> = ({ 
+  isOpen, 
+  onCompleteProfile, 
+  onClose, 
+  isNight = false, 
+  language: initialLang, 
+  onLanguageChange,
+  isGuestMode = false
+}) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 8;
+  const totalSteps = isGuestMode ? 7 : 8;
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // States
@@ -102,7 +111,6 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
   const isEn = language === 'en';
 
   if (!isOpen) return null;
-
 
   const handleNext = () => {
     if (currentStep === 4) {
@@ -128,6 +136,13 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
       }, 1500);
       return;
     }
+
+    if (currentStep === 7 && isGuestMode) {
+      // Guest mode finishes right after answering question 7!
+      handleComplete('guest');
+      return;
+    }
+
     if (currentStep < totalSteps) setCurrentStep(c => c + 1);
   };
   const handleBack = () => {
@@ -402,7 +417,14 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
         )}
 
         {currentStep === 7 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={7} title={isEn ? "7. How old are you?" : "7. Bạn bao nhiêu tuổi?"} isNextValid={age !== '' && age > 0}>
+          <StepLayout 
+            handleNext={handleNext} 
+            isEn={isEn} 
+            stepNum={7} 
+            title={isEn ? "7. How old are you?" : "7. Bạn bao nhiêu tuổi?"} 
+            buttonText={isGuestMode ? (isEn ? 'Complete & Start' : 'Hoàn tất & Bắt đầu') : undefined}
+            isNextValid={age !== '' && age > 0}
+          >
             <input
               type="number"
               min="1"
