@@ -323,19 +323,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                         setIsCustomBedtime(false);
                         setDraftBedtime(time);
                       }}
-                      className={`w-full text-left px-4 py-3 rounded-2xl transition-all flex items-center justify-between cursor-pointer border-2 ${
+                      className={`w-full text-left px-4 py-2.5 sm:py-3 rounded-2xl transition-all flex items-center justify-between cursor-pointer border-2 ${
                         isSelected
                           ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 text-slate-900 dark:text-white'
                           : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 hover:border-slate-300'
                       }`}
                     >
-                      <span className="font-heading font-bold text-base sm:text-lg">
+                      <span className="font-heading font-semibold text-sm sm:text-base tracking-tight">
                         {formatDisplayTime(time, isEn)}
                       </span>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                         isSelected ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E] dark:bg-[#62D2FB]' : 'border-slate-300 dark:border-slate-600'
                       }`}>
-                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        {isSelected && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />}
                       </div>
                     </button>
                   );
@@ -344,14 +344,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 {/* Custom Time Option */}
                 <div
                   onClick={() => setIsCustomBedtime(true)}
-                  className={`col-span-2 w-full text-left px-4 py-3 rounded-2xl transition-all flex items-center justify-between cursor-pointer border-2 ${
+                  className={`col-span-2 w-full text-left px-4 py-2.5 sm:py-3 rounded-2xl transition-all flex items-center justify-between cursor-pointer border-2 ${
                     isCustomBedtime
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10'
                       : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className={`font-medium text-sm ${isCustomBedtime ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200'}`}>
+                    <span className={`font-medium text-xs sm:text-sm ${isCustomBedtime ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-200'}`}>
                       {isEn ? 'Custom time:' : 'Giờ tùy chỉnh:'}
                     </span>
                     <div onClick={(e) => { e.stopPropagation(); setIsCustomBedtime(true); }}>
@@ -366,10 +366,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                       />
                     </div>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                  <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
                     isCustomBedtime ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E] dark:bg-[#62D2FB]' : 'border-slate-300 dark:border-slate-600'
                   }`}>
-                    {isCustomBedtime && <div className="w-2 h-2 rounded-full bg-white" />}
+                    {isCustomBedtime && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />}
                   </div>
                 </div>
               </div>
