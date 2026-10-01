@@ -893,19 +893,21 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             )}
           </div>
           
-          <div className="flex justify-end mt-12">
-            <button 
-              onClick={() => setStep(2)}
-              disabled={commitments.length === 0}
-              className={`rounded-full px-12 py-3.5 text-lg font-bold transition-all whitespace-nowrap ${
-                commitments.length > 0 
-                  ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white shadow-md cursor-pointer hover:-translate-y-1' 
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-              }`}
-            >
-              {isEn ? "Next" : "Tiếp"}
-            </button>
-          </div>
+          {!isAdding && (
+            <div className="flex justify-end mt-12">
+              <button 
+                onClick={() => setStep(2)}
+                disabled={commitments.length === 0}
+                className={`rounded-full px-12 py-3.5 text-lg font-bold transition-all whitespace-nowrap ${
+                  commitments.length > 0 
+                    ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white shadow-md cursor-pointer hover:-translate-y-1' 
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {isEn ? "Next" : "Tiếp"}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
