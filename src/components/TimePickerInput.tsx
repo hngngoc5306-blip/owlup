@@ -229,7 +229,7 @@ const English12hInput: React.FC<{
         type="time"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full bg-transparent border-b border-slate-300 dark:border-slate-500 px-1 py-1 font-heading text-2xl sm:text-3xl font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#4CB28E] dark:focus:border-[#62D2FB] transition-colors cursor-pointer dark:[color-scheme:dark] tabular-nums tracking-tight ${className}`}
+        className={`w-full max-w-full bg-transparent border-b border-slate-300 dark:border-slate-500 px-0.5 py-1 font-heading text-xl sm:text-2xl lg:text-[26px] font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#4CB28E] dark:focus:border-[#62D2FB] transition-colors cursor-pointer dark:[color-scheme:dark] tabular-nums tracking-tight box-border ${className}`}
       />
     );
   }

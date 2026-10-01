@@ -965,20 +965,20 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {isEn ? "Customize Sleep, Nap, or Both" : "Tùy chỉnh lịch trình hôm nay"}
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 mb-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 mt-4 mb-10">
             {/* 1. Power Nap (Yellow) */}
-            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-6 bg-white dark:bg-[#0F172A] shadow-sm">
+            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
               <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] mb-4 uppercase">
                 {isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI CHIỀU"}
               </div>
-              <div className="flex items-center gap-6">
-                <div className="flex-1 flex flex-col">
-                  <div className="border-b border-[#FDE047]/80 pb-1">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="border-b border-[#FDE047]/80 pb-1 overflow-hidden">
                     <TimePickerInput value={napStart} onChange={(val) => { setNapStart(val); setHasAppliedOptimal(false); }} isEn={isEn} variant="underline" />
                   </div>
-                  <div className="text-sm text-slate-500 mt-1 px-1">{isEn ? "Nap start" : "Bắt đầu chợp mắt"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Nap start" : "Bắt đầu chợp mắt"}</div>
                 </div>
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 min-w-0 flex flex-col">
                   <input type="number" value={napDuration} onChange={(e) => { 
                     let val = parseInt(e.target.value) || 0;
                     if (val > 90) {
@@ -988,29 +988,29 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     }
                     setNapDuration(val.toString()); 
                     setHasAppliedOptimal(false); 
-                  }} className="w-full bg-transparent border-b border-[#FDE047]/80 px-1 py-1 font-heading text-2xl sm:text-3xl font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#EAB308] transition-colors tabular-nums tracking-tight"/>
-                  <div className="text-sm text-slate-500 mt-1 px-1">{isEn ? "Duration (min)" : "Thời lượng (phút)"}</div>
+                  }} className="w-full bg-transparent border-b border-[#FDE047]/80 px-1 py-1 font-heading text-xl sm:text-2xl lg:text-[26px] font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#EAB308] transition-colors tabular-nums tracking-tight"/>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Duration (min)" : "Thời lượng (phút)"}</div>
                 </div>
               </div>
             </div>
 
             {/* 2. Main night sleep (Green) */}
-            <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-2xl p-6 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm">
+            <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-2xl p-5 sm:p-6 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm overflow-hidden">
               <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] mb-4 uppercase">
                 {isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}
               </div>
-              <div className="flex items-center gap-6 mb-4">
-                <div className="flex-1 flex flex-col">
-                  <div className="border-b border-slate-300 dark:border-slate-500 pb-1">
+              <div className="flex items-center gap-3 sm:gap-4 mb-2">
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="border-b border-slate-300 dark:border-slate-500 pb-1 overflow-hidden">
                     <TimePickerInput value={customBedtime} onChange={(val) => { setCustomBedtime(val); setHasAppliedOptimal(false); }} isEn={isEn} variant="underline" />
                   </div>
-                  <div className="text-sm text-slate-500 mt-1 px-1">{isEn ? "Bedtime" : "Giờ đi ngủ"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Bedtime" : "Giờ đi ngủ"}</div>
                 </div>
-                <div className="flex-1 flex flex-col">
-                  <div className="border-b border-slate-300 dark:border-slate-500 pb-1">
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="border-b border-slate-300 dark:border-slate-500 pb-1 overflow-hidden">
                     <TimePickerInput value={customWakeTime} onChange={(val) => { setCustomWakeTime(val); setHasAppliedOptimal(false); }} isEn={isEn} variant="underline" />
                   </div>
-                  <div className="text-sm text-slate-500 mt-1 px-1">{isEn ? "Wake time" : "Giờ thức dậy"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Wake time" : "Giờ thức dậy"}</div>
                 </div>
               </div>
             </div>
