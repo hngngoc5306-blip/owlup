@@ -411,25 +411,25 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       
       {/* HAPPENING NOW BANNER */}
       {activeEvent && (
-      <div className="w-full rounded-[16px] border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-[#233355] p-4 sm:p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm relative overflow-hidden animate-fade-in">
-        <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#4CB28E] dark:bg-[#62D2FB]" />
+      <div className="w-full rounded-[20px] border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-[#233355] p-5 sm:p-7 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm relative overflow-hidden animate-fade-in">
+        <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-[#4CB28E] dark:bg-[#62D2FB]" />
         <div>
-          <div className="flex items-center gap-2 mb-1.5 sm:mb-2 text-[#4CB28E] dark:text-[#62D2FB] text-xs font-bold tracking-wider uppercase">
-            <span className="w-2 h-2 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse" /> {isStrictlyActive ? (isEn ? 'HAPPENING NOW' : 'ĐANG DIỄN RA') : (isEn ? 'UP NEXT' : 'SẮP DIỄN RA')}
+          <div className="flex items-center gap-2 mb-1.5 sm:mb-2 text-[#4CB28E] dark:text-[#62D2FB] text-xs sm:text-sm font-bold tracking-wider uppercase">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse" /> {isStrictlyActive ? (isEn ? 'HAPPENING NOW' : 'ĐANG DIỄN RA') : (isEn ? 'UP NEXT' : 'SẮP DIỄN RA')}
           </div>
-          <h3 className="text-lg sm:text-xl font-heading font-bold text-[#1F2937] dark:text-white mb-1 sm:mb-2">{activeEvent.title}</h3>
-          <p className="text-xs sm:text-sm text-slate-500">{activeEvent.desc}</p>
+          <h3 className="text-xl sm:text-2xl md:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-1.5 sm:mb-2">{activeEvent.title}</h3>
+          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400">{activeEvent.desc}</p>
         </div>
-        <div className="text-[#4CB28E] dark:text-[#62D2FB] font-bold text-base sm:text-lg shrink-0 self-end sm:self-center whitespace-nowrap">{formatDisplayTime(activeEvent.time, isEn)}</div>
+        <div className="text-[#4CB28E] dark:text-[#62D2FB] font-heading font-bold text-xl sm:text-2xl md:text-3xl shrink-0 self-end sm:self-center whitespace-nowrap">{formatDisplayTime(activeEvent.time, isEn)}</div>
       </div>
       )}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 mb-6 sm:mb-8 border-b border-slate-200 dark:border-slate-700 pb-3 sm:pb-4">
-        <h2 className="text-xl sm:text-2xl font-heading font-bold text-[#1F2937] dark:text-white">{isEn ? "Detailed Timeline" : "Chi tiết Lộ trình"}</h2>
-        <div className="flex items-center gap-3 sm:gap-4 text-xs font-medium text-slate-500">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-300"/> {isEn ? 'Past' : 'Đã qua'}</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse"/> {isEn ? 'Active' : 'Đang diễn ra'}</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white border border-slate-300"/> {isEn ? 'Upcoming' : 'Sắp tới'}</span>
+        <h2 className="text-2xl sm:text-3xl font-heading font-bold text-[#1F2937] dark:text-white">{isEn ? "Detailed Timeline" : "Chi tiết Lộ trình"}</h2>
+        <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm font-medium text-slate-500">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-300"/> {isEn ? 'Past' : 'Đã qua'}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse"/> {isEn ? 'Active' : 'Đang diễn ra'}</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-300"/> {isEn ? 'Upcoming' : 'Sắp tới'}</span>
         </div>
       </div>
 
@@ -444,27 +444,27 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
               {evt.status === 'active' && <div className="w-3 h-3 bg-[#4CB28E] dark:bg-[#62D2FB] rounded-full animate-pulse" />}
             </div>
             
-            <div className={`w-full rounded-2xl border p-5 transition-all duration-300 ${
+            <div className={`w-full rounded-2xl border p-6 transition-all duration-300 ${
               evt.status === 'active' ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355] shadow-[0_0_20px_rgba(76,178,141,0.2)] dark:shadow-[0_0_20px_rgba(98,210,251,0.2)] transform scale-[1.02]' : 
               evt.status === 'past' ? 'border-transparent bg-[#F8FAFC] dark:bg-[#0F172A] opacity-50 grayscale' : 
               'border-slate-200 dark:border-slate-700 bg-[#FFFFFF] dark:bg-[#233355] hover:-translate-y-1 hover:shadow-md'
             }`}>
-              <div className="flex justify-between items-start mb-3">
-                <div className={`text-[10px] font-bold tracking-wider px-2 py-1 rounded-full border flex items-center gap-1 uppercase ${evt.tagColor}`}>
+              <div className="flex justify-between items-start mb-3.5">
+                <div className={`text-xs sm:text-sm font-bold tracking-wider px-3 py-1.5 rounded-full border flex items-center gap-1.5 uppercase ${evt.tagColor}`}>
                   {evt.icon} {evt.tag}
                 </div>
-                <div className={`font-medium whitespace-nowrap shrink-0 ${
-                  evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB] font-bold' : 
-                  evt.status === 'past' ? 'text-slate-400' : 'text-slate-500'
+                <div className={`text-base sm:text-lg md:text-xl font-heading font-bold whitespace-nowrap shrink-0 ${
+                  evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
+                  evt.status === 'past' ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'
                 }`}>{formatDisplayTime(evt.time, isEn)}</div>
               </div>
-              <h4 className={`text-lg font-bold mb-2 ${
+              <h4 className={`text-xl sm:text-2xl font-heading font-bold mb-2.5 ${
                 evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
                 evt.status === 'past' ? 'text-slate-500 dark:text-slate-400' : 'text-[#1F2937] dark:text-white'
               }`}>{evt.title}</h4>
-              <p className={`text-sm leading-relaxed ${
-                evt.status === 'active' ? 'text-[#4CB28E]/80 dark:text-[#62D2FB]/80' : 
-                evt.status === 'past' ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500'
+              <p className={`text-sm sm:text-base leading-relaxed ${
+                evt.status === 'active' ? 'text-[#4CB28E]/90 dark:text-[#62D2FB]/90' : 
+                evt.status === 'past' ? 'text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-300'
               }`}>{evt.desc}</p>
             </div>
           </div>
