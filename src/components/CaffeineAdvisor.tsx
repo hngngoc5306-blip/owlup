@@ -39,6 +39,63 @@ const SIZE_PRESETS = [
   { label: 'Size L', volume: '500ml', multiplier: 1.5 },
 ];
 
+export const estimateCaffeineFromDetails = (
+  name: string,
+  volumeMl: number
+): number => {
+  if (!name.trim()) return Math.round(volumeMl * 0.3); // default ~30mg per 100ml
+  const lower = name.toLowerCase();
+
+  // Rate in mg per 100ml or per standard serving
+  // Espresso / Cold Brew / Phin đậm đặc
+  if (lower.includes('espresso') || lower.includes('phin') || lower.includes('đen đá') || lower.includes('robusta')) {
+    // Phin / Robusta: ~80mg per 100ml
+    return Math.round((volumeMl / 100) * 75);
+  }
+  if (lower.includes('cold brew')) {
+    // Cold Brew: ~55mg per 100ml
+    return Math.round((volumeMl / 100) * 55);
+  }
+  if (lower.includes('cà phê đen') || lower.includes('black coffee') || lower.includes('americano')) {
+    // Americano / Black coffee: ~35-40mg per 100ml
+    return Math.round((volumeMl / 100) * 38);
+  }
+  if (lower.includes('sữa đá') || lower.includes('cà phê sữa') || lower.includes('bạc xỉu') || lower.includes('latte') || lower.includes('cappuccino') || lower.includes('mocha')) {
+    // Milk coffee / Latte / Cappuccino: ~28mg per 100ml
+    return Math.round((volumeMl / 100) * 28);
+  }
+  if (lower.includes('matcha')) {
+    // Matcha: ~32mg per 100ml
+    return Math.round((volumeMl / 100) * 32);
+  }
+  if (lower.includes('tăng lực') || lower.includes('energy drink') || lower.includes('red bull') || lower.includes('monster') || lower.includes('sting') || lower.includes('warrior')) {
+    // Energy drinks: ~32mg per 100ml
+    return Math.round((volumeMl / 100) * 32);
+  }
+  if (lower.includes('trà xanh') || lower.includes('green tea') || lower.includes('ô long') || lower.includes('oolong')) {
+    // Green / Oolong tea: ~15mg per 100ml
+    return Math.round((volumeMl / 100) * 15);
+  }
+  if (lower.includes('hồng trà') || lower.includes('black tea') || lower.includes('trà đào') || lower.includes('trà sữa') || lower.includes('milk tea') || lower.includes('boba') || lower.includes('trà')) {
+    // Tea / Milk tea: ~14mg per 100ml
+    return Math.round((volumeMl / 100) * 14);
+  }
+  if (lower.includes('cola') || lower.includes('coke') || lower.includes('pepsi')) {
+    // Soft drinks: ~10mg per 100ml
+    return Math.round((volumeMl / 100) * 10);
+  }
+  if (lower.includes('cacao') || lower.includes('chocolate') || lower.includes('socola')) {
+    // Cocoa: ~6mg per 100ml
+    return Math.round((volumeMl / 100) * 6);
+  }
+  if (lower.includes('decaf') || lower.includes('không caffeine')) {
+    return Math.round((volumeMl / 100) * 1.5);
+  }
+
+  // Default coffee-based estimate
+  return Math.round((volumeMl / 100) * 30);
+};
+
 export const getDrinkIcon = (itemOrName?: string | { name?: string; icon?: string }): string => {
   if (!itemOrName) return '☕';
   if (typeof itemOrName === 'object') {
@@ -127,8 +184,19 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
   const [drinkTime, setDrinkTime] = useState<string>('');
   const [isCustom, setIsCustom] = useState(false);
   const [customName, setCustomName] = useState('');
+  const [customSize, setCustomSize] = useState<string>('M'); // 'S', 'M', 'L', 'custom'
+  const [customVolumeMl, setCustomVolumeMl] = useState<number>(350);
   const [customMg, setCustomMg] = useState('100');
+  const [isMgManualEdit, setIsMgManualEdit] = useState(false);
   const [isDismissedWarning, setIsDismissedWarning] = useState(false);
+
+  // Automatically recalculate estimated caffeine when name or volume changes, unless manually overridden
+  useEffect(() => {
+    if (isCustom && !isMgManualEdit) {
+      const estimated = estimateCaffeineFromDetails(customName, customVolumeMl);
+      setCustomMg(estimated.toString());
+    }
+  }, [customName, customVolumeMl, isCustom, isMgManualEdit]);
 
   // Reset dismissed warning whenever drink time changes
   useEffect(() => {
@@ -234,7 +302,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
 
     if (isCustom) {
       if (!customName || !customMg) return;
-      finalName = customName;
+      finalName = `${customName.trim()} (${customVolumeMl}ml)`;
       finalMg = parseInt(customMg) || 0;
     } else {
       const baseDrink = DRINK_PRESETS[drinkIdx];
@@ -272,7 +340,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
       name: finalName,
       caffeineMg: finalMg,
       timestamp: logDate,
-      servingSize: (!isCustom && SIZE_PRESETS[sizeIdx]) ? SIZE_PRESETS[sizeIdx].volume : '350ml',
+      servingSize: isCustom ? `${customVolumeMl}ml` : (SIZE_PRESETS[sizeIdx] ? SIZE_PRESETS[sizeIdx].volume : '350ml'),
       category: isCustom ? 'custom' : (drinkIdx === 0 ? 'tea' : drinkIdx === 5 ? 'energy' : 'coffee'),
       icon: drinkIcon,
     };
@@ -280,7 +348,10 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
     
     setIsCustom(false);
     setCustomName('');
+    setCustomSize('M');
+    setCustomVolumeMl(350);
     setCustomMg('100');
+    setIsMgManualEdit(false);
     setSelectedDrink(drinkIdx);
     setDrinkTime('');
   };
@@ -441,12 +512,105 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
           <div className="space-y-4">
             <div>
               <label className="text-sm sm:text-base font-bold text-slate-600 dark:text-slate-300 mb-1.5 block">{isEn ? "Drink Name" : "Tên đồ uống"}</label>
-              <input type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder={isEn ? "e.g. Matcha Latte" : "VD: Trà xanh"} className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-base focus:outline-none focus:border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#233355] text-[#1F2937] dark:text-white"/>
+              <input 
+                type="text" 
+                value={customName} 
+                onChange={(e) => {
+                  setCustomName(e.target.value);
+                  setIsMgManualEdit(false);
+                }} 
+                placeholder={isEn ? "e.g. Cold Brew, Matcha Latte, Americano..." : "VD: Cold Brew, Cà phê sữa, Trà xanh..."} 
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-base focus:outline-none focus:border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#233355] text-[#1F2937] dark:text-white"
+              />
             </div>
+
+            {/* Cup Size & Volume selector */}
             <div>
-              <label className="text-sm sm:text-base font-bold text-slate-600 dark:text-slate-300 mb-1.5 block">{isEn ? "Estimated Caffeine (mg)" : "Lượng Caffeine (mg)"}</label>
-              <input type="number" value={customMg} onChange={(e) => setCustomMg(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-base focus:outline-none focus:border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#233355] text-[#1F2937] dark:text-white"/>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1.5 flex items-center gap-1.5">✨ {isEn ? "Smart estimate based on name. Feel free to adjust!" : "Hệ thống tự động ước tính, bạn có thể chỉnh sửa."}</p>
+              <label className="text-sm sm:text-base font-bold text-slate-600 dark:text-slate-300 mb-1.5 block">
+                {isEn ? "Cup Size & Volume" : "Kích cỡ & Thể tích cốc"}
+              </label>
+              <div className="grid grid-cols-3 gap-2.5 mb-2.5">
+                {[
+                  { key: 'S', label: 'Size S', vol: 250 },
+                  { key: 'M', label: 'Size M', vol: 350 },
+                  { key: 'L', label: 'Size L', vol: 500 },
+                ].map((preset) => (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => {
+                      setCustomSize(preset.key);
+                      setCustomVolumeMl(preset.vol);
+                      setIsMgManualEdit(false);
+                    }}
+                    className={`py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer ${
+                      customSize === preset.key
+                        ? 'bg-[#E6F8F0] dark:bg-[#62D2FB]/20 border-[#4CB28E] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] font-bold shadow-sm'
+                        : 'bg-white dark:bg-[#1E293B] border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-[#4CB28E]/40'
+                    }`}
+                  >
+                    <div className="text-sm sm:text-base font-bold">{preset.label}</div>
+                    <div className="text-xs opacity-75">{preset.vol}ml</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom ml input */}
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs sm:text-sm text-slate-500 whitespace-nowrap">
+                  {isEn ? "Or exact volume:" : "Hoặc thể tích chính xác:"}
+                </span>
+                <div className="flex items-center gap-1.5 bg-white dark:bg-[#1E293B] border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-1.5">
+                  <input
+                    type="number"
+                    min={10}
+                    max={2000}
+                    step={10}
+                    value={customVolumeMl}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value) || 0;
+                      setCustomVolumeMl(v);
+                      setCustomSize('custom');
+                      setIsMgManualEdit(false);
+                    }}
+                    className="w-16 sm:w-20 text-center font-bold text-sm sm:text-base outline-none bg-transparent text-[#1F2937] dark:text-white"
+                  />
+                  <span className="text-xs sm:text-sm text-slate-400 font-medium">ml</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="text-sm sm:text-base font-bold text-slate-600 dark:text-slate-300 block">
+                  {isEn ? "Estimated Caffeine (mg)" : "Lượng Caffeine ước tính (mg)"}
+                </label>
+                {isMgManualEdit && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsMgManualEdit(false);
+                      const estimated = estimateCaffeineFromDetails(customName, customVolumeMl);
+                      setCustomMg(estimated.toString());
+                    }}
+                    className="text-xs text-[#007b4d] dark:text-[#62D2FB] font-semibold hover:underline"
+                  >
+                    {isEn ? "Recalculate" : "Tính lại tự động"}
+                  </button>
+                )}
+              </div>
+              <input 
+                type="number" 
+                value={customMg} 
+                onChange={(e) => {
+                  setCustomMg(e.target.value);
+                  setIsMgManualEdit(true);
+                }} 
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-base font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] focus:outline-none focus:border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#233355]"
+              />
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 flex items-center gap-1.5">
+                ✨ {isEn ? "Smart estimate based on name. Feel free to adjust!" : "Ước tính thông minh dựa trên tên & thể tích. Bạn có thể tự do điều chỉnh!"}
+              </p>
             </div>
           </div>
         </div>
