@@ -197,11 +197,31 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     return !isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59;
   };
 
+  const napStartMinsVal = parseMins(napStart);
+  // Power nap must be in the circadian afternoon dip window (11:00 - 16:30)
+  const isNapInCircadianWindow = isTimeFormatValid(napStart) && napStartMinsVal >= 11 * 60 && napStartMinsVal <= 16 * 60 + 30;
+
+  // Night sleep duration: bedtime to wake
+  const hasValidNightSleep = isTimeFormatValid(customBedtime) && isTimeFormatValid(customWakeTime) && liveDurationMins >= 4 * 60;
+
+  // Power nap must end well before night sleep (at least 3 hours buffer before bedtime)
+  const isNapFarFromBedtime = (() => {
+    if (!isTimeFormatValid(napStart) || !isTimeFormatValid(customBedtime)) return false;
+    const napDur = parseInt(napDuration) || 0;
+    const napEnd = napStartMinsVal + napDur;
+    let diffToBed = liveBedtimeMins - napEnd;
+    if (diffToBed < 0 && liveBedtimeMins < 12 * 60) diffToBed += 24 * 60; // if bedtime is past midnight
+    return diffToBed >= 3 * 60;
+  })();
+
   const isStep3Valid = Boolean(
     isTimeFormatValid(napStart) &&
     isTimeFormatValid(customBedtime) &&
     isTimeFormatValid(customWakeTime) &&
-    (parseInt(napDuration) || 0) > 0
+    (parseInt(napDuration) || 0) > 0 &&
+    isNapInCircadianWindow &&
+    hasValidNightSleep &&
+    isNapFarFromBedtime
   );
 
   const liveScore = !isStep3Valid ? 0 : (scoreDuration + scoreCircadian);
@@ -1204,23 +1224,47 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             
             // Validate napStart
             const napStartErr = validateSingleTime(napStart, isEn ? "nap start time" : "thời gian bắt đầu chợp mắt");
-            if (napStartErr) step3Errors.push(napStartErr);
-            else if (!napStart || napStart === '--:--' || !napStart.includes(':')) {
+            if (napStartErr) {
+              step3Errors.push(napStartErr);
+            } else if (!napStart || napStart === '--:--' || !napStart.includes(':')) {
               step3Errors.push(isEn ? "Please enter a valid nap start time." : "Vui lòng nhập giờ bắt đầu chợp mắt hợp lệ.");
+            } else if (!isNapInCircadianWindow) {
+              step3Errors.push(
+                isEn
+                  ? "Afternoon power nap must be scheduled between 11:00 AM and 04:30 PM (11:00 - 16:30) to match circadian rhythms."
+                  : "Giấc chợp mắt buổi chiều phải nằm trong khoảng 11:00 đến 16:30 để đồng bộ với nhịp trũng sinh học."
+              );
             }
 
             // Validate customBedtime
             const bedErr = validateSingleTime(customBedtime, isEn ? "bedtime" : "giờ đi ngủ");
-            if (bedErr) step3Errors.push(bedErr);
-            else if (!customBedtime || customBedtime === '--:--' || !customBedtime.includes(':')) {
+            if (bedErr) {
+              step3Errors.push(bedErr);
+            } else if (!customBedtime || customBedtime === '--:--' || !customBedtime.includes(':')) {
               step3Errors.push(isEn ? "Please enter a valid bedtime." : "Vui lòng nhập giờ đi ngủ hợp lệ.");
             }
 
             // Validate customWakeTime
             const wakeErr = validateSingleTime(customWakeTime, isEn ? "wake time" : "giờ thức dậy");
-            if (wakeErr) step3Errors.push(wakeErr);
-            else if (!customWakeTime || customWakeTime === '--:--' || !customWakeTime.includes(':')) {
+            if (wakeErr) {
+              step3Errors.push(wakeErr);
+            } else if (!customWakeTime || customWakeTime === '--:--' || !customWakeTime.includes(':')) {
               step3Errors.push(isEn ? "Please enter a valid wake time." : "Vui lòng nhập giờ thức dậy hợp lệ.");
+            } else if (!hasValidNightSleep) {
+              step3Errors.push(
+                isEn
+                  ? "Night sleep duration must be at least 4 hours."
+                  : "Thời lượng giấc ngủ đêm tối thiểu phải từ 4 tiếng trở lên."
+              );
+            }
+
+            // Check if nap is too close to bedtime
+            if (isTimeFormatValid(napStart) && isTimeFormatValid(customBedtime) && !isNapFarFromBedtime) {
+              step3Errors.push(
+                isEn
+                  ? "Nap ends too close to bedtime. Keep at least 3 hours buffer before night sleep."
+                  : "Giờ chợp mắt quá gần giờ ngủ đêm. Cần cách giờ đi ngủ tối thiểu 3 tiếng để tránh mất ngủ đêm."
+              );
             }
 
             // Check if napDuration is valid
