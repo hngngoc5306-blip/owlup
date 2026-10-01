@@ -236,25 +236,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* English Option */}
                 <button
-         type="button"
-         onClick={() => setLanguage('en')}
+                  type="button"
+                  onClick={() => setLanguage('en')}
                   className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
                     language === 'en'
-                      ? 'text-slate-900 dark:text-white'
+                      ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/15 dark:bg-[#62D2FB]/15 ring-2 ring-[#4CB28E] dark:ring-[#62D2FB]/30 text-slate-900 dark:text-white'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-600 dark:text-slate-300 hover:bg-[#FFFFFF] dark:bg-[#233355] hover:border-slate-300 dark:border-slate-600'
                   }`}
-                  style={language === 'en' ? {
-                    borderColor: '#4CB28E',
-                    backgroundColor: 'rgba(76, 178, 141, 0.15)',
-                    boxShadow: '0 0 0 2px rgba(76, 178, 141, 0.3)',
-                  } : {}}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">🇺🇸</span>
-                      <span className="font-heading font-extrabold text-sm text-slate-900 dark:text-white">English</span>
+                      <span className="text-2xl leading-none inline-flex items-center justify-center">🇺🇸</span>
+                      <span className="font-heading font-extrabold text-sm text-slate-900 dark:text-white leading-none inline-flex items-center">English</span>
                     </div>
-                    {language === 'en' && <Check className="w-4 h-4" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />}
+                    {language === 'en' && <Check className="w-4 h-4 text-[#4CB28E] dark:text-[#62D2FB]" />}
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                     {ts.languageEnDesc}
@@ -263,18 +258,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* Vietnamese Option */}
                 <button
-         type="button"
-         onClick={() => setLanguage('vi')}
+                  type="button"
+                  onClick={() => setLanguage('vi')}
                   className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-3 ${
                     language === 'vi'
-                      ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/15 dark:bg-[#62D2FB]/15 ring-2 ring-[#4CB28E] dark:ring-[#62D2FB]/30 dark:ring-[#62D2FB]/30 text-slate-900 dark:text-white'
+                      ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/15 dark:bg-[#62D2FB]/15 ring-2 ring-[#4CB28E] dark:ring-[#62D2FB]/30 text-slate-900 dark:text-white'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-600 dark:text-slate-300 hover:bg-[#FFFFFF] dark:bg-[#233355] hover:border-slate-300 dark:border-slate-600'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">🇻🇳</span>
-                      <span className="font-heading font-extrabold text-sm text-slate-900 dark:text-white">Tiếng Việt</span>
+                      <span className="text-2xl leading-none inline-flex items-center justify-center">🇻🇳</span>
+                      <span className="font-heading font-extrabold text-sm text-slate-900 dark:text-white leading-none inline-flex items-center">Tiếng Việt</span>
                     </div>
                     {language === 'vi' && <Check className="w-4 h-4 text-[#4CB28E] dark:text-[#62D2FB]" />}
                   </div>
