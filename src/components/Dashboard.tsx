@@ -337,10 +337,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
                     <div className={`${
                       isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-500 dark:text-slate-400'
-                    } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center gap-2`}>
-                      {isNapUpcomingOrActive && (
-                        <span className="w-2 h-2 rounded-full bg-[#007b4d] dark:bg-[#62D2FB] animate-pulse"></span>
-                      )}
+                    } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center`}>
                       <span>{isEn ? 'Afternoon Power Nap:' : 'Chợp mắt buổi trưa:'} <span className="font-heading">{plannedNap.duration} {isEn ? 'min' : 'phút'}</span></span>
                     </div>
                     <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center whitespace-nowrap gap-x-2 tabular-nums">
@@ -369,10 +366,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
                     <div className={`${
                       !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-500 dark:text-slate-400'
-                    } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center gap-2`}>
-                      {!isNapUpcomingOrActive && (
-                        <span className="w-2 h-2 rounded-full bg-[#007b4d] dark:bg-[#62D2FB] animate-pulse"></span>
-                      )}
+                    } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center`}>
                       <span>{isEn ? 'Night Sleep:' : 'Giấc ngủ đêm:'} <span className="font-heading">{cleanSleepHours}</span></span>
                     </div>
                     <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center whitespace-nowrap gap-x-2 tabular-nums">
