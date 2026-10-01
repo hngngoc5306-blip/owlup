@@ -1122,9 +1122,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 title: isEn ? 'Healthy Balanced' : 'Cân bằng lành mạnh',
                 subtitle: isEn ? 'Balanced rest & steady energy' : 'Nghỉ ngơi điều độ & năng lượng ổn định',
                 desc: isEn 
-                  ? 'Naturally aligned with biological circadian rhythms, guaranteeing a full 8-hour restorative sleep window.'
-                  : 'Đồng bộ hoàn hảo với nhịp sinh học tự nhiên, đảm bảo giấc ngủ trọn vẹn 8 tiếng để cơ thể luôn tràn đầy sinh lực.',
-                badge: isEn ? 'Circadian Optimal' : 'Chuẩn sinh học',
+                  ? 'Naturally aligned with biological circadian rhythms, guaranteeing a full 8-hour sleep.'
+                  : 'Đồng bộ với nhịp sinh học tự nhiên, đảm bảo giấc ngủ trọn vẹn 8 tiếng để cơ thể tràn đầy sinh lực.',
               },
               {
                 id: 'max_productivity' as const,
@@ -1132,9 +1131,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 title: isEn ? 'Max Productivity' : 'Năng suất tối đa',
                 subtitle: isEn ? 'Peak focus & deep work' : 'Tập trung cao độ & làm việc sâu',
                 desc: isEn 
-                  ? 'Maximizes awake hours for deep work while using strategic power naps for sustained alertness.'
-                  : 'Tối ưu hóa thời gian tỉnh táo ban ngày để học tập và làm việc, kết hợp giấc chợp mắt nhanh để duy trì độ sắc bén.',
-                badge: isEn ? 'Focus Mode' : 'Chế độ tập trung',
+                  ? 'Maximizes awake hours for deep work, combined with a power nap to maintain sharp focus.'
+                  : 'Tối ưu thời gian tỉnh táo ban ngày, kết hợp chợp mắt nhanh để duy trì sự sắc bén.',
               },
               {
                 id: 'catch_up' as const,
@@ -1142,9 +1140,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 title: isEn ? 'Catch Up & Sleep' : 'Ngủ bù & Phục hồi',
                 subtitle: isEn ? 'Extra sleep for full recharge' : 'Thêm giờ ngủ để phục hồi năng lượng',
                 desc: isEn 
-                  ? 'Prioritizes an earlier bedtime and longer sleep duration to pay down accumulated sleep debt and fatigue.'
-                  : 'Ưu tiên đi ngủ sớm hơn và kéo dài thời gian ngủ sâu để bù đắp nợ ngủ, xua tan cảm giác mệt mỏi.',
-                badge: isEn ? 'Deep Recharge' : 'Nạp lại năng lượng',
+                  ? 'Prioritizes earlier bedtime and longer deep sleep to pay down accumulated sleep debt.'
+                  : 'Ưu tiên đi ngủ sớm hơn và kéo dài thời gian ngủ sâu để bù đắp nợ ngủ, xua tan mệt mỏi.',
               },
               {
                 id: 'night_owl' as const,
@@ -1152,9 +1149,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 title: isEn ? 'Night Owl / Shift' : 'Cú đêm / Ca muộn',
                 subtitle: isEn ? 'Late-night routines & shifts' : 'Lịch làm việc & hoạt động ban đêm',
                 desc: isEn 
-                  ? 'Accommodates evening and late-night schedules smoothly while protecting total recovery sleep.'
-                  : 'Linh hoạt điều chỉnh khung giờ ngủ muộn hơn, bảo vệ giấc ngủ sau các buổi làm việc hoặc học tập ca muộn.',
-                badge: isEn ? 'Shift Friendly' : 'Lịch ca muộn',
+                  ? 'Smoothly shifts sleep window later while protecting total recovery sleep after late hours.'
+                  : 'Linh hoạt lùi giờ ngủ muộn hơn, bảo vệ giấc ngủ sau các buổi làm việc hoặc học tập ca tối.',
               },
             ].map(goal => {
               const isSelected = selectedGoal === goal.id;
