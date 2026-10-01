@@ -420,7 +420,7 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
           <h3 className="text-lg sm:text-xl font-heading font-bold text-[#1F2937] dark:text-white mb-1 sm:mb-2">{activeEvent.title}</h3>
           <p className="text-xs sm:text-sm text-slate-500">{activeEvent.desc}</p>
         </div>
-        <div className="text-[#4CB28E] dark:text-[#62D2FB] font-bold text-base sm:text-lg shrink-0 self-end sm:self-center">{formatDisplayTime(activeEvent.time, isEn)}</div>
+        <div className="text-[#4CB28E] dark:text-[#62D2FB] font-bold text-base sm:text-lg shrink-0 self-end sm:self-center whitespace-nowrap">{formatDisplayTime(activeEvent.time, isEn)}</div>
       </div>
       )}
 
@@ -453,7 +453,7 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
                 <div className={`text-[10px] font-bold tracking-wider px-2 py-1 rounded-full border flex items-center gap-1 uppercase ${evt.tagColor}`}>
                   {evt.icon} {evt.tag}
                 </div>
-                <div className={`font-medium ${
+                <div className={`font-medium whitespace-nowrap shrink-0 ${
                   evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB] font-bold' : 
                   evt.status === 'past' ? 'text-slate-400' : 'text-slate-500'
                 }`}>{formatDisplayTime(evt.time, isEn)}</div>

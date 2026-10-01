@@ -24,7 +24,7 @@ export const formatDisplayTime = (
     }
     const period = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(h12).padStart(2, '0')}:${mStr} ${period}`;
+    return `${String(h12).padStart(2, '0')}:${mStr}\u00A0${period}`;
   }
 
   // If input is numeric minutes (0 - 1440)
@@ -38,7 +38,7 @@ export const formatDisplayTime = (
     }
     const period = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(h12).padStart(2, '0')}:${mStr} ${period}`;
+    return `${String(h12).padStart(2, '0')}:${mStr}\u00A0${period}`;
   }
 
   const str = String(timeInput).trim();
@@ -68,7 +68,7 @@ export const formatDisplayTime = (
     // English: 12-hour clock with AM/PM (e.g. 03:45 PM, 07:30 AM)
     const period = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(h12).padStart(2, '0')}:${padM} ${period}`;
+    return `${String(h12).padStart(2, '0')}:${padM}\u00A0${period}`;
   });
 };
 

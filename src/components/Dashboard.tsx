@@ -343,16 +343,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       )}
                       <span>{isEn ? 'Afternoon Power Nap:' : 'Chợp mắt buổi trưa:'} <span className="font-heading">{plannedNap.duration} {isEn ? 'min' : 'phút'}</span></span>
                     </div>
-                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center flex-wrap gap-x-2 tabular-nums">
-                      <span className="text-[#1F2937] dark:text-white text-left">
+                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center whitespace-nowrap gap-x-2 tabular-nums">
+                      <span className="text-[#1F2937] dark:text-white text-left whitespace-nowrap">
                         {formatDisplayTime(plannedNap.start, isEn)}
                       </span>
-                      <span className={`font-sans text-center ${
+                      <span className={`font-sans text-center shrink-0 ${
                         isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-300 dark:text-slate-600'
                       }`}>
                         →
                       </span>
-                      <span className={`text-left ${
+                      <span className={`text-left whitespace-nowrap ${
                         isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
                       }`}>
                         {formatDisplayTime(plannedNap.end, isEn)}
@@ -375,16 +375,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       )}
                       <span>{isEn ? 'Night Sleep:' : 'Giấc ngủ đêm:'} <span className="font-heading">{cleanSleepHours}</span></span>
                     </div>
-                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center flex-wrap gap-x-2 tabular-nums">
-                      <span className="text-[#1F2937] dark:text-white text-left">
+                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center whitespace-nowrap gap-x-2 tabular-nums">
+                      <span className="text-[#1F2937] dark:text-white text-left whitespace-nowrap">
                         {formatDisplayTime(bedtime, isEn)}
                       </span>
-                      <span className={`font-sans text-center ${
+                      <span className={`font-sans text-center shrink-0 ${
                         !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-300 dark:text-slate-600'
                       }`}>
                         →
                       </span>
-                      <span className={`text-left ${
+                      <span className={`text-left whitespace-nowrap ${
                         !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
                       }`}>
                         {formatDisplayTime(wakeTime, isEn)}

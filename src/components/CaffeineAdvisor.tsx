@@ -479,12 +479,14 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
           {/* Gợi ý khung giờ nạp caffeine tối ưu siêu ngắn gọn */}
           <div className="bg-[#FEF3C7]/80 dark:bg-[#78350F]/20 border border-[#FDE68A] dark:border-[#92400E]/30 rounded-2xl px-4 py-3 flex items-center gap-2.5 text-sm sm:text-base text-slate-700 dark:text-slate-300">
             <span className="text-lg shrink-0">☕</span>
-            <div>
-              <span className="font-semibold text-[#92400E] dark:text-[#FCD34D]">
+            <div className="flex flex-wrap items-center gap-x-1.5">
+              <span className="font-semibold text-[#92400E] dark:text-[#FCD34D] whitespace-nowrap">
                 {isEn ? "Optimal Window: " : "Khung giờ vàng: "}
               </span>
-              <strong className="font-bold text-[#92400E] dark:text-[#FCD34D]">
-                {formatDisplayTime(optimalCaffeineStart, isEn)} - {formatDisplayTime(cutoffAt, isEn)}
+              <strong className="font-bold text-[#92400E] dark:text-[#FCD34D] whitespace-nowrap inline-flex items-baseline">
+                <span>{formatDisplayTime(optimalCaffeineStart, isEn)}</span>
+                <span className="mx-1 font-normal">-</span>
+                <span>{formatDisplayTime(cutoffAt, isEn)}</span>
               </strong>
             </div>
           </div>

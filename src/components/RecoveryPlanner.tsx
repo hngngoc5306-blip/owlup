@@ -899,8 +899,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {/* 1. Afternoon Power Nap */}
             <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-8 bg-white dark:bg-[#0F172A] shadow-sm">
               <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">{isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI CHIỀU"}</div>
-              <div className="text-3xl sm:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-4">
-                {formatDisplayTime(recNapStart, isEn)} <span className="text-slate-400 font-sans mx-2 font-normal">→</span> {formatDisplayTime(recNapEnd, isEn)}
+              <div className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 whitespace-nowrap inline-flex items-baseline">
+                <span className="whitespace-nowrap">{formatDisplayTime(recNapStart, isEn)}</span>
+                <span className="text-slate-400 font-sans mx-2 font-normal shrink-0">→</span>
+                <span className="whitespace-nowrap">{formatDisplayTime(recNapEnd, isEn)}</span>
               </div>
               <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recNapDurationMins} min` : `Thời lượng: ${recNapDurationMins} phút`}</div>
               <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">{isEn ? "Scheduled during the circadian dip to discharge adenosine." : "Được lên lịch vào vùng trũng sinh học để xả adenosine."}</div>
@@ -909,8 +911,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {/* 2. Main Night Sleep */}
             <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-3xl p-8 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm">
               <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-4 uppercase">{isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}</div>
-              <div className="text-3xl sm:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-4">
-                {formatDisplayTime(recBedtime, isEn)} <span className="text-slate-400 font-sans mx-2 font-normal">→</span> {formatDisplayTime(recWake, isEn)}
+              <div className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 whitespace-nowrap inline-flex items-baseline">
+                <span className="whitespace-nowrap">{formatDisplayTime(recBedtime, isEn)}</span>
+                <span className="text-slate-400 font-sans mx-2 font-normal shrink-0">→</span>
+                <span className="whitespace-nowrap">{formatDisplayTime(recWake, isEn)}</span>
               </div>
               <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recSleepDuration} hours` : `Thời lượng: ${recSleepDuration} giờ`}</div>
               <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">{isEn ? "Aligned with open windows to maximize restorative REM." : "Đồng bộ hóa với lịch rảnh để tối ưu giấc ngủ REM."}</div>
@@ -1158,32 +1162,36 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             
             <div className="flex flex-col text-left mb-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#233355] rounded-2xl p-5 shadow-sm">
               <div className="py-3.5 border-b border-slate-100 dark:border-slate-700">
-                <div className="flex justify-between items-baseline gap-4">
+                <div className="flex justify-between items-baseline gap-3 sm:gap-4">
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                     {isEn ? "Afternoon Nap" : "Chợp mắt buổi trưa"}
                   </div>
-                  <div className="text-lg sm:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right">
-                    {formatDisplayTime(effectiveNStart, isEn)} <span className="font-sans font-normal text-slate-400 mx-1">→</span> {formatDisplayTime(effectiveNEnd, isEn)}
+                  <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0 inline-flex items-baseline">
+                    <span className="whitespace-nowrap">{formatDisplayTime(effectiveNStart, isEn)}</span>
+                    <span className="font-sans font-normal text-slate-400 mx-1 sm:mx-1.5 shrink-0">→</span>
+                    <span className="whitespace-nowrap">{formatDisplayTime(effectiveNEnd, isEn)}</span>
                   </div>
                 </div>
                 <div className="flex justify-end mt-0.5">
-                  <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400">
+                  <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400 whitespace-nowrap">
                     {effectiveNDur} {isEn ? "min" : "phút"}
                   </span>
                 </div>
               </div>
 
               <div className="py-3.5">
-                <div className="flex justify-between items-baseline gap-4">
+                <div className="flex justify-between items-baseline gap-3 sm:gap-4">
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                     {isEn ? "Main Sleep" : "Giấc ngủ đêm"}
                   </div>
-                  <div className="text-lg sm:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right">
-                    {formatDisplayTime(effectiveBed, isEn)} <span className="font-sans font-normal text-slate-400 mx-1">→</span> {formatDisplayTime(effectiveWake, isEn)}
+                  <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0 inline-flex items-baseline">
+                    <span className="whitespace-nowrap">{formatDisplayTime(effectiveBed, isEn)}</span>
+                    <span className="font-sans font-normal text-slate-400 mx-1 sm:mx-1.5 shrink-0">→</span>
+                    <span className="whitespace-nowrap">{formatDisplayTime(effectiveWake, isEn)}</span>
                   </div>
                 </div>
                 <div className="flex justify-end mt-0.5">
-                  <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400">
+                  <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400 whitespace-nowrap">
                     {formattedNightDuration}
                   </span>
                 </div>
