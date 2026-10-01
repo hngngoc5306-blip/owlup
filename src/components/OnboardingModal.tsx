@@ -230,7 +230,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
               </span>
             } 
             subtitle="Select the language you are most comfortable with. / Chọn ngôn ngữ bạn cảm thấy thuận tiện nhất."
-            buttonText={language === 'vi' ? 'Tiếp tục' : 'Next / Tiếp tục'}
+            buttonText={language === 'vi' ? 'Tiếp tục' : 'Next'}
             isNextValid={true}
           >
             <div className="space-y-4">
