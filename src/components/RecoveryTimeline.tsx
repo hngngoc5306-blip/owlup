@@ -235,13 +235,17 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       let absCStart = parseMins(c.start);
       while (absCStart <= absWakeMins - 4*60) absCStart += 24 * 60; // place them mostly during the day
       
+      const commTitle = (!isEn && (!c.title || c.title.toLowerCase() === 'busy block'))
+        ? 'Lịch bận'
+        : (isEn && c.title === 'Lịch bận' ? 'Busy Block' : (c.title || (isEn ? 'Busy Block' : 'Lịch bận')));
+      
       rawEvents.push({
           absTime: absCStart,
           time: c.start,
           tag: isEn ? 'COMMITMENT' : 'LỊCH BẬN',
           tagColor: 'text-slate-500 bg-slate-100 border-slate-200',
           icon: '📅',
-          title: c.title,
+          title: commTitle,
           desc: isEn ? `Scheduled block until ${formatDisplayTime(c.end, isEn)}.` : `Lịch bận dự kiến đến ${formatDisplayTime(c.end, isEn)}.`,
           duration: parseMins(c.end) < parseMins(c.start) ? parseMins(c.end) + 24*60 - parseMins(c.start) : parseMins(c.end) - parseMins(c.start)
       });

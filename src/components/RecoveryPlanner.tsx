@@ -431,7 +431,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const handleStartEdit = (index: number) => {
     const comm = commitments[index];
     if (!comm) return;
-    const initialTitle = (!isEn && (comm.title === 'Busy Block' || !comm.title))
+    const initialTitle = (!isEn && (!comm.title || comm.title.toLowerCase() === 'busy block'))
       ? 'Lịch bận'
       : (isEn && comm.title === 'Lịch bận' ? 'Busy Block' : (comm.title || ''));
     setNewTitle(initialTitle);
@@ -902,7 +902,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {commitments.length > 0 && !isAdding && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
                 {commitments.map((c, i) => {
-                  const displayTitle = (!isEn && (c.title === 'Busy Block' || !c.title))
+                  const displayTitle = (!isEn && (!c.title || c.title.toLowerCase() === 'busy block'))
                     ? 'Lịch bận'
                     : (isEn && c.title === 'Lịch bận' ? 'Busy Block' : (c.title || (isEn ? 'Busy Block' : 'Lịch bận')));
                   return (
