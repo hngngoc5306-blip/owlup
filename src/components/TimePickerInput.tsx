@@ -52,7 +52,7 @@ const Vietnamese24hInput: React.FC<{
   className?: string;
   variant?: 'box' | 'underline';
   placeholder?: string;
-}> = ({ value = '', onChange, className = '', variant = 'box', placeholder = '00:00' }) => {
+}> = ({ value = '', onChange, className = '', variant = 'box', placeholder = '--:--' }) => {
   const [text, setText] = useState<string>(value || '');
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
@@ -211,12 +211,14 @@ const English12hInput: React.FC<{
   onChange: (val: string) => void;
   className?: string;
   variant?: 'box' | 'underline' | 'compact';
-}> = ({ value = '', onChange, className = '', variant = 'box' }) => {
+  placeholder?: string;
+}> = ({ value = '', onChange, className = '', variant = 'box', placeholder = '--:--' }) => {
   if (variant === 'compact') {
     return (
       <input
         type="time"
         value={value || ''}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`w-36 min-w-[136px] text-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1 font-sans text-base font-medium text-[#1F2937] dark:text-white focus:outline-none focus:border-[#4CB28E] dark:focus:border-[#62D2FB] focus:ring-1 focus:ring-[#4CB28E] transition-all cursor-pointer dark:[color-scheme:dark] ${className}`}
       />
@@ -228,6 +230,7 @@ const English12hInput: React.FC<{
       <input
         type="time"
         value={value || ''}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`w-full max-w-full bg-transparent border-b border-slate-300 dark:border-slate-500 px-0.5 py-1 font-heading text-xl sm:text-2xl lg:text-[26px] font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#4CB28E] dark:focus:border-[#62D2FB] transition-colors cursor-pointer dark:[color-scheme:dark] tabular-nums tracking-tight box-border ${className}`}
       />
@@ -238,6 +241,7 @@ const English12hInput: React.FC<{
     <input
       type="time"
       value={value || ''}
+      placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       className={`flex-1 bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 font-heading text-lg font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#4CB28E] dark:border-[#62D2FB] focus:ring-2 focus:ring-[#4CB28E]/20 shadow-sm transition-all cursor-pointer dark:[color-scheme:dark] ${className}`}
     />
@@ -259,6 +263,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         onChange={onChange}
         className={className}
         variant={variant}
+        placeholder={placeholder}
       />
     );
   }
@@ -269,7 +274,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       onChange={onChange}
       className={className}
       variant={variant}
-      placeholder={placeholder === '--:--' ? '00:00' : placeholder}
+      placeholder={placeholder}
     />
   );
 };

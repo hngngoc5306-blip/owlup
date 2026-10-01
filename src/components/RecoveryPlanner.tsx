@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, AppLanguage } from '../types';
-import { CheckCircle2, ArrowRight, Plus, ArrowLeft, Trash2, Edit2 } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Plus, ArrowLeft, Trash2, Edit2, AlertCircle } from 'lucide-react';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { TimePickerInput } from './TimePickerInput';
 
@@ -79,9 +79,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     return [];
   });
   const [newTitle, setNewTitle] = useState('');
-  const [newStart, setNewStart] = useState('06:45');
-  const [newEnd, setNewEnd] = useState('11:45');
+  const [newStart, setNewStart] = useState('');
+  const [newEnd, setNewEnd] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   // Customization states (Step 3) with LocalStorage persistence
   const [customBedtime, setCustomBedtime] = useState(() => {
@@ -401,24 +402,63 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     setNewStart(comm.start);
     setNewEnd(comm.end);
     setEditingIndex(index);
+    setTimeError(null);
     setIsAdding(true);
   };
 
   const handleStartAdd = () => {
     setNewTitle('');
-    setNewStart('09:00');
-    setNewEnd('17:00');
+    setNewStart('');
+    setNewEnd('');
     setEditingIndex(null);
+    setTimeError(null);
     setIsAdding(true);
   };
 
+  const validateTimes = (start: string, end: string): { valid: boolean; error: string | null } => {
+    if (!start || !end || start === '--:--' || end === '--:--') {
+      return {
+        valid: false,
+        error: isEn ? "Please enter both start and end times." : "Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc."
+      };
+    }
+    const [shStr, smStr] = start.split(':');
+    const [ehStr, emStr] = end.split(':');
+    const sh = parseInt(shStr, 10);
+    const sm = parseInt(smStr, 10);
+    const eh = parseInt(ehStr, 10);
+    const em = parseInt(emStr, 10);
+
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) {
+      return {
+        valid: false,
+        error: isEn ? "Invalid time format. Please re-enter." : "Định dạng thời gian không hợp lệ. Vui lòng điền lại."
+      };
+    }
+
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+
+    if (startMins >= endMins) {
+      return {
+        valid: false,
+        error: isEn
+          ? "Start time must be earlier than end time (e.g. 09:00 AM → 10:00 AM). Please re-enter."
+          : "Thời gian bắt đầu phải sớm hơn thời gian kết thúc (VD: 09:00 → 10:00). Không ghi nhận thời gian hợp lệ, vui lòng điền lại."
+      };
+    }
+
+    return { valid: true, error: null };
+  };
+
   const handleSaveCommitment = () => {
-    if (!newStart || !newEnd) {
-      setIsAdding(false);
-      setEditingIndex(null);
+    const validation = validateTimes(newStart, newEnd);
+    if (!validation.valid) {
+      setTimeError(validation.error);
       return;
     }
     
+    setTimeError(null);
     const parse = (t: string) => { const [h,m] = t.split(':').map(Number); return h*60+m; };
     const format = (m: number) => { 
         let h = Math.floor(m/60)%24; 
@@ -855,22 +895,41 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 py-2">
-                  <div className="flex-1"><TimePickerInput value={newStart} onChange={setNewStart} isEn={isEn} /></div>
+                  <div className="flex-1"><TimePickerInput value={newStart} onChange={(val) => { setNewStart(val); setTimeError(null); }} isEn={isEn} placeholder="--:--" /></div>
                   <ArrowRight className="w-5 h-5 text-[#007b4d] dark:text-[#62D2FB]/50 shrink-0 mx-auto rotate-90 sm:rotate-0" />
-                  <div className="flex-1"><TimePickerInput value={newEnd} onChange={setNewEnd} isEn={isEn} /></div>
+                  <div className="flex-1"><TimePickerInput value={newEnd} onChange={(val) => { setNewEnd(val); setTimeError(null); }} isEn={isEn} placeholder="--:--" /></div>
                 </div>
+
+                {timeError && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{timeError}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-end items-center gap-4 sm:gap-8 pt-4">
                   <button 
                     onClick={() => {
                       setIsAdding(false);
                       setEditingIndex(null);
                       setNewTitle('');
+                      setTimeError(null);
                     }} 
                     className="text-slate-500 font-bold hover:text-slate-700 text-base sm:text-lg cursor-pointer"
                   >
                     {isEn ? "Cancel" : "Hủy"}
                   </button>
-                  <button onClick={handleSaveCommitment} className="text-white font-bold text-base sm:text-lg bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] px-6 sm:px-10 py-2.5 sm:py-3 rounded-full transition-colors shadow-md cursor-pointer">{isEn ? "Save" : "Lưu"}</button>
+                  <button 
+                    onClick={handleSaveCommitment} 
+                    disabled={!validateTimes(newStart, newEnd).valid}
+                    className={`font-bold text-base sm:text-lg px-6 sm:px-10 py-2.5 sm:py-3 rounded-full transition-all shadow-md ${
+                      validateTimes(newStart, newEnd).valid
+                        ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-0.5'
+                        : 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    {isEn ? "Save" : "Lưu"}
+                  </button>
                 </div>
               </div>
             )}
