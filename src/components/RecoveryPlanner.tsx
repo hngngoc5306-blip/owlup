@@ -742,23 +742,23 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
 
   return (
-    <div className="w-full max-w-[1100px] w-[90%] mx-auto pb-20 animate-fade-in font-sans mt-8 sm:mt-12">
-      <h2 className="text-4xl sm:text-5xl font-heading text-center text-[#1F2937] dark:text-[#F8FAFC] mb-12">
+    <div className="w-full max-w-[1100px] w-[94%] sm:w-[90%] mx-auto pb-20 animate-fade-in font-sans mt-4 sm:mt-12">
+      <h2 className="text-2xl sm:text-4xl md:text-5xl font-heading text-center text-[#1F2937] dark:text-[#F8FAFC] mb-8 sm:mb-12">
         {isEn ? "Synchronize Sleep & Power Nap" : "Đồng bộ Giấc ngủ & Chợp mắt"}
       </h2>
 
       {/* STEP 1: COMMITMENTS */}
       {step === 1 && (
-        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-8 sm:p-14 relative animate-fade-in">
+        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[24px] sm:rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-4 sm:p-8 md:p-14 relative animate-fade-in">
           
-          <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-8">
+          <div className="inline-block px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-6 sm:mb-8">
             {isEn ? "Step 1: Your busy hours" : "Bước 1: Khung giờ bận trong ngày"}
           </div>
           
-          <h3 className="text-3xl sm:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-2">
+          <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-2">
             {isEn ? "When are you busy today?" : "Hôm nay bạn bận khi nào?"}
           </h3>
-          <p className="text-slate-500 mb-10 text-base sm:text-lg">
+          <p className="text-slate-500 mb-8 sm:mb-10 text-sm sm:text-base md:text-lg">
             {isEn ? "Enter classes, shifts, meetings, or workouts" : "Nhập lịch học, ca làm, họp hoặc tập luyện"}
           </p>
           
@@ -799,9 +799,9 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             )}
 
             {isAdding && (
-              <div className="p-8 border border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/10 rounded-2xl space-y-6 animate-fade-in">
+              <div className="p-4 sm:p-8 border border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/10 rounded-2xl space-y-4 sm:space-y-6 animate-fade-in">
                 <div>
-                  <div className="text-sm text-[#007b4d] dark:text-[#62D2FB]/80 mb-2 font-medium">{isEn ? "Shift title (e.g., Morning Lecture)" : "Tên (VD: Học buổi sáng)"}</div>
+                  <div className="text-xs sm:text-sm text-[#007b4d] dark:text-[#62D2FB]/80 mb-2 font-medium">{isEn ? "Shift title (e.g., Morning Lecture)" : "Tên (VD: Học buổi sáng)"}</div>
                   <input 
                     type="text" 
                     placeholder={isEn ? "Morning Lecture" : "VD: Học buổi sáng"}
@@ -810,14 +810,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     className="w-full bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 font-medium text-[#1F2937] dark:text-white focus:outline-none focus:border-[#4CB28E] dark:border-[#62D2FB]"
                   />
                 </div>
-                <div className="flex items-center gap-6 py-2">
-                  <TimePickerInput value={newStart} onChange={setNewStart} isEn={isEn} />
-                  <ArrowRight className="w-6 h-6 text-[#007b4d] dark:text-[#62D2FB]/50 shrink-0" />
-                  <TimePickerInput value={newEnd} onChange={setNewEnd} isEn={isEn} />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 py-2">
+                  <div className="flex-1"><TimePickerInput value={newStart} onChange={setNewStart} isEn={isEn} /></div>
+                  <ArrowRight className="w-5 h-5 text-[#007b4d] dark:text-[#62D2FB]/50 shrink-0 mx-auto rotate-90 sm:rotate-0" />
+                  <div className="flex-1"><TimePickerInput value={newEnd} onChange={setNewEnd} isEn={isEn} /></div>
                 </div>
-                <div className="flex justify-end items-center gap-8 pt-4">
-                  <button onClick={() => setIsAdding(false)} className="text-slate-500 font-bold hover:text-slate-700 text-lg">{isEn ? "Cancel" : "Hủy"}</button>
-                  <button onClick={handleSaveCommitment} className="text-white font-bold text-lg bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] px-10 py-3 rounded-full transition-colors shadow-md">{isEn ? "Save" : "Lưu"}</button>
+                <div className="flex justify-end items-center gap-4 sm:gap-8 pt-4">
+                  <button onClick={() => setIsAdding(false)} className="text-slate-500 font-bold hover:text-slate-700 text-base sm:text-lg cursor-pointer">{isEn ? "Cancel" : "Hủy"}</button>
+                  <button onClick={handleSaveCommitment} className="text-white font-bold text-base sm:text-lg bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] px-6 sm:px-10 py-2.5 sm:py-3 rounded-full transition-colors shadow-md cursor-pointer">{isEn ? "Save" : "Lưu"}</button>
                 </div>
               </div>
             )}
@@ -1063,17 +1063,17 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             )}
           </div>
 
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <button 
               onClick={() => setStep(2)} 
-              className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-lg flex items-center gap-2 transition-colors cursor-pointer"
+              className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center justify-center sm:justify-start gap-2 transition-colors cursor-pointer py-2 sm:py-0"
             >
               <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
             </button>
             
             {isQualified ? (
-              <div className="flex items-center gap-8 animate-fade-in">
-                <button onClick={() => setStep(2)} className="text-[#999999] hover:text-[#1F2937] font-bold text-lg cursor-pointer transition-colors">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-8 animate-fade-in">
+                <button onClick={() => setStep(2)} className="text-[#999999] hover:text-[#1F2937] font-bold text-base sm:text-lg cursor-pointer transition-colors py-2 text-center">
                   {isEn ? "Cancel" : "Hủy"}
                 </button>
                 <button 
@@ -1084,13 +1084,13 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
                     setStep(4);
                   }} 
-                  className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white rounded-full px-12 py-3.5 text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                  className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white rounded-full px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1 text-center"
                 >
                   {isEn ? "Next" : "Tiếp theo"}
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-6 animate-fade-in">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 animate-fade-in">
                 <button 
                   onClick={() => {
                     try {
@@ -1099,7 +1099,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
                     setStep(4);
                   }} 
-                  className="text-slate-500 hover:text-[#1F2937] font-bold text-base sm:text-lg px-6 py-3 border-2 border-dashed border-slate-300 rounded-full hover:bg-slate-50 cursor-pointer"
+                  className="text-slate-500 hover:text-[#1F2937] font-bold text-sm sm:text-base md:text-lg px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-dashed border-slate-300 rounded-full hover:bg-slate-50 cursor-pointer text-center"
                 >
                   {isEn ? "Keep Custom" : "Giữ tùy chỉnh"}
                 </button>
@@ -1113,7 +1113,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       setHasAppliedOptimal(true);
                     }
                   }} 
-                  className="bg-[#EAB308] hover:bg-[#CA8A04] text-white rounded-full px-8 py-3.5 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1 flex items-center gap-2"
+                  className="bg-[#EAB308] hover:bg-[#CA8A04] text-white rounded-full px-6 sm:px-8 py-3 sm:py-3.5 text-sm sm:text-base md:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1 flex items-center justify-center gap-2 text-center"
                 >
                   <span className="text-xl">✨</span> {isEn ? "Apply Optimal Cycles" : "Áp dụng tối ưu"}
                 </button>

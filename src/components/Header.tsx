@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
       id="main-header"
       className={`sticky top-0 z-40 w-full transition-colors ${isNight ? 'bg-gradient-to-r from-[#0F172A] to-[#1A2540] border-b border-slate-800/50' : 'bg-gradient-to-r from-white to-[#E6F8F0] shadow-sm'}`}
     >
-      <div className="w-full px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
+      <div className="w-full px-3 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
         {/* LOGO */}
         <div 
           onClick={() => setActiveFeature('dashboard')}
@@ -66,13 +66,13 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* TOP NAVIGATION */}
-        <nav className="flex items-center gap-1 sm:gap-2 mr-4 sm:mr-8" aria-label="Main Navigation">
+        <nav className="flex items-center gap-1 sm:gap-2 mr-0 sm:mr-4 md:mr-8 overflow-x-auto no-scrollbar py-1 shrink min-w-0" aria-label="Main Navigation">
           {['dashboard', 'planner', 'caffeine', 'timeline'].map((feature) => (
             <button
               key={feature}
               id={`nav-tab-${feature}`}
               onClick={() => setActiveFeature(feature as AppFeature)}
-              className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm font-sans whitespace-nowrap transition-all cursor-pointer ${
+              className={`px-2.5 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-2.5 rounded-full text-xs sm:text-sm font-sans whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                 activeFeature === feature
                   ? (isNight ? 'bg-[#62D2FB]/20 text-[#62D2FB] font-semibold' : 'bg-[#FDE6A5] text-[#1F2937] font-semibold shadow-sm')
                   : (isNight ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50')

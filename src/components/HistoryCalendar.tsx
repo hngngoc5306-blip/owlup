@@ -101,31 +101,31 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) =>
     return (
       <div 
         key={`${month}-${dayNumber}`} 
-        className={`min-h-[85px] p-2 rounded-2xl border transition-all duration-300 flex flex-col justify-between
+        className={`min-h-[58px] sm:min-h-[85px] p-1 sm:p-2 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col justify-between
           ${isCurrentMonth ? 'bg-[#FFFFF8] dark:bg-[#1E293B] border-[#E5E7EB] dark:border-slate-700 hover:bg-[#FEF9C3] dark:hover:bg-[#FEF9C3]/10 hover:border-[#FDE047]/50 hover:shadow-md cursor-pointer' : 'bg-transparent border-transparent opacity-40'}`
         }
       >
         <div className="flex justify-between items-start">
-          <span className={`text-base font-semibold ${isCurrentMonth ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400/50'}`}>
+          <span className={`text-xs sm:text-base font-semibold ${isCurrentMonth ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400/50'}`}>
             {dayNumber}
           </span>
         </div>
         
         {data && isCurrentMonth && (data.sleepHours > 0 || data.caffeineMg > 0) && (
-          <div className="flex flex-col gap-1.5 mt-2">
+          <div className="flex flex-col gap-0.5 sm:gap-1.5 mt-1 sm:mt-2">
             {data.sleepHours > 0 && (
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <Moon className={`w-3.5 h-3.5 ${data.sleepScore >= 80 ? 'text-[#4CB28E] dark:text-[#62D2FB]' : data.sleepScore >= 60 ? 'text-[#F59E0B]' : 'text-red-500'}`} />
-                  <span className="text-xs font-sans font-normal text-slate-600 dark:text-slate-300">{data.sleepHours}h</span>
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <Moon className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 ${data.sleepScore >= 80 ? 'text-[#4CB28E] dark:text-[#62D2FB]' : data.sleepScore >= 60 ? 'text-[#F59E0B]' : 'text-red-500'}`} />
+                  <span className="text-[10px] sm:text-xs font-sans font-normal text-slate-600 dark:text-slate-300">{data.sleepHours}h</span>
                 </div>
               </div>
             )}
             {data.caffeineMg > 0 && (
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <Coffee className={`w-3.5 h-3.5 ${data.caffeineMg <= 400 ? 'text-amber-700 dark:text-amber-500' : 'text-red-500'}`} />
-                  <span className="text-xs font-sans font-normal text-slate-600 dark:text-slate-300">{data.caffeineMg}</span>
+                <div className="flex items-center gap-0.5 sm:gap-1">
+                  <Coffee className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 ${data.caffeineMg <= 400 ? 'text-amber-700 dark:text-amber-500' : 'text-red-500'}`} />
+                  <span className="text-[10px] sm:text-xs font-sans font-normal text-slate-600 dark:text-slate-300">{data.caffeineMg}</span>
                 </div>
               </div>
             )}
@@ -155,37 +155,37 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) =>
   }
 
   return (
-    <div className="bg-white dark:bg-[#233355] rounded-[24px] border border-[#E5E7EB] dark:border-slate-700 shadow-sm p-6 sm:p-8 mt-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="w-6 h-6 sm:w-7 sm:h-7 text-[#4CB28E] dark:text-[#62D2FB]" />
-          <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#1F2937] dark:text-white">
+    <div className="bg-white dark:bg-[#233355] rounded-[24px] border border-[#E5E7EB] dark:border-slate-700 shadow-sm p-3.5 sm:p-6 md:p-8 mt-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <CalendarDays className="w-5 h-5 sm:w-7 sm:h-7 text-[#4CB28E] dark:text-[#62D2FB]" />
+          <h2 className="text-lg sm:text-2xl font-serif font-bold text-[#1F2937] dark:text-white">
             {isEn ? "History & Trends" : "Lịch sử & Xu hướng"}
           </h2>
         </div>
         
-        <div className="flex items-center gap-4">
-          <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500">
-            <ChevronLeft className="w-5 h-5" />
+        <div className="flex items-center gap-2 sm:gap-4 self-center sm:self-auto">
+          <button onClick={handlePrevMonth} className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 cursor-pointer">
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <span className="text-sm font-bold tracking-wide uppercase text-[#4CB28E] dark:text-[#62D2FB] min-w-[120px] text-center">
+          <span className="text-xs sm:text-sm font-bold tracking-wide uppercase text-[#4CB28E] dark:text-[#62D2FB] min-w-[100px] sm:min-w-[120px] text-center">
             {isEn ? monthNamesEn[currentDate.getMonth()] : monthNamesVi[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500">
-            <ChevronRight className="w-5 h-5" />
+          <button onClick={handleNextMonth} className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 cursor-pointer">
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 mb-2">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1 sm:mb-2">
         {daysOfWeek.map(day => (
-          <div key={day} className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider py-2">
+          <div key={day} className="text-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider py-1 sm:py-2">
             {day}
           </div>
         ))}
       </div>
       
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-1 sm:gap-2">
         {cells}
       </div>
     </div>

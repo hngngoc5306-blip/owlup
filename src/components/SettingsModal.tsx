@@ -271,7 +271,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     borderColor: isNight ? '#2D3748' : '#E5E7EB',
                   }}
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       {userProfile.photoUrl ? (
                         <img
@@ -287,7 +287,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-heading font-extrabold text-sm sm:text-base truncate">
                             {userProfile.name}
                           </h4>
@@ -302,7 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                       {(onOpenEditProfile || onOpenProfileSetup) && (
                         <button
                           type="button"
@@ -337,7 +337,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
 
                   {/* Attributes */}
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-[#2D3748]/30 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-3 border-t border-slate-200 dark:border-[#2D3748]/30 text-xs">
                     <div className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#233355]/40 border border-slate-200 dark:border-[#2D3748]/40">
                       <span className="text-slate-500 dark:text-slate-400 block text-sm">
                         {language === 'en' ? 'Chronotype' : 'Nhịp sinh học'}:

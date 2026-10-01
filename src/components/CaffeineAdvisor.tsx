@@ -294,8 +294,8 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[1100px] w-[90%] mx-auto pb-20 animate-fade-in font-sans mt-8 sm:mt-12">
-      <h2 className="text-4xl sm:text-5xl font-heading text-center text-[#1F2937] dark:text-[#F8FAFC] mb-12">
+    <div className="w-full max-w-[1100px] w-[94%] sm:w-[90%] mx-auto pb-20 animate-fade-in font-sans mt-4 sm:mt-12">
+      <h2 className="text-2xl sm:text-4xl md:text-5xl font-heading text-center text-[#1F2937] dark:text-[#F8FAFC] mb-8 sm:mb-12">
         {isEn ? "Optimize Today's Caffeine" : "Tối ưu hóa Caffeine hôm nay"}
       </h2>
 
@@ -459,16 +459,18 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
 
         <div className="mb-7">
           <p className="text-base sm:text-lg font-bold text-[#1F2937] dark:text-white mb-3.5">3. {isEn ? "Time:" : "Thời gian:"}</p>
-          <div className="flex items-center gap-4 max-w-sm mb-4">
-            <TimePickerInput
-              value={drinkTime}
-              onChange={setDrinkTime}
-              isEn={isEn}
-              placeholder="--:--"
-            />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-4 max-w-sm mb-4">
+            <div className="flex-1">
+              <TimePickerInput
+                value={drinkTime}
+                onChange={setDrinkTime}
+                isEn={isEn}
+                placeholder="--:--"
+              />
+            </div>
             <button 
               onClick={handleJustDrank}
-              className="px-6 py-3 rounded-xl bg-[#FDE047]/30 text-[#b45309] dark:text-[#FCD34D] font-bold text-sm sm:text-base hover:bg-[#FDE047]/60 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer whitespace-nowrap"
+              className="px-6 py-3 rounded-xl bg-[#FDE047]/30 text-[#b45309] dark:text-[#FCD34D] font-bold text-sm sm:text-base hover:bg-[#FDE047]/60 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer whitespace-nowrap text-center"
             >
               {isEn ? "Just Drank" : "Vừa uống xong"}
             </button>

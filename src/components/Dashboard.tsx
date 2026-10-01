@@ -263,36 +263,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* MANILA FOLDER SHAPE LAYOUT */}
-      <div className="relative w-full max-w-[1100px] w-[90%] mx-auto pt-2 mt-2 mb-8">
+      <div className="relative w-full max-w-[1100px] w-[94%] sm:w-[90%] mx-auto pt-2 mt-2 mb-8">
         
         {/* Overlapping Tabs */}
-        <div className="flex w-full items-end pl-4 sm:pl-8 relative z-10 -mb-[1px]">
+        <div className="flex w-full items-end pl-2 sm:pl-8 relative z-10 -mb-[1px]">
            {/* Sleep Tab */}
            <button 
              onClick={() => setActiveTab('sleep')}
-             className={`flex items-center gap-2 px-6 sm:px-10 py-3 sm:py-4 rounded-t-[24px] border border-b-0 font-bold transition-all duration-300 ease-in-out ${
+             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-all duration-300 ease-in-out cursor-pointer ${
                activeTab === 'sleep' 
-               ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-5 sm:pb-6 border-slate-200 dark:border-slate-700' 
-               : 'bg-[#fffff8]/60 dark:bg-[#0F172A] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 cursor-pointer border-slate-200 dark:border-slate-700'
+               ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-4 sm:pb-6 border-slate-200 dark:border-slate-700' 
+               : 'bg-[#fffff8]/60 dark:bg-[#0F172A] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 border-slate-200 dark:border-slate-700'
              }`}
            >
-             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activeTab === 'sleep' ? 'bg-white dark:bg-[#1E3A2F]' : 'bg-white/50 dark:bg-slate-800'}`}>
-               <Moon className={`w-4 h-4 ${activeTab === 'sleep' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400'}`} />
+             <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${activeTab === 'sleep' ? 'bg-white dark:bg-[#1E3A2F]' : 'bg-white/50 dark:bg-slate-800'}`}>
+               <Moon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeTab === 'sleep' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400'}`} />
              </div>
-             <span className="font-heading text-base sm:text-lg whitespace-nowrap">{isEn ? "Today's sleep plan" : "Lịch ngủ hôm nay"}</span>
+             <span className="font-heading text-xs sm:text-base md:text-lg whitespace-nowrap">{isEn ? "Today's sleep plan" : "Lịch ngủ hôm nay"}</span>
            </button>
            
            {/* Caffeine Tab */}
            <button 
              onClick={() => setActiveTab('caffeine')}
-             className={`flex items-center gap-2 px-6 sm:px-10 py-3 sm:py-4 rounded-t-[24px] border border-b-0 font-bold transition-all duration-300 ease-in-out -ml-4 sm:-ml-6 ${
+             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-all duration-300 ease-in-out -ml-3 sm:-ml-6 cursor-pointer ${
                activeTab === 'caffeine' 
-               ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-5 sm:pb-6 border-slate-200 dark:border-slate-700' 
-               : 'bg-[#fffff8]/60 dark:bg-[#162032] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 cursor-pointer border-slate-200 dark:border-slate-700'
+               ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-4 sm:pb-6 border-slate-200 dark:border-slate-700' 
+               : 'bg-[#fffff8]/60 dark:bg-[#162032] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 border-slate-200 dark:border-slate-700'
              }`}
            >
-             <Coffee className={`w-5 h-5 ${activeTab === 'caffeine' ? 'text-[#1F2937] dark:text-white' : 'text-slate-400'}`} />
-             <span className="font-heading text-base sm:text-lg whitespace-nowrap">{isEn ? "Today's caffeine status" : "Caffeine hôm nay"}</span>
+             <Coffee className={`w-3.5 h-3.5 sm:w-5 sm:h-5 shrink-0 ${activeTab === 'caffeine' ? 'text-[#1F2937] dark:text-white' : 'text-slate-400'}`} />
+             <span className="font-heading text-xs sm:text-base md:text-lg whitespace-nowrap">{isEn ? "Today's caffeine status" : "Caffeine hôm nay"}</span>
            </button>
         </div>
 
@@ -334,25 +334,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     isNapUpcomingOrActive 
                       ? 'border-2 border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 shadow-sm' 
                       : 'border border-[#F1F5F9]/70 dark:border-slate-700 bg-white dark:bg-[#233355]'
-                  } rounded-[32px] p-6 sm:p-8 mb-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
+                  } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
                     <div className={`${
                       isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-500 dark:text-slate-400'
-                    } font-sans text-sm sm:text-base font-medium mb-2 whitespace-nowrap flex items-center gap-2`}>
+                    } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center gap-2`}>
                       {isNapUpcomingOrActive && (
                         <span className="w-2 h-2 rounded-full bg-[#007b4d] dark:bg-[#62D2FB] animate-pulse"></span>
                       )}
                       <span>{isEn ? 'Afternoon Power Nap:' : 'Chợp mắt buổi trưa:'} <span className="font-heading">{plannedNap.duration} {isEn ? 'min' : 'phút'}</span></span>
                     </div>
-                    <div className="font-heading text-3xl sm:text-4xl font-bold flex items-center whitespace-nowrap overflow-hidden text-ellipsis tabular-nums">
-                      <span className={`${timeColWidth} shrink-0 text-[#1F2937] dark:text-white text-left`}>
+                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center flex-wrap gap-x-2 tabular-nums">
+                      <span className="text-[#1F2937] dark:text-white text-left">
                         {formatDisplayTime(plannedNap.start, isEn)}
                       </span>
-                      <span className={`w-12 sm:w-16 shrink-0 flex items-center justify-center font-sans text-center ${
+                      <span className={`font-sans text-center ${
                         isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-300 dark:text-slate-600'
                       }`}>
                         →
                       </span>
-                      <span className={`shrink-0 text-left ${
+                      <span className={`text-left ${
                         isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
                       }`}>
                         {formatDisplayTime(plannedNap.end, isEn)}
@@ -366,25 +366,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     !isNapUpcomingOrActive 
                       ? 'border-2 border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 shadow-sm' 
                       : 'border border-[#F1F5F9]/70 dark:border-slate-700 bg-white dark:bg-[#233355]'
-                  } rounded-[32px] p-6 sm:p-8 mb-8 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
+                  } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
                     <div className={`${
                       !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-500 dark:text-slate-400'
-                    } font-sans text-sm sm:text-base font-medium mb-2 whitespace-nowrap flex items-center gap-2`}>
+                    } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center gap-2`}>
                       {!isNapUpcomingOrActive && (
                         <span className="w-2 h-2 rounded-full bg-[#007b4d] dark:bg-[#62D2FB] animate-pulse"></span>
                       )}
                       <span>{isEn ? 'Night Sleep:' : 'Giấc ngủ đêm:'} <span className="font-heading">{cleanSleepHours}</span></span>
                     </div>
-                    <div className="font-heading text-3xl sm:text-4xl font-bold flex items-center whitespace-nowrap overflow-hidden text-ellipsis tabular-nums">
-                      <span className={`${timeColWidth} shrink-0 text-[#1F2937] dark:text-white text-left`}>
+                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center flex-wrap gap-x-2 tabular-nums">
+                      <span className="text-[#1F2937] dark:text-white text-left">
                         {formatDisplayTime(bedtime, isEn)}
                       </span>
-                      <span className={`w-12 sm:w-16 shrink-0 flex items-center justify-center font-sans text-center ${
+                      <span className={`font-sans text-center ${
                         !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-300 dark:text-slate-600'
                       }`}>
                         →
                       </span>
-                      <span className={`shrink-0 text-left ${
+                      <span className={`text-left ${
                         !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
                       }`}>
                         {formatDisplayTime(wakeTime, isEn)}
@@ -394,9 +394,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   <button 
                     onClick={onNavigateToPlanner}
-                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-4 sm:py-5 text-lg font-sans font-medium flex justify-center items-center gap-2 transition-colors shadow-lg shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-1 whitespace-nowrap"
+                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-5 px-4 text-base sm:text-lg font-sans font-medium flex justify-center items-center gap-2 transition-colors shadow-lg shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-1 text-center cursor-pointer"
                   >
-                    {isEn ? 'Adjust Sleep & Nap Schedule' : 'Tùy chỉnh lịch ngủ'} <span className='font-sans font-normal ml-1'>→</span>
+                    <span>{isEn ? 'Adjust Sleep & Nap Schedule' : 'Tùy chỉnh lịch ngủ'}</span> <span className='font-sans font-normal ml-1'>→</span>
                   </button>
                 </>
               )}
@@ -546,40 +546,40 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3">
             {/* 1. Wake up */}
-            <div className="px-2 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
-              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 whitespace-nowrap tracking-tight">{isEn ? '1. Wake up' : '1. Thức dậy'}</span>
-              <span className="text-sm sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 whitespace-nowrap tracking-tight">{formatDisplayTime(wakeTime, isEn)}</span>
-              <span className="text-xs font-sans text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">{isEn ? 'Get morning sunlight' : 'Đón nắng sáng'}</span>
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '1. Wake up' : '1. Thức dậy'}</span>
+              <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(wakeTime, isEn)}</span>
+              <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Get morning sunlight' : 'Đón nắng sáng'}</span>
             </div>
 
             {/* 2. Caffeine window */}
-            <div className="px-2 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
-              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 whitespace-nowrap tracking-tight">{isEn ? '2. Caffeine Window' : '2. Khung giờ caffeine'}</span>
-              <span className="text-sm sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 whitespace-nowrap tracking-tight">{formatDisplayTime(caffeineWindow, isEn)}</span>
-              <span className="text-xs font-sans text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">{isEn ? 'Peak focus intake' : 'Uống để tập trung'}</span>
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '2. Caffeine Window' : '2. Khung giờ caffeine'}</span>
+              <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(caffeineWindow, isEn)}</span>
+              <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Peak focus intake' : 'Uống để tập trung'}</span>
             </div>
 
             {/* 3. Power nap */}
-            <div className="px-2 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
-              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 whitespace-nowrap tracking-tight">{isEn ? '3. Power Nap' : '3. Chợp mắt'}</span>
-              <span className="text-sm sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 whitespace-nowrap tracking-tight">{formatDisplayTime(plannedNap?.start || '12:30', isEn)}</span>
-              <span className="text-xs font-sans text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">{(plannedNap?.duration || 20)} {isEn ? 'min recharge' : 'phút sạc pin'}</span>
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '3. Power Nap' : '3. Chợp mắt'}</span>
+              <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(plannedNap?.start || '12:30', isEn)}</span>
+              <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{(plannedNap?.duration || 20)} {isEn ? 'min recharge' : 'phút sạc pin'}</span>
             </div>
 
             {/* 4. Cutoff Curfew */}
-            <div className="px-2 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
-              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 whitespace-nowrap tracking-tight">{isEn ? '4. Cutoff Curfew' : '4. Ngừng caffeine'}</span>
-              <span className="text-sm sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 whitespace-nowrap tracking-tight">{formatDisplayTime(cutoffTime, isEn)}</span>
-              <span className="text-xs font-sans text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">{isEn ? 'Protect sleep quality' : 'Bảo vệ giấc ngủ'}</span>
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '4. Cutoff Curfew' : '4. Ngừng caffeine'}</span>
+              <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(cutoffTime, isEn)}</span>
+              <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Protect sleep quality' : 'Bảo vệ giấc ngủ'}</span>
             </div>
 
             {/* 5. Bedtime */}
-            <div className="px-2 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
-              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 whitespace-nowrap tracking-tight">{isEn ? '5. Bedtime' : '5. Đi ngủ'}</span>
-              <span className="text-sm sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 whitespace-nowrap tracking-tight">{formatDisplayTime(nextBedtime, isEn)}</span>
-              <span className="text-xs font-sans text-slate-500 whitespace-nowrap overflow-hidden text-ellipsis">{isEn ? 'Recharge & recover' : 'Tái tạo năng lượng'}</span>
+            <div className="xs:col-span-2 sm:col-span-1 px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+              <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '5. Bedtime' : '5. Đi ngủ'}</span>
+              <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(nextBedtime, isEn)}</span>
+              <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Recharge & recover' : 'Tái tạo năng lượng'}</span>
             </div>
           </div>
         )}

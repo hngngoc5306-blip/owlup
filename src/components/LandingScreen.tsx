@@ -63,14 +63,14 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
       }}
     >
       {/* Absolute Top Nav (Matches Onboarding Step 8) */}
-      <div className="fixed top-6 left-6 z-50 flex items-center gap-4 pl-2">
+      <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50 flex items-center gap-4 pl-1 sm:pl-2">
         <Logo size="md" isNight={isNight} />
       </div>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 text-center max-w-3xl mx-auto w-full">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 text-center max-w-3xl mx-auto w-full">
         
-        <h1 className="font-heading font-normal text-5xl sm:text-6xl md:text-7xl tracking-tight leading-[1.1] mb-12 whitespace-nowrap">
+        <h1 className="font-heading font-normal text-3xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight leading-[1.15] mb-8 sm:mb-12">
           {isEn ? (
             <>
               Restore your energy <br />
@@ -86,7 +86,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
         <button
           onClick={onStartProfileSetup}
-          className="bg-[#4CB28E] hover:bg-[#007b4d] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] px-20 py-3.5 rounded-full font-sans font-semibold text-lg shadow-[0_8px_20px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_25px_rgba(82,183,136,0.35)] transition-all cursor-pointer active:scale-95"
+          className="bg-[#4CB28E] hover:bg-[#007b4d] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] px-8 sm:px-14 md:px-20 py-3 sm:py-3.5 w-full max-w-xs sm:w-auto rounded-full font-sans font-semibold text-base sm:text-lg shadow-[0_8px_20px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_25px_rgba(82,183,136,0.35)] transition-all cursor-pointer active:scale-95"
         >
           {isEn ? 'Get Started' : 'Bắt đầu ngay'}
         </button>

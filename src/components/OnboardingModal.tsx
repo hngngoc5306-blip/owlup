@@ -52,12 +52,12 @@ const OptionCard = ({ label, selected, onClick, icon, sub }: { label: string, se
 );
 
 const StepLayout = ({ children, title, subtitle, isNextValid, handleNext, isEn, buttonText, titleClassName }: any) => (
-  <div className="flex flex-col h-full max-w-[900px] w-[85%] mx-auto pb-8 pt-20 animate-fade-in relative z-30">
+  <div className="flex flex-col h-full max-w-[900px] w-[94%] sm:w-[90%] md:w-[85%] mx-auto pb-8 pt-16 sm:pt-20 animate-fade-in relative z-30">
     <div className="flex-1">
-      <h2 className={titleClassName || "font-heading font-normal text-3xl sm:text-4xl text-[#1F2937] dark:text-[#F8FAFC] mb-2 leading-tight"}>
+      <h2 className={titleClassName || "font-heading font-normal text-2xl sm:text-3xl md:text-4xl text-[#1F2937] dark:text-[#F8FAFC] mb-2 leading-tight"}>
         {title}
       </h2>
-      {subtitle && <p className="text-slate-500 dark:text-slate-400 mb-8 font-sans">{subtitle}</p>}
+      {subtitle && <p className="text-slate-500 dark:text-slate-400 mb-6 sm:mb-8 font-sans text-sm sm:text-base">{subtitle}</p>}
       <div className={`mt-10 ${!subtitle ? 'mt-8' : ''}`}>
         {children}
       </div>
@@ -223,7 +223,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
             handleNext={handleNext} 
             isEn={isEn} 
             stepNum={1} 
-            titleClassName="font-heading font-normal text-2xl sm:text-[28px] md:text-[31px] lg:text-[33px] text-[#1F2937] dark:text-[#F8FAFC] mb-2 leading-tight tracking-tight whitespace-nowrap"
+            titleClassName="font-heading font-normal text-xl sm:text-2xl md:text-[28px] lg:text-[32px] text-[#1F2937] dark:text-[#F8FAFC] mb-2 leading-snug tracking-tight"
             title={
               <span>
                 1. Choose your native language <span className="inline-block mx-1.5 text-slate-400 dark:text-slate-500 font-sans font-light">/</span> Chọn ngôn ngữ của bạn
@@ -416,8 +416,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
         )}
 
         {currentStep === 8 && (
-          <div className="flex flex-col items-center justify-center w-full max-w-[700px] w-[85%] mx-auto px-6 animate-fade-in text-center h-full min-h-[70vh] pb-10">
-            <h1 className="font-heading font-normal text-[2.2rem] sm:text-5xl md:text-6xl text-[#1F2937] dark:text-[#F8FAFC] leading-[1.1] mb-8 whitespace-nowrap">
+          <div className="flex flex-col items-center justify-center w-full max-w-[700px] w-[94%] sm:w-[90%] md:w-[85%] mx-auto px-2 sm:px-6 animate-fade-in text-center h-full min-h-[70vh] pb-10">
+            <h1 className="font-heading font-normal text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-[#1F2937] dark:text-[#F8FAFC] leading-[1.15] mb-6 sm:mb-8">
               {isEn ? (
                 <>Save your personalized profile <br/> across all devices</>
               ) : (

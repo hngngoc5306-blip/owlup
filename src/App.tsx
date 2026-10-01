@@ -993,7 +993,7 @@ export default function App() {
         onOpenInstruction={handleManualOpenGuide}
       />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 md:pt-6 pb-32 md:pb-40 relative">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pt-3 md:pt-6 pb-24 md:pb-40 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/30 dark:to-[#1A2540]/30 pointer-events-none" />
         
         <div className="relative z-10 w-full max-w-5xl mx-auto">
@@ -1137,13 +1137,13 @@ export default function App() {
       />
 
       {/* Footer */}
-      <footer className={`mt-16 w-full py-10 sm:py-12 ${isNight ? 'bg-gradient-to-t from-[#0F172A] to-[#1A2540]' : 'bg-gradient-to-t from-[#3B9E77] to-[#73C2A6]'} text-white relative overflow-hidden`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
+      <footer className={`mt-16 w-full py-8 sm:py-12 ${isNight ? 'bg-gradient-to-t from-[#0F172A] to-[#1A2540]' : 'bg-gradient-to-t from-[#3B9E77] to-[#73C2A6]'} text-white relative overflow-hidden`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-8 relative z-10">
           <div className="flex items-center gap-3">
             <Logo size="lg" isNight={true} variant="footer" />
           </div>
 
-          <div className="text-sm font-medium tracking-wide opacity-90 font-sans text-right">
+          <div className="text-xs sm:text-sm font-medium tracking-wide opacity-90 font-sans text-center md:text-right">
             {isEn
               ? 'Science-backed - Gentle - Circadian alignment'
               : 'Khoa học - Nhẹ nhàng - Tôn trọng nhịp sinh học'}
