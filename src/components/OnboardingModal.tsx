@@ -438,12 +438,12 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         )}
 
         {currentStep === 8 && (
-          <div className="flex flex-col items-center justify-center w-full max-w-[700px] w-[94%] sm:w-[90%] md:w-[85%] mx-auto px-2 sm:px-6 animate-fade-in text-center h-full min-h-[70vh] pb-10">
-            <h1 className="font-heading font-normal text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-[#1F2937] dark:text-[#F8FAFC] leading-[1.15] mb-6 sm:mb-8">
+          <div className="flex flex-col items-center justify-center w-full max-w-[840px] w-[94%] sm:w-[90%] mx-auto px-2 sm:px-6 animate-fade-in text-center h-full min-h-[70vh] pb-10">
+            <h1 className="font-heading font-normal text-2xl sm:text-3xl md:text-[42px] lg:text-[50px] text-[#1F2937] dark:text-[#F8FAFC] leading-[1.2] mb-6 sm:mb-8">
               {isEn ? (
-                <>Save your personalized profile <br/> across all devices</>
+                <>Save your personalized profile <br className="hidden sm:inline" />across all devices</>
               ) : (
-                <>Lưu hồ sơ cá nhân hóa của bạn <br/> trên mọi thiết bị</>
+                <>Lưu hồ sơ cá nhân hóa của bạn <br className="hidden sm:inline" />trên mọi thiết bị</>
               )}
             </h1>
 
