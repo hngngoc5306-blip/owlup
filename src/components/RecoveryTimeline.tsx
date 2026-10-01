@@ -418,7 +418,7 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
             <span className="w-2.5 h-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse" /> {isStrictlyActive ? (isEn ? 'HAPPENING NOW' : 'ĐANG DIỄN RA') : (isEn ? 'UP NEXT' : 'SẮP DIỄN RA')}
           </div>
           <h3 className="text-xl sm:text-2xl md:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-1.5 sm:mb-2">{activeEvent.title}</h3>
-          <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400">{activeEvent.desc}</p>
+          <p className="text-lg sm:text-xl text-slate-700 dark:text-slate-200 font-medium leading-relaxed">{activeEvent.desc}</p>
         </div>
         <div className="text-[#4CB28E] dark:text-[#62D2FB] font-heading font-bold text-xl sm:text-2xl md:text-3xl shrink-0 self-end sm:self-center whitespace-nowrap">{formatDisplayTime(activeEvent.time, isEn)}</div>
       </div>
@@ -462,9 +462,9 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
                 evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
                 evt.status === 'past' ? 'text-slate-500 dark:text-slate-400' : 'text-[#1F2937] dark:text-white'
               }`}>{evt.title}</h4>
-              <p className={`text-base sm:text-lg leading-relaxed ${
-                evt.status === 'active' ? 'text-[#4CB28E]/90 dark:text-[#62D2FB]/90' : 
-                evt.status === 'past' ? 'text-slate-400 dark:text-slate-500' : 'text-slate-600 dark:text-slate-300'
+              <p className={`text-lg sm:text-xl font-medium leading-relaxed ${
+                evt.status === 'active' ? 'text-[#134E48] dark:text-[#E0F2FE]' : 
+                evt.status === 'past' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-slate-100'
               }`}>{evt.desc}</p>
             </div>
           </div>
