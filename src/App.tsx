@@ -959,7 +959,7 @@ export default function App() {
   return (
     <>
     <div
-      className={`min-h-screen flex flex-col font-sans transition-colors duration-300 relative ${
+      className={`min-h-screen flex flex-col font-sans transition-colors duration-150 relative ${
         isNight ? 'dark text-slate-100' : 'text-slate-900'
       }`}
       style={{
