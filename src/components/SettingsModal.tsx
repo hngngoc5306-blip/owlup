@@ -114,7 +114,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <div
         id="settings-modal-card"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden transition-colors duration-150 animate-scale-in"
+        className="w-full max-w-xl rounded-2xl border shadow-2xl overflow-hidden animate-scale-in"
         style={{
           backgroundColor: isNight ? '#1A2540' : '#FFFFF8',
           borderColor: isNight ? '#2D3748' : '#E5E7EB',
@@ -624,7 +624,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     setThemeMode('night');
                     if (onPreviewThemeMode) onPreviewThemeMode('night');
                   }}
-                  className={`p-3 sm:p-4 rounded-xl border text-center transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                  className={`p-3 sm:p-4 rounded-xl border text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'night'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
@@ -642,7 +642,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     setThemeMode('day');
                     if (onPreviewThemeMode) onPreviewThemeMode('day');
                   }}
-                  className={`p-3 sm:p-4 rounded-xl border text-center transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                  className={`p-3 sm:p-4 rounded-xl border text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'day'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
@@ -660,7 +660,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     setThemeMode('auto');
                     if (onPreviewThemeMode) onPreviewThemeMode('auto');
                   }}
-                  className={`p-3 sm:p-4 rounded-xl border text-center transition-all duration-150 cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                  className={`p-3 sm:p-4 rounded-xl border text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'auto'
                       ? 'border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#62D2FB] font-bold'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
