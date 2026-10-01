@@ -63,8 +63,8 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
       if (!ok) {
         setSignInError(
           isEn 
-            ? 'No account found with this email. Please click "Get Started" to sign up.' 
-            : 'Tài khoản với email này chưa tồn tại. Vui lòng bấm "Bắt đầu ngay" để đăng ký.'
+            ? 'No account found with this email. Please click "Sign Up" below to create an account.' 
+            : 'Tài khoản với email này chưa tồn tại. Vui lòng bấm "Đăng ký tài khoản" bên dưới để tiếp tục.'
         );
       }
     }
@@ -165,7 +165,10 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 </div>
                 {signInError && (
-                  <p className="text-red-500 text-xs mt-2 font-medium">{signInError}</p>
+                  <div className="p-3 rounded-xl bg-[#FEF2F2] dark:bg-[#7F1D1D]/20 border border-[#FCA5A5]/60 dark:border-[#DC2626]/30 text-[#991B1B] dark:text-[#FCA5A5] text-xs font-medium mt-2.5 leading-relaxed flex items-start gap-2">
+                    <span className="text-sm shrink-0">⚠️</span>
+                    <span>{signInError}</span>
+                  </div>
                 )}
               </div>
 
@@ -181,9 +184,20 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                   type="button"
                   onClick={() => {
                     setShowSignInModal(false);
+                    onStartProfileSetup();
+                  }}
+                  className="w-full py-2.5 rounded-full border-2 border-[#4CB28E] dark:border-[#62D2FB] text-[#4CB28E] dark:text-[#62D2FB] hover:bg-[#4CB28E]/10 dark:hover:bg-[#62D2FB]/10 font-bold text-sm transition-all cursor-pointer text-center"
+                >
+                  {isEn ? 'Sign Up' : 'Đăng ký tài khoản'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSignInModal(false);
                     onContinueAsGuest();
                   }}
-                  className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white py-1 underline cursor-pointer text-center"
+                  className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white py-1 underline cursor-pointer text-center mt-1"
                 >
                   {isEn ? 'or Continue as guest' : 'hoặc Tiếp tục dưới dạng khách'}
                 </button>
