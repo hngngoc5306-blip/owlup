@@ -964,8 +964,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   const displayErr = immediateFieldErr || ((!validation.valid && hasBothInputs) ? validation.error : timeError);
                   if (!displayErr) return null;
                   return (
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-[#FEF5F5] dark:bg-[#7F1D1D]/20 border border-[#C10007]/30 dark:border-[#C10007]/50 text-[#C10007] dark:text-[#FCA5A5] text-sm font-medium animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-[#C10007] dark:text-[#FCA5A5]" />
                       <span>{displayErr}</span>
                     </div>
                   );
@@ -1232,8 +1232,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             if (step3Errors.length === 0) return null;
 
             return (
-              <div className="mb-8 flex items-start gap-2.5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in text-left">
-                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="mb-8 flex items-start gap-2.5 p-4 rounded-2xl bg-[#FEF5F5] dark:bg-[#7F1D1D]/20 border border-[#C10007]/30 dark:border-[#C10007]/50 text-[#C10007] dark:text-[#FCA5A5] text-sm font-medium animate-fade-in text-left">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-[#C10007] dark:text-[#FCA5A5]" />
                 <div className="flex flex-col gap-1">
                   {step3Errors.map((err, i) => (
                     <span key={i}>{err}</span>
@@ -1247,7 +1247,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
           <div className="mb-10 text-[#1F2937] dark:text-white animate-fade-in">
             <div className={`inline-block px-4 py-1.5 text-white text-sm sm:text-base font-bold tracking-wider uppercase rounded-lg mb-4 shadow-sm ${
               !isStep3Valid 
-                ? 'bg-red-500' 
+                ? 'bg-[#C10007]' 
                 : (isQualified ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]')
             }`}>
               {!isStep3Valid
