@@ -410,7 +410,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="text-slate-500 dark:text-slate-400 block text-xs mb-0.5">
                         {language === 'en' ? 'Energy Rescue' : 'Cứu tinh năng lượng'}:
                       </span>
-                      <strong className="text-[#62D2FB] text-sm truncate block" title={(() => {
+                      <strong className="text-[#4CB28E] dark:text-[#62D2FB] text-sm truncate block" title={(() => {
                         const cravesList: string[] = [];
                         if (Array.isArray(userProfile.energyCraves) && userProfile.energyCraves.length > 0) {
                           cravesList.push(...userProfile.energyCraves);

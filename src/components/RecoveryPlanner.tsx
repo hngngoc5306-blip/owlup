@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, AppLanguage } from '../types';
-import { CheckCircle2, ArrowRight, Plus, ArrowLeft, Trash2 } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Plus, ArrowLeft, Trash2, Edit2 } from 'lucide-react';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { TimePickerInput } from './TimePickerInput';
 
@@ -81,6 +81,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const [newTitle, setNewTitle] = useState('');
   const [newStart, setNewStart] = useState('06:45');
   const [newEnd, setNewEnd] = useState('11:45');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Customization states (Step 3) with LocalStorage persistence
   const [customBedtime, setCustomBedtime] = useState(() => {
@@ -393,9 +394,28 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const tipData = getTipContent();
 
 
+  const handleStartEdit = (index: number) => {
+    const comm = commitments[index];
+    if (!comm) return;
+    setNewTitle(comm.title);
+    setNewStart(comm.start);
+    setNewEnd(comm.end);
+    setEditingIndex(index);
+    setIsAdding(true);
+  };
+
+  const handleStartAdd = () => {
+    setNewTitle('');
+    setNewStart('09:00');
+    setNewEnd('17:00');
+    setEditingIndex(null);
+    setIsAdding(true);
+  };
+
   const handleSaveCommitment = () => {
     if (!newStart || !newEnd) {
       setIsAdding(false);
+      setEditingIndex(null);
       return;
     }
     
@@ -406,10 +426,15 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         return `${String(h).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; 
     };
 
-    const addedTitle = newTitle || (isEn ? 'Busy Block' : 'Lịch bận');
+    const addedTitle = newTitle.trim() || (isEn ? 'Busy Block' : 'Lịch bận');
     
-    // Add to list and merge overlapping intervals
-    let list = [...commitments, { title: addedTitle, start: newStart, end: newEnd }];
+    // Add to list or replace existing edited item
+    let list: { title: string; start: string; end: string }[];
+    if (editingIndex !== null && editingIndex >= 0 && editingIndex < commitments.length) {
+      list = commitments.map((c, idx) => idx === editingIndex ? { title: addedTitle, start: newStart, end: newEnd } : c);
+    } else {
+      list = [...commitments, { title: addedTitle, start: newStart, end: newEnd }];
+    }
     
     // Convert to absolute minutes for sorting (assuming Waking Day starts at 04:00)
     let parsedList = list.map(c => {
@@ -454,6 +479,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     if (onUpdateCommitments) onUpdateCommitments(finalMerged);
     
     setIsAdding(false);
+    setEditingIndex(null);
     setNewTitle('');
   };
 
@@ -767,16 +793,29 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
                 {commitments.map((c, i) => (
                   <div key={i} className="flex flex-col p-6 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-2xl relative shadow-sm">
-                    <div className="font-bold text-[#1F2937] dark:text-white text-lg mb-2">{c.title}</div>
+                    <div className="font-bold text-[#1F2937] dark:text-white text-lg mb-2 pr-24 truncate">{c.title}</div>
                     <div className="font-heading text-[#007b4d] dark:text-[#62D2FB] text-lg">{formatDisplayTime(`${c.start} - ${c.end}`, isEn)}</div>
-                    <button onClick={() => removeCommitment(i)} className="absolute top-1/2 -translate-y-1/2 right-6 text-slate-400 hover:text-red-500 p-2 transition-colors">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <div className="absolute top-1/2 -translate-y-1/2 right-4 sm:right-6 flex items-center gap-1 sm:gap-1.5">
+                      <button 
+                        onClick={() => handleStartEdit(i)} 
+                        title={isEn ? "Edit" : "Chỉnh sửa"}
+                        className="text-slate-400 hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => removeCommitment(i)} 
+                        title={isEn ? "Delete" : "Xóa"}
+                        className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
 
                 <button 
-                  onClick={() => setIsAdding(true)}
+                  onClick={handleStartAdd}
                   className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#0f172a] rounded-2xl hover:bg-[#E6F8F0] dark:bg-[#62D2FB]/10 dark:hover:bg-[#1E3A2F] transition-colors gap-2 text-[#4CB28E] dark:text-[#62D2FB] font-bold text-lg"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#E6F8F0] dark:bg-[#62D2FB]/10 flex items-center justify-center text-[#007b4d] dark:text-[#62D2FB] font-heading text-xl transition-colors">+</div>
@@ -800,6 +839,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
             {isAdding && (
               <div className="p-4 sm:p-8 border border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/10 rounded-2xl space-y-4 sm:space-y-6 animate-fade-in">
+                <div className="text-base sm:text-lg font-bold text-[#007b4d] dark:text-[#62D2FB]">
+                  {editingIndex !== null 
+                    ? (isEn ? "Edit busy time" : "Chỉnh sửa lịch bận") 
+                    : (isEn ? "Add busy time" : "Thêm lịch bận")}
+                </div>
                 <div>
                   <div className="text-xs sm:text-sm text-[#007b4d] dark:text-[#62D2FB]/80 mb-2 font-medium">{isEn ? "Shift title (e.g., Morning Lecture)" : "Tên (VD: Học buổi sáng)"}</div>
                   <input 
@@ -816,7 +860,16 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   <div className="flex-1"><TimePickerInput value={newEnd} onChange={setNewEnd} isEn={isEn} /></div>
                 </div>
                 <div className="flex justify-end items-center gap-4 sm:gap-8 pt-4">
-                  <button onClick={() => setIsAdding(false)} className="text-slate-500 font-bold hover:text-slate-700 text-base sm:text-lg cursor-pointer">{isEn ? "Cancel" : "Hủy"}</button>
+                  <button 
+                    onClick={() => {
+                      setIsAdding(false);
+                      setEditingIndex(null);
+                      setNewTitle('');
+                    }} 
+                    className="text-slate-500 font-bold hover:text-slate-700 text-base sm:text-lg cursor-pointer"
+                  >
+                    {isEn ? "Cancel" : "Hủy"}
+                  </button>
                   <button onClick={handleSaveCommitment} className="text-white font-bold text-base sm:text-lg bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] px-6 sm:px-10 py-2.5 sm:py-3 rounded-full transition-colors shadow-md cursor-pointer">{isEn ? "Save" : "Lưu"}</button>
                 </div>
               </div>
@@ -825,7 +878,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {commitments.length === 0 && !isAdding && (
               <div className="flex flex-col sm:flex-row gap-6">
                 <button 
-                  onClick={() => setIsAdding(true)}
+                  onClick={handleStartAdd}
                   className="flex-[1] py-4 px-6 border-2 border-dashed border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#0f172a] rounded-2xl hover:bg-[#E6F8F0] dark:bg-[#62D2FB]/10 transition-colors flex items-center justify-center gap-3 text-[#4CB28E] dark:text-[#62D2FB] font-bold text-lg"
                 >
                   <Plus className="w-5 h-5" /> {isEn ? "Add busy time" : "Thêm lịch bận"}
