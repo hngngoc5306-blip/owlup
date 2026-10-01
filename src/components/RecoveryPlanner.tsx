@@ -895,17 +895,23 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 py-2">
-                  <div className="flex-1"><TimePickerInput value={newStart} onChange={(val) => { setNewStart(val); setTimeError(null); }} isEn={isEn} placeholder="--:--" /></div>
+                  <div className="flex-1"><TimePickerInput value={newStart} onChange={(val) => { setNewStart(val); }} isEn={isEn} placeholder="--:--" /></div>
                   <ArrowRight className="w-5 h-5 text-[#007b4d] dark:text-[#62D2FB]/50 shrink-0 mx-auto rotate-90 sm:rotate-0" />
-                  <div className="flex-1"><TimePickerInput value={newEnd} onChange={(val) => { setNewEnd(val); setTimeError(null); }} isEn={isEn} placeholder="--:--" /></div>
+                  <div className="flex-1"><TimePickerInput value={newEnd} onChange={(val) => { setNewEnd(val); }} isEn={isEn} placeholder="--:--" /></div>
                 </div>
 
-                {timeError && (
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{timeError}</span>
-                  </div>
-                )}
+                {(() => {
+                  const hasBothInputs = Boolean(newStart && newEnd && newStart !== '--:--' && newEnd !== '--:--');
+                  const validation = validateTimes(newStart, newEnd);
+                  const displayErr = (!validation.valid && hasBothInputs) ? validation.error : timeError;
+                  if (!displayErr) return null;
+                  return (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{displayErr}</span>
+                    </div>
+                  );
+                })()}
 
                 <div className="flex justify-end items-center gap-4 sm:gap-8 pt-4">
                   <button 
