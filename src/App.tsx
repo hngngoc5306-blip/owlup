@@ -224,6 +224,7 @@ export default function App() {
 
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [previewThemeMode, setPreviewThemeMode] = useState<ThemeMode | null>(null);
   const [isInstructionOpen, setIsInstructionOpen] = useState<boolean>(false);
 
   // User Profile state with LocalStorage persistence
@@ -910,13 +911,14 @@ export default function App() {
     }
   }, [currentTime, caffeineLog]);
 
-  // Circadian lighting theme evaluation
+  // Circadian lighting theme evaluation (supports live preview before saving)
   const isNight = React.useMemo(() => {
-    if (settings.themeMode === 'night') return true;
-    if (settings.themeMode === 'day') return false;
+    const activeTheme = previewThemeMode ?? settings.themeMode;
+    if (activeTheme === 'night') return true;
+    if (activeTheme === 'day') return false;
     const hour = currentTime.getHours();
     return hour >= 19 || hour < 6;
-  }, [currentTime, settings.themeMode]);
+  }, [currentTime, settings.themeMode, previewThemeMode]);
 
   const isEn = (settings.language || 'en') === 'en';
 
@@ -1110,10 +1112,17 @@ export default function App() {
       {/* Centralized Settings Modal with Profile, Notifications & Appearance */}
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => {
+          setIsSettingsOpen(false);
+          setPreviewThemeMode(null);
+        }}
         isNight={isNight}
         settings={settings}
-        onUpdateSettings={handleUpdateSettings}
+        onPreviewThemeMode={(mode) => setPreviewThemeMode(mode)}
+        onUpdateSettings={(newSettings) => {
+          setPreviewThemeMode(null);
+          handleUpdateSettings(newSettings);
+        }}
         onClearCaffeineLog={handleClearCaffeineLog}
         loggedDrinkCount={caffeineLog.length}
         userProfile={userProfile}

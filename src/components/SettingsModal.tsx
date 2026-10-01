@@ -31,6 +31,7 @@ interface SettingsModalProps {
   isNight: boolean;
   settings: UserSettings;
   onUpdateSettings: (newSettings: Partial<UserSettings>) => void;
+  onPreviewThemeMode?: (mode: ThemeMode | null) => void;
   onClearCaffeineLog: () => void;
   loggedDrinkCount: number;
   onOpenOnboarding?: () => void;
@@ -47,6 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isNight,
   settings,
   onUpdateSettings,
+  onPreviewThemeMode,
   onClearCaffeineLog,
   loggedDrinkCount,
   userProfile,
@@ -79,6 +81,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const ts = t.settings;
   const tcomm = t.common;
 
+  const handleClose = () => {
+    if (onPreviewThemeMode) {
+      onPreviewThemeMode(null);
+    }
+    onClose();
+  };
+
   const handleSaveChange = () => {
     onUpdateSettings({
       language,
@@ -88,6 +97,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setToastMessage(ts.savedToast);
     setTimeout(() => {
       setToastMessage(null);
+      if (onPreviewThemeMode) {
+        onPreviewThemeMode(null);
+      }
       onClose();
       if (onReturnToDashboard) onReturnToDashboard();
     }, 600);
@@ -97,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div
       id="settings-modal-backdrop"
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 transition-all animate-fade-in"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         id="settings-modal-card"
@@ -133,11 +145,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           <button
-      id="btn-close-settings"
-      onClick={onClose}
-      className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 transition-colors cursor-pointer"
-      title={tcomm.close}
-     >
+            id="btn-close-settings"
+            onClick={handleClose}
+            className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 transition-colors cursor-pointer"
+            title={tcomm.close}
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -608,7 +620,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   id="setting-theme-night"
-                  onClick={() => setThemeMode('night')}
+                  onClick={() => {
+                    setThemeMode('night');
+                    if (onPreviewThemeMode) onPreviewThemeMode('night');
+                  }}
                   className={`p-3 sm:p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'night'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
@@ -623,7 +638,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   id="setting-theme-day"
-                  onClick={() => setThemeMode('day')}
+                  onClick={() => {
+                    setThemeMode('day');
+                    if (onPreviewThemeMode) onPreviewThemeMode('day');
+                  }}
                   className={`p-3 sm:p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'day'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
@@ -638,7 +656,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   id="setting-theme-auto"
-                  onClick={() => setThemeMode('auto')}
+                  onClick={() => {
+                    setThemeMode('auto');
+                    if (onPreviewThemeMode) onPreviewThemeMode('auto');
+                  }}
                   className={`p-3 sm:p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'auto'
                       ? 'border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#62D2FB] font-bold'
@@ -665,16 +686,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <div className="flex items-center gap-3">
             <button
-       onClick={onClose}
-       className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover: cursor-pointer"
-      >
+              onClick={handleClose}
+              className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+            >
               {tcomm.close}
             </button>
             <button
-       id="btn-save-settings"
-       onClick={handleSaveChange}
-       className="text-white dark:text-[#0E172A] px-6 py-2.5 rounded-xl text-xs font-bold bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#3a9a78] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] cursor-pointer shadow-md transition-all flex items-center gap-1.5 active:scale-95"
-      >
+              id="btn-save-settings"
+              onClick={handleSaveChange}
+              className="text-white dark:text-[#0E172A] px-6 py-2.5 rounded-xl text-xs font-bold bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#3a9a78] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] cursor-pointer shadow-md transition-all flex items-center gap-1.5 active:scale-95"
+            >
               <Check className="w-4 h-4" />
               <span>{tcomm.saveChanges}</span>
             </button>
