@@ -191,11 +191,24 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   if (scoreCircadian > 45) scoreCircadian = 45;
   scoreCircadian = Math.round(scoreCircadian);
 
-  const liveScore = scoreDuration + scoreCircadian;
-  const isQualified = liveScore >= 90 || hasAppliedOptimal;
+  const isTimeFormatValid = (t: string) => {
+    if (!t || t === '--:--' || !t.includes(':')) return false;
+    const [h, m] = t.split(':').map(Number);
+    return !isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59;
+  };
+
+  const isStep3Valid = Boolean(
+    isTimeFormatValid(napStart) &&
+    isTimeFormatValid(customBedtime) &&
+    isTimeFormatValid(customWakeTime) &&
+    (parseInt(napDuration) || 0) > 0
+  );
+
+  const liveScore = !isStep3Valid ? 0 : (scoreDuration + scoreCircadian);
+  const isQualified = isStep3Valid && (liveScore >= 90 || hasAppliedOptimal);
 
   const getTipContent = () => {
-    if (isQualified) return null;
+    if (!isStep3Valid || isQualified) return null;
     const isEn = language === 'en';
     const idealNap = napStart; // Respect user's chosen nap time
     
@@ -1185,10 +1198,61 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             </div>
           </div>
 
+          {/* STEP 3 TIME VALIDATION ERROR ALERT */}
+          {(() => {
+            const step3Errors: string[] = [];
+            
+            // Validate napStart
+            const napStartErr = validateSingleTime(napStart, isEn ? "nap start time" : "thời gian bắt đầu chợp mắt");
+            if (napStartErr) step3Errors.push(napStartErr);
+            else if (!napStart || napStart === '--:--' || !napStart.includes(':')) {
+              step3Errors.push(isEn ? "Please enter a valid nap start time." : "Vui lòng nhập giờ bắt đầu chợp mắt hợp lệ.");
+            }
+
+            // Validate customBedtime
+            const bedErr = validateSingleTime(customBedtime, isEn ? "bedtime" : "giờ đi ngủ");
+            if (bedErr) step3Errors.push(bedErr);
+            else if (!customBedtime || customBedtime === '--:--' || !customBedtime.includes(':')) {
+              step3Errors.push(isEn ? "Please enter a valid bedtime." : "Vui lòng nhập giờ đi ngủ hợp lệ.");
+            }
+
+            // Validate customWakeTime
+            const wakeErr = validateSingleTime(customWakeTime, isEn ? "wake time" : "giờ thức dậy");
+            if (wakeErr) step3Errors.push(wakeErr);
+            else if (!customWakeTime || customWakeTime === '--:--' || !customWakeTime.includes(':')) {
+              step3Errors.push(isEn ? "Please enter a valid wake time." : "Vui lòng nhập giờ thức dậy hợp lệ.");
+            }
+
+            // Check if napDuration is valid
+            const napDurNum = parseInt(napDuration);
+            if (isNaN(napDurNum) || napDurNum <= 0) {
+              step3Errors.push(isEn ? "Nap duration must be greater than 0 minutes." : "Thời lượng chợp mắt phải lớn hơn 0 phút.");
+            }
+
+            if (step3Errors.length === 0) return null;
+
+            return (
+              <div className="mb-8 flex items-start gap-2.5 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in text-left">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  {step3Errors.map((err, i) => (
+                    <span key={i}>{err}</span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* LIVE SCORE BOX */}
           <div className="mb-10 text-[#1F2937] dark:text-white animate-fade-in">
-            <div className={`inline-block px-4 py-1.5 text-white text-sm sm:text-base font-bold tracking-wider uppercase rounded-lg mb-4 shadow-sm ${isQualified ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]'}`}>
-              {liveScore >= 90 ? (isEn ? 'QUALIFIED' : 'ĐẠT CHUẨN') : (hasAppliedOptimal ? (isEn ? 'OPTIMIZED' : 'ĐÃ TỐI ƯU') : (isEn ? 'NEEDS REFINEMENT' : 'CẦN TINH CHỈNH'))}
+            <div className={`inline-block px-4 py-1.5 text-white text-sm sm:text-base font-bold tracking-wider uppercase rounded-lg mb-4 shadow-sm ${
+              !isStep3Valid 
+                ? 'bg-red-500' 
+                : (isQualified ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]')
+            }`}>
+              {!isStep3Valid
+                ? (isEn ? 'INVALID TIME' : 'THỜI GIAN KHÔNG HỢP LỆ')
+                : (liveScore >= 90 ? (isEn ? 'QUALIFIED' : 'ĐẠT CHUẨN') : (hasAppliedOptimal ? (isEn ? 'OPTIMIZED' : 'ĐÃ TỐI ƯU') : (isEn ? 'NEEDS REFINEMENT' : 'CẦN TINH CHỈNH')))}
             </div>
             
             <div className="flex justify-between items-center mb-4">
@@ -1196,28 +1260,28 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 {isEn ? "Live Sleep Architecture Score:" : "Điểm Cấu trúc Giấc ngủ:"}
               </div>
               <div className="text-2xl sm:text-3xl font-heading font-bold tabular-nums">
-                {liveScore}/100
+                {!isStep3Valid ? '--' : liveScore}/100
               </div>
             </div>
 
             <div className="space-y-4 mb-6">
               <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center text-sm sm:text-base font-medium">
-                  <span>{isEn ? "Total Sleep Duration:" : "Tổng thời lượng ngủ:"} {(totalSleepMins/60).toFixed(1)} {isEn ? "hrs" : "giờ"}</span>
-                  <span className="text-slate-500 tabular-nums">({scoreDuration}/55)</span>
+                  <span>{isEn ? "Total Sleep Duration:" : "Tổng thời lượng ngủ:"} {!isStep3Valid ? '--' : (totalSleepMins/60).toFixed(1)} {isEn ? "hrs" : "giờ"}</span>
+                  <span className="text-slate-500 tabular-nums">({!isStep3Valid ? 0 : scoreDuration}/55)</span>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                   <div className={`h-full ${scoreDuration >= 50 ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]'}`} style={{width: `${(scoreDuration/55)*100}%`}}></div>
+                   <div className={`h-full ${scoreDuration >= 50 ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]'}`} style={{width: `${!isStep3Valid ? 0 : (scoreDuration/55)*100}%`}}></div>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
                 <div className="flex justify-between items-center text-sm sm:text-base font-medium">
-                  <span>{isEn ? `Circadian Consistency: ${(liveCircadianShiftMins/60).toFixed(1)}h variance` : `Độ ổn định: chênh lệch ${(liveCircadianShiftMins/60).toFixed(1)}h`}</span>
-                  <span className="text-slate-500 tabular-nums">({scoreCircadian}/45)</span>
+                  <span>{isEn ? `Circadian Consistency: ${!isStep3Valid ? '--' : (liveCircadianShiftMins/60).toFixed(1)}h variance` : `Độ ổn định: chênh lệch ${!isStep3Valid ? '--' : (liveCircadianShiftMins/60).toFixed(1)}h`}</span>
+                  <span className="text-slate-500 tabular-nums">({!isStep3Valid ? 0 : scoreCircadian}/45)</span>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                   <div className={`h-full ${scoreCircadian >= 40 ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]'}`} style={{width: `${(scoreCircadian/45)*100}%`}}></div>
+                   <div className={`h-full ${scoreCircadian >= 40 ? 'bg-[#4CB28E] dark:bg-[#62D2FB]' : 'bg-[#EAB308]'}`} style={{width: `${!isStep3Valid ? 0 : (scoreCircadian/45)*100}%`}}></div>
                 </div>
               </div>
             </div>
@@ -1247,13 +1311,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 </button>
                 <button 
                   onClick={() => {
+                    if (!isStep3Valid) return;
                     try {
                       localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
                     } catch {}
                     onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
                     setStep(4);
                   }} 
-                  className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white rounded-full px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1 text-center"
+                  disabled={!isStep3Valid}
+                  className={`rounded-full px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-bold transition-all shadow-md text-center ${
+                    isStep3Valid 
+                      ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1' 
+                      : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
+                  }`}
                 >
                   {isEn ? "Next" : "Tiếp theo"}
                 </button>
@@ -1262,13 +1332,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 animate-fade-in">
                 <button 
                   onClick={() => {
+                    if (!isStep3Valid) return;
                     try {
                       localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
                     } catch {}
                     onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
                     setStep(4);
                   }} 
-                  className="text-slate-500 hover:text-[#1F2937] font-bold text-sm sm:text-base md:text-lg px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-dashed border-slate-300 rounded-full hover:bg-slate-50 cursor-pointer text-center"
+                  disabled={!isStep3Valid}
+                  className={`font-bold text-sm sm:text-base md:text-lg px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-dashed rounded-full text-center transition-all ${
+                    isStep3Valid
+                      ? 'border-slate-300 text-slate-500 hover:text-[#1F2937] hover:bg-slate-50 cursor-pointer'
+                      : 'border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                  }`}
                 >
                   {isEn ? "Keep Custom" : "Giữ tùy chỉnh"}
                 </button>
