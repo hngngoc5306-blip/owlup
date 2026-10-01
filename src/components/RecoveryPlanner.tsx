@@ -398,7 +398,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const handleStartEdit = (index: number) => {
     const comm = commitments[index];
     if (!comm) return;
-    setNewTitle(comm.title);
+    const initialTitle = (!isEn && (comm.title === 'Busy Block' || !comm.title))
+      ? 'Lịch bận'
+      : (isEn && comm.title === 'Lịch bận' ? 'Busy Block' : (comm.title || ''));
+    setNewTitle(initialTitle);
     setNewStart(comm.start);
     setNewEnd(comm.end);
     setEditingIndex(index);
@@ -865,28 +868,33 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
           <div className="mb-12">
             {commitments.length > 0 && !isAdding && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
-                {commitments.map((c, i) => (
-                  <div key={i} className="flex flex-col p-6 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-2xl relative shadow-sm">
-                    <div className="font-bold text-[#1F2937] dark:text-white text-lg mb-2 pr-24 truncate">{c.title}</div>
-                    <div className="font-heading text-[#007b4d] dark:text-[#62D2FB] text-lg">{formatDisplayTime(`${c.start} - ${c.end}`, isEn)}</div>
-                    <div className="absolute top-1/2 -translate-y-1/2 right-4 sm:right-6 flex items-center gap-1 sm:gap-1.5">
-                      <button 
-                        onClick={() => handleStartEdit(i)} 
-                        title={isEn ? "Edit" : "Chỉnh sửa"}
-                        className="text-slate-400 hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={() => removeCommitment(i)} 
-                        title={isEn ? "Delete" : "Xóa"}
-                        className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                {commitments.map((c, i) => {
+                  const displayTitle = (!isEn && (c.title === 'Busy Block' || !c.title))
+                    ? 'Lịch bận'
+                    : (isEn && c.title === 'Lịch bận' ? 'Busy Block' : (c.title || (isEn ? 'Busy Block' : 'Lịch bận')));
+                  return (
+                    <div key={i} className="flex flex-col p-6 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-2xl relative shadow-sm">
+                      <div className="font-bold text-[#1F2937] dark:text-white text-lg mb-2 pr-24 truncate">{displayTitle}</div>
+                      <div className="font-heading text-[#007b4d] dark:text-[#62D2FB] text-lg">{formatDisplayTime(`${c.start} - ${c.end}`, isEn)}</div>
+                      <div className="absolute top-1/2 -translate-y-1/2 right-4 sm:right-6 flex items-center gap-1 sm:gap-1.5">
+                        <button 
+                          onClick={() => handleStartEdit(i)} 
+                          title={isEn ? "Edit" : "Chỉnh sửa"}
+                          className="text-slate-400 hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <Edit2 className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => removeCommitment(i)} 
+                          title={isEn ? "Delete" : "Xóa"}
+                          className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <button 
                   onClick={handleStartAdd}
