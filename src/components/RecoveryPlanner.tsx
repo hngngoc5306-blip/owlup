@@ -1690,8 +1690,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                     {isEn ? "Caffeine Curfew" : "Ngừng Caffeine"}
                   </div>
-                  <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-red-500 dark:text-red-400 tabular-nums text-right whitespace-nowrap shrink-0">
-                    {isEn ? `Before ${formatDisplayTime(summaryCurfew, isEn)}` : `Trước ${formatDisplayTime(summaryCurfew, isEn)}`}
+                  <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0">
+                    {formatDisplayTime(summaryCurfew, isEn)}
                   </div>
                 </div>
               </div>
@@ -1731,9 +1731,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 </button>
                 <button 
                   onClick={() => setStep(4)}
-                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer"
+                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-2.5 sm:py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer flex flex-col items-center justify-center leading-tight"
                 >
-                  {isEn ? "Adjust Sleep Times" : "Tùy chỉnh giờ ngủ"}
+                  {isEn ? (
+                    <>
+                      <span>Adjust</span>
+                      <span>Sleep</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Tùy chỉnh</span>
+                      <span>giờ ngủ</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
