@@ -606,48 +606,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="grid grid-cols-3 gap-3">
                 <button
-         type="button"
-         id="setting-theme-night"
-         onClick={() => setThemeMode('night')}
-                  className={`p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-2 ${
+                  type="button"
+                  id="setting-theme-night"
+                  onClick={() => setThemeMode('night')}
+                  className={`p-3 sm:p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'night'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Moon className="w-5 h-5" />
-                  <span className="text-xs font-bold">{ts.themeNight}</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{ts.themeNightDesc}</span>
+                  <Moon className="w-5 h-5 mb-0.5" />
+                  <span className="text-xs sm:text-sm font-bold whitespace-nowrap">{ts.themeNight}</span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap tracking-tight">{ts.themeNightDesc}</span>
                 </button>
 
                 <button
-         type="button"
-         id="setting-theme-day"
-         onClick={() => setThemeMode('day')}
-                  className={`p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-2 ${
+                  type="button"
+                  id="setting-theme-day"
+                  onClick={() => setThemeMode('day')}
+                  className={`p-3 sm:p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'day'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Sun className="w-5 h-5" />
-                  <span className="text-xs font-bold">{ts.themeDay}</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{ts.themeDayDesc}</span>
+                  <Sun className="w-5 h-5 mb-0.5" />
+                  <span className="text-xs sm:text-sm font-bold whitespace-nowrap">{ts.themeDay}</span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap tracking-tight">{ts.themeDayDesc}</span>
                 </button>
 
                 <button
-         type="button"
-         id="setting-theme-auto"
-         onClick={() => setThemeMode('auto')}
-                  className={`p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-2 ${
+                  type="button"
+                  id="setting-theme-auto"
+                  onClick={() => setThemeMode('auto')}
+                  className={`p-3 sm:p-4 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'auto'
                       ? 'border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#62D2FB] font-bold'
                       : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Laptop className="w-5 h-5" />
-                  <span className="text-xs font-bold">{ts.themeAuto}</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{ts.themeAutoDesc}</span>
+                  <Laptop className="w-5 h-5 mb-0.5" />
+                  <span className="text-xs sm:text-sm font-bold whitespace-nowrap">{ts.themeAuto}</span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap tracking-tight">{ts.themeAutoDesc}</span>
                 </button>
               </div>
             </div>
