@@ -365,21 +365,21 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       
       {/* HAPPENING NOW BANNER */}
       {activeEvent && (
-      <div className="w-full rounded-[20px] border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-[#233355] p-5 sm:p-7 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm relative overflow-hidden animate-fade-in">
+      <div className="w-full rounded-[20px] border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-[#233355] p-5 sm:p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 shadow-sm relative overflow-hidden animate-fade-in">
         <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-[#4CB28E] dark:bg-[#62D2FB]" />
         <div>
-          <div className="flex items-center gap-2 mb-1.5 sm:mb-2 text-[#4CB28E] dark:text-[#62D2FB] text-xs sm:text-sm font-bold tracking-wider uppercase">
+          <div className="flex items-center gap-2 mb-1.5 text-[#4CB28E] dark:text-[#62D2FB] text-xs sm:text-sm font-bold tracking-wider uppercase">
             <span className="w-2.5 h-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse" /> {isStrictlyActive ? (isEn ? 'HAPPENING NOW' : 'ĐANG DIỄN RA') : (isEn ? 'UP NEXT' : 'SẮP DIỄN RA')}
           </div>
-          <h3 className="text-xl sm:text-2xl md:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-1.5 sm:mb-2">{activeEvent.title}</h3>
-          <p className="text-lg sm:text-xl text-slate-700 dark:text-slate-200 font-medium leading-relaxed">{activeEvent.desc}</p>
+          <h3 className="text-lg sm:text-xl md:text-2xl font-heading font-bold text-[#1F2937] dark:text-white mb-1">{activeEvent.title}</h3>
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-sans">{activeEvent.desc}</p>
         </div>
-        <div className="text-[#4CB28E] dark:text-[#62D2FB] font-heading font-bold text-xl sm:text-2xl md:text-3xl shrink-0 self-end sm:self-center whitespace-nowrap">{formatDisplayTime(activeEvent.time, isEn)}</div>
+        <div className="text-[#4CB28E] dark:text-[#62D2FB] font-heading font-bold text-lg sm:text-xl md:text-2xl shrink-0 self-end sm:self-center whitespace-nowrap tabular-nums">{formatDisplayTime(activeEvent.time, isEn)}</div>
       </div>
       )}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 mb-6 sm:mb-8 border-b border-slate-200 dark:border-slate-700 pb-3 sm:pb-4">
-        <h2 className="text-2xl sm:text-3xl font-heading font-bold text-[#1F2937] dark:text-white">{isEn ? "Detailed Timeline" : "Chi tiết Lộ trình"}</h2>
+        <h2 className="text-xl sm:text-2xl font-heading font-bold text-[#1F2937] dark:text-white">{isEn ? "Detailed Timeline" : "Chi tiết Lộ trình"}</h2>
         <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm font-medium text-slate-500">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-300"/> {isEn ? 'Past' : 'Đã qua'}</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse"/> {isEn ? 'Active' : 'Đang diễn ra'}</span>
@@ -388,9 +388,9 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       </div>
 
       {/* TIMELINE LIST */}
-      <div key={timelineKey} ref={timelineRef} className="relative border-l ml-4 space-y-12 mb-12 py-4 border-slate-200 dark:border-slate-700">
+      <div key={timelineKey} ref={timelineRef} className="relative border-l ml-4 space-y-8 mb-12 py-3 border-slate-200 dark:border-slate-700">
         {timelineEvents.map((evt, idx) => (
-          <div key={idx} className="relative pl-8">
+          <div key={idx} className="relative pl-7 sm:pl-8">
             <div className={`absolute -left-2.5 top-0 w-5 h-5 rounded-full border-2 bg-white dark:bg-[#233355] flex items-center justify-center ${
               evt.status === 'active' ? 'border-[#4CB28E] dark:border-[#62D2FB] w-6 h-6 -left-3' : 
               evt.status === 'past' ? 'border-slate-200 bg-slate-100' : 'border-slate-300 dark:border-slate-600'}`}>
@@ -398,27 +398,27 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
               {evt.status === 'active' && <div className="w-3 h-3 bg-[#4CB28E] dark:bg-[#62D2FB] rounded-full animate-pulse" />}
             </div>
             
-            <div className={`w-full rounded-2xl border p-6 transition-all duration-300 ${
-              evt.status === 'active' ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355] shadow-[0_0_20px_rgba(76,178,141,0.2)] dark:shadow-[0_0_20px_rgba(98,210,251,0.2)] transform scale-[1.02]' : 
+            <div className={`w-full rounded-2xl border p-5 sm:p-5.5 transition-all duration-300 ${
+              evt.status === 'active' ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355] shadow-[0_0_20px_rgba(76,178,141,0.2)] dark:shadow-[0_0_20px_rgba(98,210,251,0.2)] transform scale-[1.01]' : 
               evt.status === 'past' ? 'border-transparent bg-[#F8FAFC] dark:bg-[#0F172A] opacity-50 grayscale' : 
               'border-slate-200 dark:border-slate-700 bg-[#FFFFFF] dark:bg-[#233355] hover:-translate-y-1 hover:shadow-md'
             }`}>
-              <div className="flex justify-between items-start mb-3.5">
-                <div className={`text-xs sm:text-sm font-bold tracking-wider px-3 py-1.5 rounded-full border flex items-center gap-1.5 uppercase ${evt.tagColor}`}>
+              <div className="flex justify-between items-start mb-2.5">
+                <div className={`text-xs font-bold tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1.5 uppercase ${evt.tagColor}`}>
                   {evt.icon} {evt.tag}
                 </div>
-                <div className={`text-base sm:text-lg md:text-xl font-heading font-bold whitespace-nowrap shrink-0 ${
+                <div className={`text-sm sm:text-base font-heading font-bold whitespace-nowrap shrink-0 tabular-nums ${
                   evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
                   evt.status === 'past' ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'
                 }`}>{formatDisplayTime(evt.time, isEn)}</div>
               </div>
-              <h4 className={`text-xl sm:text-2xl font-heading font-bold mb-2.5 ${
+              <h4 className={`text-base sm:text-lg font-heading font-bold mb-1.5 ${
                 evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
                 evt.status === 'past' ? 'text-slate-500 dark:text-slate-400' : 'text-[#1F2937] dark:text-white'
               }`}>{evt.title}</h4>
-              <p className={`text-lg sm:text-xl font-medium leading-relaxed ${
+              <p className={`text-sm sm:text-base leading-relaxed font-sans ${
                 evt.status === 'active' ? 'text-[#134E48] dark:text-[#E0F2FE]' : 
-                evt.status === 'past' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-slate-100'
+                evt.status === 'past' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-600 dark:text-slate-300'
               }`}>{evt.desc}</p>
             </div>
           </div>
