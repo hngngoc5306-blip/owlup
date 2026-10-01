@@ -689,110 +689,94 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const extraDebtMins = historyAnalysis.hasDebt ? Math.min(60, Math.round(historyAnalysis.sleepDebtHours * 30)) : 0;
   const targetDurationMins = goalTargetSleepMins + extraDebtMins; 
 
-  // 1. Determine Required Wake Time (Giờ thức dậy)
+  // 1. Determine Morning Commitments and Required Wake Time (Giờ thức dậy)
+  // Morning commitments must be in the early morning window (04:00 - 10:00) that forces waking up early
   const morningComms = commitments
     .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
-    .filter(c => c.startMins >= 4 * 60 && c.startMins <= 12 * 60)
+    .filter(c => c.startMins >= 4 * 60 && c.startMins <= 10 * 60)
     .sort((a, b) => a.startMins - b.startMins);
 
   const hasMorningComm = morningComms.length > 0;
 
-  let naturalWakeMins = 7 * 60; // 07:00
+  // Natural wake time defaults based on circadian science & chosen goal:
+  let naturalWakeMins = 6 * 60 + 30; // 06:30 for balanced
   if (selectedGoal === 'max_productivity') {
-    naturalWakeMins = 6 * 60 + 15; // 06:15 dậy sớm cho năng suất
+    naturalWakeMins = 6 * 60; // 06:00 dậy sớm đón ánh sáng mặt trời, kích hoạt cortisol tự nhiên
   } else if (selectedGoal === 'catch_up') {
-    naturalWakeMins = 7 * 60 + 30; // 07:30 dậy muộn hơn để hồi sức
+    naturalWakeMins = 6 * 60 + 30; // 06:30 duy trì nhịp thức dậy sinh học, ưu tiên ngủ sớm vào buổi tối
   } else if (selectedGoal === 'night_owl') {
-    naturalWakeMins = 8 * 60 + 30; // 08:30 dậy muộn theo nhịp cú đêm
+    naturalWakeMins = 7 * 60 + 45; // 07:45 dậy muộn phù hợp với chronotype cú đêm
   }
 
   let requiredWakeMins = hasMorningComm
-    ? Math.max(4 * 60 + 30, morningComms[0].startMins - 15) // 15 mins buffer before first class/shift
+    ? Math.max(4 * 60 + 30, morningComms[0].startMins - 30) // 30 phút chuẩn bị buổi sáng trước ca đầu tiên
     : naturalWakeMins;
 
-  // 2. Continuous time helper: maps minutes so evening -> night -> next morning is monotonic
-  // 12:00 PM = 720, 23:59 = 1439, 01:00 AM next day = 1500, 06:00 AM next day = 1800
-  const toContMins = (mins: number) => (mins < 12 * 60 ? mins + 24 * 60 : mins);
-
-  // Find latest busy commitment in the evening/night (after 18:00 or past midnight)
-  let latestBusyContMins = 0;
+  // 2. Evening / Night Commitments check:
+  // Only commitments ending after 21:00 or during the night can delay the ideal bedtime
+  let latestEveningBusyMins = 0;
   commitments.forEach(c => {
     const s = parseMins(c.start);
-    const e = parseMins(c.end);
+    let e = parseMins(c.end);
+    if (e < s) e += 24 * 60; // qua đêm
 
-    const isEveningNight = 
-      s >= 18 * 60 || 
-      s < 4 * 60 || 
-      (s >= 12 * 60 && (e > 19 * 60 || e < s));
-
-    if (isEveningNight) {
-      let eCont = toContMins(e);
-      const sCont = toContMins(s);
-      if (eCont < sCont) eCont += 24 * 60; // Crosses midnight
-      if (eCont > latestBusyContMins) {
-        latestBusyContMins = eCont;
+    // Hoạt động kết thúc sau 21:00 (1260m)
+    if (e > 21 * 60) {
+      if (e > latestEveningBusyMins) {
+        latestEveningBusyMins = e;
       }
     }
   });
 
-  // Earliest possible bedtime after evening commitments (plus 20 mins wind-down)
-  const earliestBedContMins = latestBusyContMins > 0 ? latestBusyContMins + 20 : 0;
+  // Cần ít nhất 30 phút wind-down sau khi kết thúc việc buổi tối trước khi đi ngủ
+  const earliestBedContMins = latestEveningBusyMins > 0 ? latestEveningBusyMins + 30 : 0;
 
-  // 3. Adaptive Bedtime Selection based on Goal:
-  let idealBedContMins: number;
-
-  if (selectedGoal === 'night_owl') {
-    if (hasMorningComm) {
-      const wakeCont = toContMins(requiredWakeMins);
-      let calcBed = wakeCont - targetDurationMins;
-      idealBedContMins = Math.max(toContMins(23 * 60), calcBed);
-    } else {
-      idealBedContMins = toContMins(0 * 60 + 30); // 00:30 AM
-    }
-  } else if (selectedGoal === 'catch_up') {
-    if (hasMorningComm) {
-      const wakeCont = toContMins(requiredWakeMins);
-      idealBedContMins = wakeCont - targetDurationMins;
-    } else {
-      idealBedContMins = toContMins(21 * 60 + 45); // 21:45
-    }
+  // 3. Goal-based Circadian Bedtime Calculation (chuẩn khoa học nhịp sinh học):
+  // Anchor bedtimes:
+  // - Cân bằng lành mạnh: ~22:30 (chuẩn melatonin tự nhiên)
+  // - Tối đa năng suất: ~22:45
+  // - Ngủ bù: ~21:45 (ngủ sớm để tăng sóng chậm Deep Sleep / NREM)
+  // - Cú đêm: ~00:00 (không để quá muộn sau 01:00 để tránh ức chế hormone tăng trưởng)
+  let idealBedMins = 22 * 60 + 30; // 22:30 default
+  if (selectedGoal === 'catch_up') {
+    idealBedMins = 21 * 60 + 45; // 21:45
   } else if (selectedGoal === 'max_productivity') {
-    if (hasMorningComm) {
-      const wakeCont = toContMins(requiredWakeMins);
-      idealBedContMins = wakeCont - targetDurationMins;
-    } else {
-      idealBedContMins = toContMins(23 * 60); // 23:00
-    }
-  } else {
-    // healthy_balanced
-    if (hasMorningComm) {
-      const wakeCont = toContMins(requiredWakeMins);
-      let calcBed = wakeCont - targetDurationMins;
-      if (calcBed < toContMins(21 * 60)) calcBed = toContMins(21 * 60);
-      if (calcBed > toContMins(23 * 60 + 30)) calcBed = toContMins(23 * 60 + 30);
-      idealBedContMins = calcBed;
-    } else {
-      idealBedContMins = isNightOwl ? toContMins(23 * 60) : toContMins(22 * 60 + 30);
-    }
+    idealBedMins = 22 * 60 + 45; // 22:45
+  } else if (selectedGoal === 'night_owl') {
+    idealBedMins = 24 * 60; // 00:00
   }
 
-  let chosenBedContMins: number;
+  // Nếu có lịch bận buổi sáng bắt buộc phải dậy sớm:
+  if (hasMorningComm) {
+    let calculatedBedMins = requiredWakeMins - targetDurationMins;
+    while (calculatedBedMins < 0) calculatedBedMins += 24 * 60;
+    // Giữ trong khung giờ sinh học lành mạnh tối thiểu 21:00
+    if (calculatedBedMins < 20 * 60 && calculatedBedMins > 12 * 60) calculatedBedMins = 21 * 60;
+    idealBedMins = calculatedBedMins;
+  }
+
+  // Kết hợp với lịch bận buổi tối (nếu làm muộn thì dời giờ ngủ sau lịch bận + 30p)
+  let chosenBedContMins = idealBedMins;
+  if (chosenBedContMins < 12 * 60) chosenBedContMins += 24 * 60; // quy đổi về continuous timeline
 
   if (earliestBedContMins > 0) {
-    chosenBedContMins = Math.max(idealBedContMins, earliestBedContMins);
+    chosenBedContMins = Math.max(chosenBedContMins, earliestBedContMins);
+    // Nếu bị dời do việc tối và không có lịch sáng kẹt, cho phép lùi giờ thức dậy tương ứng để đủ giấc
     if (!hasMorningComm) {
-      requiredWakeMins = (chosenBedContMins + targetDurationMins) % (24 * 60);
-    }
-  } else {
-    chosenBedContMins = idealBedContMins;
-    if (!hasMorningComm) {
-      requiredWakeMins = (chosenBedContMins + targetDurationMins) % (24 * 60);
+      const calcWakeMins = (chosenBedContMins + targetDurationMins) % (24 * 60);
+      // Giới hạn giờ thức dậy không quá 09:00 để bảo vệ nhịp sinh học ban ngày
+      requiredWakeMins = Math.min(calcWakeMins, 9 * 60);
     }
   }
 
   // Convert continuous bedtime and wake time back to 24h minutes (0 - 1439)
   let finalBedtimeMins = chosenBedContMins % (24 * 60);
   let finalWakeMins = requiredWakeMins % (24 * 60);
+
+  // Biological Clamp: Giờ đi ngủ đêm luôn nằm trong khung hợp lý (21:00 tối đến 01:00 sáng)
+  if (finalBedtimeMins > 1 * 60 && finalBedtimeMins < 20 * 60) {
+    finalBedtimeMins = selectedGoal === 'night_owl' ? 0 * 60 + 30 : 22 * 60 + 30;
+  }
 
   // Round to nearest 5 minutes for clean time display
   finalBedtimeMins = Math.round(finalBedtimeMins / 5) * 5 % (24 * 60);
@@ -803,7 +787,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
   const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
 
-  // 4. Calculate Afternoon Power Nap
+  // 4. Calculate Afternoon Power Nap (Vùng trũng sinh học buổi trưa 12:30 - 14:30)
   const userHasNapCrave = userProfile?.craves?.includes('nap') 
     || userProfile?.energyCraves?.includes('nap')
     || userProfile?.energyCrave === 'nap'
@@ -813,11 +797,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   if (historyAnalysis.hasDebt) {
     baseNap = Math.max(baseNap, 25);
   }
-  let calcNapDuration = Math.min(60, baseNap + Math.min(30, Math.floor(lostSleepMins / 30) * 15));
+  let calcNapDuration = Math.min(45, baseNap + Math.min(20, Math.floor(lostSleepMins / 30) * 10));
 
-  let napStartMins = selectedGoal === 'night_owl' ? 13 * 60 + 30 : 12 * 60 + 30;
+  // Giờ chợp trưa mặc định: 12:30 - 13:00 (chuẩn circadian post-lunch dip)
+  let napStartMins = selectedGoal === 'night_owl' ? 13 * 60 : 12 * 60 + 30;
   
-  // Nap Collision with Commitments
+  // Kiểm tra va chạm với lịch bận: nếu trùng thì tìm khoảng trống gần nhất trong khung 11:30 - 15:30
   if (commitments.length > 0) {
     const sortedComms = [...commitments]
       .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
@@ -825,13 +810,20 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
     for (const c of sortedComms) {
       const napEndMins = napStartMins + calcNapDuration;
+      // Trùng lịch bận
       if (napStartMins < c.endMins && napEndMins > c.startMins) {
-        napStartMins = c.endMins + 15;
+        // Ưu tiên dời sau ca bận nếu còn trong khung trưa
+        if (c.endMins + 15 + calcNapDuration <= 16 * 60) {
+          napStartMins = c.endMins + 15;
+        } else if (c.startMins - calcNapDuration - 15 >= 11 * 60 + 30) {
+          // Hoặc trước ca bận
+          napStartMins = c.startMins - calcNapDuration - 15;
+        }
       }
     }
 
-    if (napStartMins > 16 * 60 + 30 || napStartMins < 11 * 60) {
-      napStartMins = selectedGoal === 'night_owl' ? 13 * 60 + 30 : 12 * 60 + 30;
+    if (napStartMins > 16 * 60 || napStartMins < 11 * 60 + 30) {
+      napStartMins = 12 * 60 + 30;
     }
   }
 
