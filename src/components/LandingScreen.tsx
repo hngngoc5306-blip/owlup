@@ -9,6 +9,7 @@ interface LandingScreenProps {
   defaultEmail?: string;
   isNight?: boolean;
   hasCompletedProfile?: boolean;
+  language?: 'en' | 'vi';
 }
 
 const GoogleIcon = ({ className = "" }: { className?: string }) => (
@@ -26,11 +27,24 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   onContinueAsGuest,
   onLoginWithEmail,
   isNight = false,
-  hasCompletedProfile = false
+  hasCompletedProfile = false,
+  language: initialLang
 }) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [signInEmail, setSignInEmail] = useState('');
   const [signInError, setSignInError] = useState('');
+
+  // Auto-detect browser/device language if not explicitly provided
+  const detectedLang: 'en' | 'vi' = initialLang || (() => {
+    try {
+      const browserLang = (navigator.language || (navigator as any).userLanguage || '').toLowerCase();
+      return browserLang.startsWith('vi') ? 'vi' : 'en';
+    } catch {
+      return 'en';
+    }
+  })();
+
+  const isEn = detectedLang === 'en';
 
   const handleOpenSignIn = () => {
     setShowSignInModal(true);
@@ -41,18 +55,20 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
     if (e) e.preventDefault();
     const trimmed = signInEmail.trim().toLowerCase();
     if (!trimmed) {
-      setSignInError('Vui lòng nhập địa chỉ email.');
+      setSignInError(isEn ? 'Please enter your email address.' : 'Vui lòng nhập địa chỉ email.');
       return;
     }
     if (onLoginWithEmail) {
       const ok = onLoginWithEmail(trimmed);
       if (!ok) {
-        setSignInError('Tài khoản với email này chưa tồn tại. Vui lòng bấm "Bắt đầu ngay" để đăng ký.');
+        setSignInError(
+          isEn 
+            ? 'No account found with this email. Please click "Get Started" to sign up.' 
+            : 'Tài khoản với email này chưa tồn tại. Vui lòng bấm "Bắt đầu ngay" để đăng ký.'
+        );
       }
     }
   };
-
-  const isEn = true; // Hardcoded for demo/simplicity if needed, or get from context
 
   return (
     <div 

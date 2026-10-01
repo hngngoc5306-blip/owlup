@@ -36,9 +36,18 @@ export const getCaffeineLimitsByFrequency = (frequency?: string): { dailyLimitMg
   }
 };
 
+const getDeviceLanguage = (): 'en' | 'vi' => {
+  try {
+    const browserLang = (navigator.language || (navigator as any).userLanguage || '').toLowerCase();
+    return browserLang.startsWith('vi') ? 'vi' : 'en';
+  } catch {
+    return 'en';
+  }
+};
+
 const INITIAL_SETTINGS: UserSettings = {
   themeMode: 'auto',
-  language: 'vi',
+  language: getDeviceLanguage(),
   fallAsleepMinutes: 14,
   caffeineThresholdMg: 25,
   dailyCaffeineLimitMg: 400,
@@ -929,6 +938,7 @@ export default function App() {
       <div className={isNight ? 'dark' : ''}>
         <LandingScreen
           isNight={isNight}
+          language={settings.language}
           onLoginWithEmail={handleLoginWithEmail}
           onStartProfileSetup={() => setIsOnboardingOpen(true)}
           onContinueAsGuest={handleContinueAsGuest}
