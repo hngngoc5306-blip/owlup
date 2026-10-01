@@ -270,7 +270,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
            {/* Sleep Tab */}
            <button 
              onClick={() => setActiveTab('sleep')}
-             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-all duration-300 ease-in-out cursor-pointer ${
+             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-transform duration-200 ease-in-out cursor-pointer ${
                activeTab === 'sleep' 
                ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-4 sm:pb-6 border-slate-200 dark:border-slate-700' 
                : 'bg-[#fffff8]/60 dark:bg-[#0F172A] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 border-slate-200 dark:border-slate-700'
@@ -285,7 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
            {/* Caffeine Tab */}
            <button 
              onClick={() => setActiveTab('caffeine')}
-             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-all duration-300 ease-in-out -ml-3 sm:-ml-6 cursor-pointer ${
+             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-transform duration-200 ease-in-out -ml-3 sm:-ml-6 cursor-pointer ${
                activeTab === 'caffeine' 
                ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-4 sm:pb-6 border-slate-200 dark:border-slate-700' 
                : 'bg-[#fffff8]/60 dark:bg-[#162032] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 border-slate-200 dark:border-slate-700'
@@ -297,7 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* MAIN CONTENT BODY */}
-        <div className={`relative w-full rounded-[32px] border transition-colors duration-500 p-6 sm:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.06)] z-10 hover:shadow-xl ease-in-out ${
+        <div className={`relative w-full rounded-[32px] border transition-shadow duration-200 ease-in-out p-6 sm:p-10 shadow-[0_12px_40px_rgba(0,0,0,0.06)] z-10 hover:shadow-xl ${
           activeTab === 'sleep' 
           ? 'bg-[#fffff8] dark:bg-[#233355] border-slate-200 dark:border-slate-700 rounded-tl-none' 
           : 'bg-[#fffff8] dark:bg-[#233355] border-slate-200 dark:border-slate-700'
@@ -334,7 +334,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     isNapUpcomingOrActive 
                       ? 'border-2 border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 shadow-sm' 
                       : 'border border-[#F1F5F9]/70 dark:border-slate-700 bg-white dark:bg-[#233355]'
-                  } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
+                  } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-4 hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out`}>
                     <div className={`${
                       isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-500 dark:text-slate-400'
                     } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center`}>
@@ -363,7 +363,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     !isNapUpcomingOrActive 
                       ? 'border-2 border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 shadow-sm' 
                       : 'border border-[#F1F5F9]/70 dark:border-slate-700 bg-white dark:bg-[#233355]'
-                  } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out`}>
+                  } rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 md:p-8 mb-6 sm:mb-8 hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out`}>
                     <div className={`${
                       !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-slate-500 dark:text-slate-400'
                     } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center`}>
@@ -423,7 +423,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               ) : (
                 <>
                   {/* Box 1: Caffeine Curfew Cutoff */}
-                  <div className="w-full border border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 rounded-[32px] p-6 sm:p-8 mb-4 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg">
+                  <div className="w-full border border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 rounded-[32px] p-6 sm:p-8 mb-4 transition-[transform,box-shadow] duration-200 ease-in-out hover:-translate-y-1 hover:shadow-lg">
                     <div className="text-[#007b4d] dark:text-[#62D2FB] dark:text-slate-400 font-sans text-sm sm:text-base font-medium mb-2 whitespace-nowrap">
                       {isEn ? 'Caffeine Curfew Cutoff:' : 'Giờ ngừng Caffeine:'}
                     </div>
@@ -433,7 +433,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   
                   {/* Box 2: Daily Safe Allowance */}
-                  <div className={`w-full border ${isCritical ? 'border-[#C10007] animate-shake' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-[#233355] rounded-[32px] p-6 sm:p-8 mb-6 transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg`}>
+                  <div className={`w-full border ${isCritical ? 'border-[#C10007] animate-shake' : 'border-slate-300 dark:border-slate-700'} bg-white dark:bg-[#233355] rounded-[32px] p-6 sm:p-8 mb-6 transition-[transform,box-shadow] duration-200 ease-in-out hover:-translate-y-1 hover:shadow-lg`}>
                     <div className="mb-3">
                       <div className="text-[#1F2937] dark:text-white font-sans text-sm sm:text-base font-bold whitespace-nowrap">
                         {isEn ? 'Daily Safe Allowance' : 'Hạn mức an toàn'}
@@ -542,35 +542,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
         ) : (
           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3">
             {/* 1. Wake up */}
-            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '1. Wake up' : '1. Thức dậy'}</span>
               <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(wakeTime, isEn)}</span>
               <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Get morning sunlight' : 'Đón nắng sáng'}</span>
             </div>
 
             {/* 2. Caffeine window */}
-            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '2. Caffeine Window' : '2. Khung giờ caffeine'}</span>
               <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(caffeineWindow, isEn)}</span>
               <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Peak focus intake' : 'Uống để tập trung'}</span>
             </div>
 
             {/* 3. Power nap */}
-            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '3. Power Nap' : '3. Chợp mắt'}</span>
               <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(plannedNap?.start || '12:30', isEn)}</span>
               <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{(plannedNap?.duration || 20)} {isEn ? 'min recharge' : 'phút sạc pin'}</span>
             </div>
 
             {/* 4. Cutoff Curfew */}
-            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+            <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '4. Cutoff Curfew' : '4. Ngừng caffeine'}</span>
               <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(cutoffTime, isEn)}</span>
               <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Protect sleep quality' : 'Bảo vệ giấc ngủ'}</span>
             </div>
 
             {/* 5. Bedtime */}
-            <div className="xs:col-span-2 sm:col-span-1 px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ease-in-out">
+            <div className="xs:col-span-2 sm:col-span-1 px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '5. Bedtime' : '5. Đi ngủ'}</span>
               <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(nextBedtime, isEn)}</span>
               <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Recharge & recover' : 'Tái tạo năng lượng'}</span>

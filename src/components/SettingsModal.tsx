@@ -73,7 +73,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     };
   });
 
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Synchronize draft states when modal opens or settings change
+  useEffect(() => {
+    if (isOpen) {
+      setLanguage(settings.language || 'en');
+      setThemeMode(settings.themeMode || 'auto');
+      setNotifications(settings.notifications || {
+        recoveryReminders: true,
+        napReminders: true,
+        caffeineReminders: true,
+        sleepReminders: true,
+        soundMode: 'sound',
+      });
+    }
+  }, [isOpen, settings]);
 
   if (!isOpen) return null;
 
@@ -82,6 +95,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const tcomm = t.common;
 
   const handleClose = () => {
+    setThemeMode(settings.themeMode || 'auto');
     if (onPreviewThemeMode) {
       onPreviewThemeMode(null);
     }
@@ -613,9 +627,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               TAB 3: APPEARANCE
           ========================================================================= */}
           {activeTab === 'appearance' && (
-            <div className="space-y-4 animate-premium-in">
-              
-
+            <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
@@ -627,7 +639,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className={`p-3 sm:p-4 rounded-xl border text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'night'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
-                      : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
+                      : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
                   <Moon className="w-5 h-5 mb-0.5" />
@@ -645,7 +657,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className={`p-3 sm:p-4 rounded-xl border text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'day'
                       ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
-                      : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
+                      : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
                   <Sun className="w-5 h-5 mb-0.5" />
@@ -662,8 +674,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }}
                   className={`p-3 sm:p-4 rounded-xl border text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                     themeMode === 'auto'
-                      ? 'border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#62D2FB] font-bold'
-                      : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-200'
+                      ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 text-[#4CB28E] dark:text-[#62D2FB] ring-2 ring-[#4CB28E] dark:ring-[#62D2FB] font-bold'
+                      : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/40 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
                   <Laptop className="w-5 h-5 mb-0.5" />

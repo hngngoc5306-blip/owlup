@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       id="main-header"
-      className={`sticky top-0 z-40 w-full transition-colors ${isNight ? 'bg-gradient-to-r from-[#0F172A] to-[#1A2540] border-b border-slate-800/50' : 'bg-gradient-to-r from-white to-[#E6F8F0] shadow-sm'}`}
+      className={`sticky top-0 z-40 w-full ${isNight ? 'bg-gradient-to-r from-[#0F172A] to-[#1A2540] border-b border-slate-800/50' : 'bg-gradient-to-r from-white to-[#E6F8F0] shadow-sm'}`}
     >
       <div className="w-full px-3 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
         {/* LOGO */}
