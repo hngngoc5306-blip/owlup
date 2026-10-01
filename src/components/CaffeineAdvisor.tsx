@@ -384,13 +384,13 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                 const cups = (remaining / 120);
                 const roundedCups = cups >= 1 ? (Math.round(cups * 10) / 10).toString().replace('.0', '') : '< 1';
                 return (
-                  <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  <span className="text-base sm:text-lg md:text-xl font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">
                     {isEn ? `(~${roundedCups} cups of coffee)` : `(~${roundedCups} cốc cà phê)`}
                   </span>
                 );
               })()}
               {!isOverLimit && remaining === 0 && (
-                <span className="text-xs sm:text-sm font-medium text-slate-400 whitespace-nowrap">
+                <span className="text-base sm:text-lg font-semibold text-slate-400 whitespace-nowrap">
                   {isEn ? "(0 cups left)" : "(Đã chạm ngưỡng)"}
                 </span>
               )}
