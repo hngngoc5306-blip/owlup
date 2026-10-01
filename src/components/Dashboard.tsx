@@ -416,7 +416,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     onClick={onNavigateToCaffeine}
                     className="w-full sm:w-auto px-10 py-4 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full text-lg font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-1 cursor-pointer"
                   >
-                    <span>{isEn ? "+ Log First Drink" : "+ Nhập caffeine ngay"}</span>
+                    <span>{isEn ? "Log First Drink" : "Nhập caffeine ngay"}</span>
                     <span className="font-normal">→</span>
                   </button>
                 </div>
