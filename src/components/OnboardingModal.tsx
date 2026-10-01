@@ -402,7 +402,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({ isOpen, onCompleteP
         )}
 
         {currentStep === 7 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={7} title={isEn ? "7. How old are you?" : "7. Bạn bao nhiêu tuổi?"} subtitle={isEn ? "To personalize your sleep needs." : "Để cá nhân hóa nhu cầu giấc ngủ."} isNextValid={age !== '' && age > 0}>
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={7} title={isEn ? "7. How old are you?" : "7. Bạn bao nhiêu tuổi?"} isNextValid={age !== '' && age > 0}>
             <input
               type="number"
               min="1"
