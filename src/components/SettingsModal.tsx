@@ -362,10 +362,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   {/* Attributes */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 pt-3 border-t border-slate-200 dark:border-[#2D3748]/30 text-xs">
                     <div className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#233355]/40 border border-slate-200 dark:border-[#2D3748]/40">
-                      <span className="text-slate-500 dark:text-slate-400 block text-sm">
+                      <span className="text-slate-500 dark:text-slate-400 block text-xs mb-0.5">
                         {language === 'en' ? 'Chronotype' : 'Nhịp sinh học'}:
                       </span>
-                      <strong className="text-slate-900 dark:text-white">
+                      <strong className={`text-sm ${
+                        userProfile.chronotype === 'early_bird'
+                          ? 'text-amber-500 dark:text-amber-400'
+                          : userProfile.chronotype === 'night_owl'
+                            ? 'text-[#4CB28E] dark:text-[#62D2FB]'
+                            : 'text-indigo-500 dark:text-indigo-400'
+                      }`}>
                         {userProfile.chronotype === 'early_bird'
                           ? (language === 'en' ? '🌅 Early Bird' : '🌅 Chim sớm')
                           : userProfile.chronotype === 'night_owl'
@@ -375,19 +381,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#233355]/40 border border-slate-200 dark:border-[#2D3748]/40">
-                      <span className="text-slate-500 dark:text-slate-400 block text-sm">
+                      <span className="text-slate-500 dark:text-slate-400 block text-xs mb-0.5">
                         {language === 'en' ? 'Usual Bedtime' : 'Giờ ngủ quen thuộc'}:
                       </span>
-                      <strong style={{ color: isNight ? '#62D2FB' : '#4CB28E' }}>
+                      <strong className="text-sm" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }}>
                         {formatDisplayTime(userProfile.usualBedtime, language === 'en')}
                       </strong>
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#233355]/40 border border-slate-200 dark:border-[#2D3748]/40">
-                      <span className="text-slate-500 dark:text-slate-400 block text-sm">
+                      <span className="text-slate-500 dark:text-slate-400 block text-xs mb-0.5">
                         {language === 'en' ? 'Caffeine Habits' : 'Thói quen caffeine'}:
                       </span>
-                      <strong className="text-[#4CB28E] dark:text-[#62D2FB]">
+                      <strong className="text-[#4CB28E] dark:text-[#62D2FB] text-sm">
                         {userProfile.caffeineFrequency === 'never'
                           ? (language === 'en' ? 'Never' : 'Không dùng')
                           : userProfile.caffeineFrequency === 'rarely'
@@ -401,10 +407,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
 
                     <div className="p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#233355]/40 border border-slate-200 dark:border-[#2D3748]/40">
-                      <span className="text-slate-500 dark:text-slate-400 block text-sm">
+                      <span className="text-slate-500 dark:text-slate-400 block text-xs mb-0.5">
                         {language === 'en' ? 'Energy Rescue' : 'Cứu tinh năng lượng'}:
                       </span>
-                      <strong className="text-[#62D2FB] truncate block" title={(() => {
+                      <strong className="text-[#62D2FB] text-sm truncate block" title={(() => {
                         const cravesList: string[] = [];
                         if (Array.isArray(userProfile.energyCraves) && userProfile.energyCraves.length > 0) {
                           cravesList.push(...userProfile.energyCraves);
@@ -484,10 +490,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {/* Caffeine Log Clear */}
               <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/30 flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <div className="text-sm font-bold text-slate-800 dark:text-slate-100">
                     {language === 'en' ? "Today's Drink Log" : 'Nhật ký đồ uống hôm nay'}
                   </div>
-                  <div className="text-sm text-slate-500 dark:text-slate-400">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     {language === 'en'
                       ? `${loggedDrinkCount} drink(s) recorded today.`
                       : `Đang lưu ${loggedDrinkCount} ly đã nạp.`}
