@@ -44,7 +44,8 @@ export const format24hToDisplay = (
 };
 
 /**
- * Vietnamese 24-Hour Input: Pure 24h format (00:00 - 23:59), absolutely NO AM/PM
+ * Vietnamese 24-Hour Input: Pure 24h format (00:00 - 23:59), absolutely NO AM/PM.
+ * Enforces persistent ':' separator that cannot be deleted.
  */
 const Vietnamese24hInput: React.FC<{
   value: string;
@@ -56,80 +57,14 @@ const Vietnamese24hInput: React.FC<{
   const [text, setText] = useState<string>(value || '');
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
-  // Sync from parent value when not actively typing
   useEffect(() => {
     if (!isFocused) {
       setText(value || '');
     }
   }, [value, isFocused]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    const cleaned = raw.replace(/[^0-9:]/g, '').slice(0, 5);
-    setText(cleaned);
-
-    if (cleaned.includes(':')) {
-      const parts = cleaned.split(':');
-      if (parts.length === 2 && parts[0] !== '' && parts[1].length === 2) {
-        const h = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10);
-        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-          const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-          onChange(formatted);
-        }
-      }
-    } else if (cleaned.length === 4) {
-      const h = parseInt(cleaned.slice(0, 2), 10);
-      const m = parseInt(cleaned.slice(2, 4), 10);
-      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-        const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        setText(formatted);
-        onChange(formatted);
-      }
-    }
-  };
-
-  const handleBlur = () => {
-    setIsFocused(false);
-    if (!text.trim()) {
-      onChange('');
-      return;
-    }
-    const digits = text.replace(/[^0-9]/g, '');
-    let h = 0;
-    let m = 0;
-
-    if (text.includes(':')) {
-      const parts = text.split(':');
-      h = parseInt(parts[0], 10) || 0;
-      if (parts[1]) {
-        m = parts[1].length === 1 ? parseInt(parts[1], 10) * 10 : parseInt(parts[1].slice(0, 2), 10);
-      }
-    } else if (digits.length === 1 || digits.length === 2) {
-      const num = parseInt(digits, 10);
-      if (num <= 23) {
-        h = num;
-        m = 0;
-      } else {
-        h = parseInt(digits[0], 10);
-        m = parseInt(digits[1], 10) * 10;
-      }
-    } else if (digits.length === 3) {
-      h = parseInt(digits[0], 10);
-      m = parseInt(digits.slice(1, 3), 10);
-    } else if (digits.length >= 4) {
-      h = parseInt(digits.slice(0, 2), 10);
-      m = parseInt(digits.slice(2, 4), 10);
-    }
-
-    h = Math.max(0, Math.min(23, h));
-    m = Math.max(0, Math.min(59, m));
-    const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    setText(formatted);
-    onChange(formatted);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Arrow keys support
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       const current = text || value || '12:00';
@@ -148,7 +83,103 @@ const Vietnamese24hInput: React.FC<{
       const formatted = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
       setText(formatted);
       onChange(formatted);
+      return;
     }
+
+    // Special Backspace handling: Never delete colon, only delete digits around it
+    if (e.key === 'Backspace') {
+      const input = e.currentTarget;
+      const selStart = input.selectionStart ?? 0;
+      const selEnd = input.selectionEnd ?? 0;
+
+      // If user selected text that includes colon, or cursor is right after colon (index 3 e.g. "12:|34")
+      if (selStart === selEnd && selStart === 3) {
+        // Cursor is right behind ':', so deleting should delete the second hour digit at index 1
+        e.preventDefault();
+        const current = text;
+        const [hPart = '', mPart = ''] = current.split(':');
+        const newH = hPart.slice(0, -1);
+        const newText = newH || mPart ? `${newH}:${mPart}` : '';
+        setText(newText);
+        onChange(newText.length === 5 ? newText : (newText ? newText : ''));
+        // Place cursor at index 2 (before colon)
+        setTimeout(() => {
+          input.setSelectionRange(newH.length, newH.length);
+        }, 0);
+        return;
+      }
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Extract only digits
+    const digits = raw.replace(/\D/g, '').slice(0, 4);
+
+    if (digits.length === 0) {
+      setText('');
+      onChange('');
+      return;
+    }
+
+    let formatted = '';
+    if (digits.length <= 2) {
+      formatted = `${digits}:`;
+    } else {
+      formatted = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+    }
+
+    setText(formatted);
+
+    // If full 4 digits provided (HH:mm), validate ranges
+    if (digits.length === 4) {
+      const h = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        const validTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        onChange(validTime);
+      } else {
+        // Even if invalid (e.g. 30:12 or 25:80), propagate so validation error shows up
+        onChange(formatted);
+      }
+    } else {
+      // Partial input propagates current typed text (e.g. "11:")
+      onChange(formatted);
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    if (!text.trim() || text === ':') {
+      setText('');
+      onChange('');
+      return;
+    }
+    const digits = text.replace(/\D/g, '');
+    if (digits.length === 0) {
+      setText('');
+      onChange('');
+      return;
+    }
+
+    let h = 0;
+    let m = 0;
+    if (digits.length <= 2) {
+      h = parseInt(digits, 10) || 0;
+      m = 0;
+    } else if (digits.length === 3) {
+      h = parseInt(digits.slice(0, 2), 10) || 0;
+      m = parseInt(digits.slice(2), 10) * 10 || 0;
+    } else {
+      h = parseInt(digits.slice(0, 2), 10) || 0;
+      m = parseInt(digits.slice(2, 4), 10) || 0;
+    }
+
+    h = Math.max(0, Math.min(23, h));
+    m = Math.max(0, Math.min(59, m));
+    const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    setText(formatted);
+    onChange(formatted);
   };
 
   if (variant === 'compact') {

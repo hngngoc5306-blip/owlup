@@ -415,8 +415,35 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     setIsAdding(true);
   };
 
+  const validateSingleTime = (time: string, label: string): string | null => {
+    if (!time || time === '--:--' || time === ':') return null;
+    const parts = time.split(':');
+    if (parts.length < 2) return null;
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (!isNaN(h) && (h < 0 || h > 23)) {
+      return isEn 
+        ? `Invalid hour (${parts[0]}) in ${label}. Hour must be 00 - 23.` 
+        : `Giờ không hợp lệ (${parts[0]}) ở ${label}. Giờ phải từ 00 đến 23. Vui lòng điền lại.`;
+    }
+    if (!isNaN(m) && (m < 0 || m > 59)) {
+      return isEn 
+        ? `Invalid minute (${parts[1]}) in ${label}. Minute must be 00 - 59.` 
+        : `Phút không hợp lệ (${parts[1]}) ở ${label}. Phút phải từ 00 đến 59. Vui lòng điền lại.`;
+    }
+    return null;
+  };
+
   const validateTimes = (start: string, end: string): { valid: boolean; error: string | null } => {
-    if (!start || !end || start === '--:--' || end === '--:--') {
+    // Check start field validity
+    const startErr = validateSingleTime(start, isEn ? "start time" : "thời gian bắt đầu");
+    if (startErr) return { valid: false, error: startErr };
+
+    // Check end field validity
+    const endErr = validateSingleTime(end, isEn ? "end time" : "thời gian kết thúc");
+    if (endErr) return { valid: false, error: endErr };
+
+    if (!start || !end || start === '--:--' || end === '--:--' || !start.includes(':') || !end.includes(':')) {
       return {
         valid: false,
         error: isEn ? "Please enter both start and end times." : "Vui lòng nhập đầy đủ thời gian bắt đầu và kết thúc."
@@ -433,6 +460,13 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       return {
         valid: false,
         error: isEn ? "Invalid time format. Please re-enter." : "Định dạng thời gian không hợp lệ. Vui lòng điền lại."
+      };
+    }
+
+    if (sh < 0 || sh > 23 || eh < 0 || eh > 23 || sm < 0 || sm > 59 || em < 0 || em > 59) {
+      return {
+        valid: false,
+        error: isEn ? "Time out of range (00:00 - 23:59). Please re-enter." : "Thời gian ngoài phạm vi (00:00 - 23:59). Vui lòng điền lại."
       };
     }
 
@@ -901,9 +935,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 </div>
 
                 {(() => {
-                  const hasBothInputs = Boolean(newStart && newEnd && newStart !== '--:--' && newEnd !== '--:--');
                   const validation = validateTimes(newStart, newEnd);
-                  const displayErr = (!validation.valid && hasBothInputs) ? validation.error : timeError;
+                  const hasBothInputs = Boolean(newStart && newEnd && newStart !== '--:--' && newEnd !== '--:--');
+                  const singleStartErr = validateSingleTime(newStart, isEn ? "start time" : "thời gian bắt đầu");
+                  const singleEndErr = validateSingleTime(newEnd, isEn ? "end time" : "thời gian kết thúc");
+                  const immediateFieldErr = singleStartErr || singleEndErr;
+                  const displayErr = immediateFieldErr || ((!validation.valid && hasBothInputs) ? validation.error : timeError);
                   if (!displayErr) return null;
                   return (
                     <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
