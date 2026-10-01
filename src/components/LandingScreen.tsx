@@ -95,7 +95,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
           ) : (
             <>
               Phục hồi năng lượng <br />
-              Qua từng chu kỳ
+              qua từng chu kỳ
             </>
           )}
         </h1>
