@@ -371,12 +371,29 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
             <div className={`text-xs sm:text-sm font-bold mb-1.5 uppercase tracking-wider ${isOverLimit ? 'text-[#C10007] dark:text-[#F87171]' : 'text-slate-400'}`}>
               {isOverLimit 
                 ? (isEn ? "Over Limit" : "Mức vượt ngưỡng") 
-                : (isEn ? "Safe Remaining" : "Còn lại an toàn")}
+                : (isEn ? "Can Still Consume" : "Có thể nạp thêm")}
             </div>
-            <div className={`text-2xl sm:text-3xl font-heading font-bold ${isOverLimit ? 'text-[#C10007] dark:text-[#F87171]' : 'text-[#4CB28E] dark:text-[#62D2FB]'}`}>
-              {isOverLimit 
-                ? `+${currentTotal - safeDailyLimitMg}mg` 
-                : `${remaining}mg`}
+            <div className="flex items-baseline flex-wrap gap-x-2 gap-y-0.5">
+              <span className={`text-2xl sm:text-3xl font-heading font-bold tabular-nums ${isOverLimit ? 'text-[#C10007] dark:text-[#F87171]' : 'text-[#4CB28E] dark:text-[#62D2FB]'}`}>
+                {isOverLimit 
+                  ? `+${currentTotal - safeDailyLimitMg}mg` 
+                  : `${remaining}mg`}
+              </span>
+              {!isOverLimit && remaining > 0 && (() => {
+                // Base standard cup of coffee (size M black coffee ~120mg, or latte ~80mg)
+                const cups = (remaining / 120);
+                const roundedCups = cups >= 1 ? (Math.round(cups * 10) / 10).toString().replace('.0', '') : '< 1';
+                return (
+                  <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    {isEn ? `(~${roundedCups} cups of coffee)` : `(~${roundedCups} cốc cà phê)`}
+                  </span>
+                );
+              })()}
+              {!isOverLimit && remaining === 0 && (
+                <span className="text-xs sm:text-sm font-medium text-slate-400 whitespace-nowrap">
+                  {isEn ? "(0 cups left)" : "(Đã chạm ngưỡng)"}
+                </span>
+              )}
             </div>
           </div>
           <div className="text-right">
