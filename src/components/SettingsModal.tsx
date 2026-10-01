@@ -514,8 +514,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {/* 1. Recovery reminders */}
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
                   <div>
-                    <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{ts.recoveryReminders}</div>
-                    <div className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{ts.recoveryRemindersDesc}</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.recoveryReminders}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.recoveryRemindersDesc}</div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -531,8 +531,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {/* 2. Nap reminders */}
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
                   <div>
-                    <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{ts.napReminders}</div>
-                    <div className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{ts.napRemindersDesc}</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.napReminders}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.napRemindersDesc}</div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -548,8 +548,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {/* 3. Caffeine reminders */}
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
                   <div>
-                    <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{ts.caffeineReminders}</div>
-                    <div className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{ts.caffeineRemindersDesc}</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.caffeineReminders}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.caffeineRemindersDesc}</div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -565,8 +565,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {/* 4. Sleep reminders */}
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
                   <div>
-                    <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">{ts.sleepReminders}</div>
-                    <div className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{ts.sleepRemindersDesc}</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.sleepReminders}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.sleepRemindersDesc}</div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
@@ -581,7 +581,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* 5. Sound mode */}
                 <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 space-y-2">
-                  <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                     <Volume2 className="w-3.5 h-3.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                     <span>{ts.soundTitle}:</span>
                   </div>
