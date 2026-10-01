@@ -179,8 +179,8 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
       return '08:00';
     }
   })();
-  const [selectedDrink, setSelectedDrink] = useState<number | null>(2); // Default Black Coffee
-  const [selectedSize, setSelectedSize] = useState<number>(1); // Default M
+  const [selectedDrink, setSelectedDrink] = useState<number | null>(null);
+  const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [drinkTime, setDrinkTime] = useState<string>('');
   const [isCustom, setIsCustom] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -297,14 +297,15 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
     let finalName = '';
     let finalMg = 0;
     
-    const drinkIdx = (selectedDrink !== null && selectedDrink >= 0 && selectedDrink < DRINK_PRESETS.length) ? selectedDrink : 2;
-    const sizeIdx = (selectedSize !== null && selectedSize >= 0 && selectedSize < SIZE_PRESETS.length) ? selectedSize : 1;
+    const drinkIdx = selectedDrink !== null ? selectedDrink : 0;
+    const sizeIdx = selectedSize !== null ? selectedSize : 1;
 
     if (isCustom) {
       if (!customName || !customMg) return;
       finalName = `${customName.trim()} (${customVolumeMl}ml)`;
       finalMg = parseInt(customMg) || 0;
     } else {
+      if (selectedDrink === null || selectedSize === null) return;
       const baseDrink = DRINK_PRESETS[drinkIdx];
       const size = SIZE_PRESETS[sizeIdx];
       finalMg = Math.round(baseDrink.caffeineMg * size.multiplier);
@@ -346,13 +347,15 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
     };
     onUpdateLoggedItems([...loggedItems, newItem]);
     
+    // Reset all choices 1, 2, 3 to empty so user can add fresh drink
     setIsCustom(false);
     setCustomName('');
     setCustomSize('M');
     setCustomVolumeMl(350);
     setCustomMg('100');
     setIsMgManualEdit(false);
-    setSelectedDrink(drinkIdx);
+    setSelectedDrink(null);
+    setSelectedSize(null);
     setDrinkTime('');
   };
 
@@ -640,8 +643,8 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
 
         <div className="mb-7">
           <p className="text-base sm:text-lg font-bold text-[#1F2937] dark:text-white mb-3.5">3. {isEn ? "Time:" : "Thời gian:"}</p>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-4 max-w-sm mb-4">
-            <div className="flex-1">
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-4">
+            <div className="w-44 sm:w-48">
               <TimePickerInput
                 value={drinkTime}
                 onChange={setDrinkTime}
@@ -651,7 +654,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
             </div>
             <button 
               onClick={handleJustDrank}
-              className="px-6 py-3 rounded-xl bg-[#FDE047]/30 text-[#b45309] dark:text-[#FCD34D] font-bold text-sm sm:text-base hover:bg-[#FDE047]/60 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer whitespace-nowrap text-center"
+              className="px-5 sm:px-6 py-3 rounded-xl bg-[#FDE047]/30 text-[#b45309] dark:text-[#FCD34D] font-bold text-sm sm:text-base hover:bg-[#FDE047]/60 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer whitespace-nowrap text-center shrink-0"
             >
               {isEn ? "Just Drank" : "Vừa uống xong"}
             </button>
@@ -705,7 +708,10 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                         handleLogDrink();
                         setIsDismissedWarning(false);
                       }}
-                      disabled={!drinkTime || (isCustom && (!customName || !customMg))}
+                      disabled={
+                        !drinkTime || 
+                        (isCustom ? (!customName || !customMg) : (selectedDrink === null || selectedSize === null))
+                      }
                       className="px-7 py-2.5 rounded-xl bg-[#C10007] hover:bg-[#A30006] text-white font-bold text-sm sm:text-base transition-all shadow-sm hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
                     >
                       {isEn ? "Yes" : "Có"}
@@ -737,7 +743,10 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                 handleLogDrink();
               }
             }}
-            disabled={!drinkTime || (isCustom && (!customName || !customMg))}
+            disabled={
+              !drinkTime || 
+              (isCustom ? (!customName || !customMg) : (selectedDrink === null || selectedSize === null))
+            }
             className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none rounded-2xl py-4 text-lg font-bold transition-all duration-300 mb-3.5 shadow-md cursor-pointer"
           >
             {isEn ? "Log this Drink" : "Ghi nhận ly này"}
