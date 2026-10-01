@@ -1169,20 +1169,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-2xl">{goal.icon}</span>
-                        <h4 className="font-heading font-bold text-lg sm:text-xl text-[#1F2937] dark:text-white">
-                          {goal.title}
-                        </h4>
-                      </div>
-                      <span className={`text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-                        isSelected 
-                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] text-white dark:text-[#0E172A]' 
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                      }`}>
-                        {goal.badge}
-                      </span>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-2xl shrink-0 leading-none">{goal.icon}</span>
+                      <h4 className="font-heading font-bold text-lg sm:text-xl text-[#1F2937] dark:text-white leading-snug">
+                        {goal.title}
+                      </h4>
                     </div>
                     <div className="text-sm font-semibold text-[#007b4d] dark:text-[#62D2FB] mb-2">
                       {goal.subtitle}
