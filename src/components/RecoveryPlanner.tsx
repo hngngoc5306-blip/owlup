@@ -950,11 +950,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-12">
             {/* 1. Afternoon Power Nap */}
-            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-8 bg-white dark:bg-[#0F172A] shadow-sm">
+            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
               <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">{isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI CHIỀU"}</div>
-              <div className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 whitespace-nowrap inline-flex items-baseline">
+              <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
                 <span className="whitespace-nowrap">{formatDisplayTime(recNapStart, isEn)}</span>
-                <span className="text-slate-400 font-sans mx-2 font-normal shrink-0">→</span>
+                <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
                 <span className="whitespace-nowrap">{formatDisplayTime(recNapEnd, isEn)}</span>
               </div>
               <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recNapDurationMins} min` : `Thời lượng: ${recNapDurationMins} phút`}</div>
@@ -962,11 +962,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             </div>
 
             {/* 2. Main Night Sleep */}
-            <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-3xl p-8 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm">
+            <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-3xl p-5 sm:p-6 lg:p-8 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm overflow-hidden">
               <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-4 uppercase">{isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}</div>
-              <div className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 whitespace-nowrap inline-flex items-baseline">
+              <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
                 <span className="whitespace-nowrap">{formatDisplayTime(recBedtime, isEn)}</span>
-                <span className="text-slate-400 font-sans mx-2 font-normal shrink-0">→</span>
+                <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
                 <span className="whitespace-nowrap">{formatDisplayTime(recWake, isEn)}</span>
               </div>
               <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recSleepDuration} hours` : `Thời lượng: ${recSleepDuration} giờ`}</div>

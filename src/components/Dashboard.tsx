@@ -340,7 +340,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center`}>
                       <span>{isEn ? 'Afternoon Power Nap:' : 'Chợp mắt buổi trưa:'} <span className="font-heading">{plannedNap.duration} {isEn ? 'min' : 'phút'}</span></span>
                     </div>
-                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center whitespace-nowrap gap-x-2 tabular-nums">
+                    <div className="font-heading text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
                       <span className="text-[#1F2937] dark:text-white text-left whitespace-nowrap">
                         {formatDisplayTime(plannedNap.start, isEn)}
                       </span>
@@ -369,7 +369,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     } font-sans text-xs sm:text-sm md:text-base font-medium mb-2 flex items-center`}>
                       <span>{isEn ? 'Night Sleep:' : 'Giấc ngủ đêm:'} <span className="font-heading">{cleanSleepHours}</span></span>
                     </div>
-                    <div className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold flex items-center whitespace-nowrap gap-x-2 tabular-nums">
+                    <div className="font-heading text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
                       <span className="text-[#1F2937] dark:text-white text-left whitespace-nowrap">
                         {formatDisplayTime(bedtime, isEn)}
                       </span>
