@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Clock, X, ChevronUp, ChevronDown } from 'lucide-react';
 
 export interface TimePickerInputProps {
-  value: string; // Chuẩn lưu trữ 24h: "HH:mm", ví dụ: "18:00", "09:30"
+  value: string; // Stored as 24h "HH:mm", e.g. "18:00", "09:30"
   onChange: (value: string) => void;
   onRangeDetected?: (start: string, end: string) => void;
   isEn?: boolean;
@@ -18,12 +18,12 @@ const MINUTES_COMMON = ['00', '15', '30', '45'];
 
 // ─── PURE HELPERS (no Date objects, no timezone) ──────────────────────────────
 
-/** Strip non-digits and keep max 4 from a "HH:mm" string → e.g. "12:00" → "1200" */
+/** Strip non-digits from "HH:mm" → max 4 digit string. "12:00" → "1200" */
 const digitsFrom24 = (val24: string): string =>
   (val24 || '').replace(/\D/g, '').slice(0, 4);
 
 /**
- * 4-digit buffer → "HH:mm" string. NEVER uses Date. NEVER adds timezone.
+ * 4-digit buffer → "HH:mm". No Date, no timezone.
  * "1200" → "12:00", "0905" → "09:05", "2359" → "23:59"
  * Returns null if HH > 23 or MM > 59.
  */
@@ -36,25 +36,25 @@ const digits4To24 = (d: string): string | null => {
 };
 
 /**
- * Derive the text shown in the input field from the digit buffer.
- * Colon is always inserted between position 2 and 3. No Date object used.
+ * Derive display text from digit buffer. Colon always at position 2|3.
  *   ""     → ""
- *   "1"    → "1:"
+ *   "1"    → "1"      (no colon until 2+ digits to avoid cursor jumping)
  *   "12"   → "12:"
  *   "123"  → "12:3"
  *   "1200" → "12:00"
+ *
+ * NOTE: Single digit shows WITHOUT colon to avoid the "allSelected" trap
+ * where selectionEnd = len("1:") = 2 ≡ allSelected = true on next keypress.
  */
 const bufToDisplay = (d: string): string => {
   if (!d || d.length === 0) return '';
-  if (d.length === 1) return `${d}:`;
-  if (d.length === 2) return `${d}:`;
-  if (d.length === 3) return `${d.slice(0, 2)}:${d.slice(2)}`;
-  return `${d.slice(0, 2)}:${d.slice(2, 4)}`;
+  if (d.length === 1) return d;           // "1"  — no colon yet
+  if (d.length === 2) return `${d}:`;    // "12:"
+  if (d.length === 3) return `${d.slice(0, 2)}:${d.slice(2)}`; // "12:3"
+  return `${d.slice(0, 2)}:${d.slice(2, 4)}`;                  // "12:00"
 };
 
-/**
- * English 12h display. Only called on complete 4-digit values.
- */
+/** English 12h display. Only for complete 4-digit values. */
 export const formatDisplayString = (val24: string, isEn: boolean): string => {
   if (!val24 || !val24.includes(':')) return val24 || '';
   if (!isEn) return val24;
@@ -68,7 +68,7 @@ export const formatDisplayString = (val24: string, isEn: boolean): string => {
 };
 
 /**
- * Normalise any format the user might type → "HH:mm" (24h) or null.
+ * Normalise any user-typed format → "HH:mm" (24h) or null.
  * NEVER uses Date objects.
  */
 export const normalizeTimeString = (raw: string): string | null => {
@@ -109,7 +109,7 @@ export const normalizeTimeString = (raw: string): string | null => {
     return null;
   }
 
-  // 4. Raw digits: 1-4 digits
+  // 4. Raw digits: 1–4 digits
   const digits = s.replace(/\D/g, '');
   if (digits.length === 1 || digits.length === 2) {
     const h = parseInt(digits, 10);
@@ -123,9 +123,7 @@ export const normalizeTimeString = (raw: string): string | null => {
       return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     return null;
   }
-  if (digits.length === 4) {
-    return digits4To24(digits);
-  }
+  if (digits.length === 4) return digits4To24(digits);
   return null;
 };
 
@@ -153,33 +151,46 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   variant = 'box',
   placeholder = '--:--',
 }) => {
-  // ── REFS (always current, no stale-closure issues) ──────────────────────────
-  /** The digit buffer: 0–4 chars of digits only, e.g. "1200" for 12:00 */
+  // ── REFS — synchronous, never stale ─────────────────────────────────────────
+
+  /** Digit buffer: 0–4 digit chars only, e.g. "1200" for 12:00 */
   const bufRef = useRef<string>(digitsFrom24(value));
-  /** Set to true during keyDown handling to suppress the subsequent onChange event */
+
+  /**
+   * isFocused as a ref so that useLayoutEffect always sees the current value
+   * without waiting for a React render cycle. This prevents the layout effect
+   * from overwriting the input value immediately after focus before the state
+   * update has been committed.
+   */
+  const isFocusedRef = useRef<boolean>(false);
+
+  /**
+   * Set synchronously in handleKeyDown BEFORE e.preventDefault().
+   * Cleared synchronously in handleChange after it checks the flag.
+   * (No setTimeout — that was the old source of the race condition.)
+   */
   const keyHandledRef = useRef(false);
-  /** True on first key press after focus – replaces existing content */
+
+  /** True from focus until first digit keypress — next digit resets the field */
   const freshFocusRef = useRef(false);
-  /** Timer ID for the select-all setTimeout so we can cancel it */
-  const selectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── STATE (only for re-renders) ─────────────────────────────────────────────
+  // ── STATE — only for triggering React re-renders ─────────────────────────────
   const [buf, setBufState] = useState<string>(() => digitsFrom24(value));
   const [isFocused, setIsFocused] = useState(false);
   const [isClockOpen, setIsClockOpen] = useState(false);
   const [clockPeriod, setClockPeriod] = useState<'AM' | 'PM'>('PM');
 
-  // ── Source of truth: write to BOTH ref and state ────────────────────────────
+  // ── Unified setter: keeps ref and state in sync ──────────────────────────────
   const setBuf = (newBuf: string) => {
     const d = newBuf.slice(0, 4);
     bufRef.current = d;
     setBufState(d);
   };
 
-  // ── Derive display text from buffer (single source of truth) ────────────────
+  // ── Display derivation ───────────────────────────────────────────────────────
   const getDisplay = (d: string = bufRef.current): string => {
     if (d.length === 0) return '';
     if (d.length === 4 && isEn) {
@@ -189,17 +200,29 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     return bufToDisplay(d);
   };
 
-  // ── Sync input element's value imperatively (avoids React controlled-input
-  //    artefacts where onChange fires with stale DOM state) ────────────────────
+  // ── Imperatively write display to DOM (the "single update path") ─────────────
+  const writeToInput = (d: string) => {
+    if (inputRef.current) inputRef.current.value = getDisplay(d);
+  };
+
+  /**
+   * useLayoutEffect: sync display when NOT focused.
+   *
+   * Uses isFocusedRef (not isFocused state) so the guard is synchronous —
+   * the old code used `isFocused` state which lags one render behind, causing
+   * the layout effect to overwrite the input immediately after the user clicked
+   * into it (focus event fired, but React hadn't re-rendered with isFocused=true
+   * yet, so !isFocused was still true and the old value was written back).
+   */
   useLayoutEffect(() => {
-    if (inputRef.current && !isFocused) {
+    if (!isFocusedRef.current && inputRef.current) {
       inputRef.current.value = getDisplay();
     }
   });
 
-  // ── Sync from external `value` prop when not focused ───────────────────────
+  // ── Sync from external `value` prop (when not focused) ──────────────────────
   useEffect(() => {
-    if (isFocused) return;
+    if (isFocusedRef.current) return;
     if (!value) {
       setBuf('');
     } else {
@@ -211,9 +234,9 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         if (!isNaN(h)) setClockPeriod(h >= 12 ? 'PM' : 'AM');
       }
     }
-  }, [value, isEn, isFocused]);
+  }, [value, isEn, isFocused]); // keep isFocused (state) in deps so it re-runs when focus changes
 
-  // ── Close clock on outside click ────────────────────────────────────────────
+  // ── Close clock on outside click ─────────────────────────────────────────────
   useEffect(() => {
     if (!isClockOpen) return;
     const fn = (e: MouseEvent) => {
@@ -224,25 +247,26 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     return () => document.removeEventListener('mousedown', fn);
   }, [isClockOpen]);
 
-  // ── Core: apply new digit buffer & propagate onChange ──────────────────────
+  // ── Core: apply digit buffer and emit onChange ───────────────────────────────
   const applyBuf = (newBuf: string) => {
     const d = newBuf.slice(0, 4);
     setBuf(d);
-    // Update the input element immediately (don't wait for next render)
-    if (inputRef.current) inputRef.current.value = getDisplay(d);
+    writeToInput(d);
     if (d.length === 4) {
       const v24 = digits4To24(d);
       if (v24) onChange(v24);
     } else if (d.length === 0) {
       onChange('');
     }
-    // 1–3 digits: partial input, don't emit yet
+    // 1–3 digits: partial, don't emit
   };
 
-  // ── Step ±N minutes ─────────────────────────────────────────────────────────
+  // ── Step ±N minutes ──────────────────────────────────────────────────────────
   const stepTime = (deltaMinutes: number) => {
-    const cur = (bufRef.current.length === 4 ? digits4To24(bufRef.current) : null)
-      || normalizeTimeString(value) || '12:00';
+    const cur =
+      (bufRef.current.length === 4 ? digits4To24(bufRef.current) : null) ||
+      normalizeTimeString(value) ||
+      '12:00';
     const [hStr, mStr] = cur.split(':');
     let total = parseInt(hStr, 10) * 60 + parseInt(mStr, 10) + deltaMinutes;
     total = ((total % 1440) + 1440) % 1440;
@@ -251,49 +275,44 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     const v24 = `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
     const d = digitsFrom24(v24);
     setBuf(d);
-    if (inputRef.current) inputRef.current.value = getDisplay(d);
+    writeToInput(d);
     setClockPeriod(nh >= 12 ? 'PM' : 'AM');
     onChange(v24);
   };
 
-  // ── Focus ───────────────────────────────────────────────────────────────────
+  // ── Focus ────────────────────────────────────────────────────────────────────
   const handleFocus = () => {
+    // Set ref synchronously — useLayoutEffect will see this immediately
+    isFocusedRef.current = true;
     setIsFocused(true);
     freshFocusRef.current = true;
     keyHandledRef.current = false;
-    // Cancel any pending select timer
-    if (selectTimerRef.current) clearTimeout(selectTimerRef.current);
-    selectTimerRef.current = setTimeout(() => {
-      // Only select-all if the user hasn't started typing yet
+    // Select all after a short delay so the focus event settles
+    setTimeout(() => {
       if (freshFocusRef.current && inputRef.current) {
         inputRef.current.select();
       }
-      selectTimerRef.current = null;
     }, 50);
   };
 
-  // ── Blur: finalise partial input ────────────────────────────────────────────
+  // ── Blur: finalise partial input ─────────────────────────────────────────────
   const handleBlur = () => {
+    isFocusedRef.current = false;
     setIsFocused(false);
     freshFocusRef.current = false;
     keyHandledRef.current = false;
-    if (selectTimerRef.current) {
-      clearTimeout(selectTimerRef.current);
-      selectTimerRef.current = null;
-    }
 
     const d = bufRef.current;
-
     if (d.length === 0) { onChange(''); return; }
 
-    // 1–2 digits → treat entire value as hour
+    // 1–2 digits → treat as hour
     if (d.length === 1 || d.length === 2) {
       const h = parseInt(d, 10);
       if (h >= 0 && h <= 23) {
         const v24 = `${String(h).padStart(2, '0')}:00`;
         const nd = digitsFrom24(v24);
         setBuf(nd);
-        if (inputRef.current) inputRef.current.value = getDisplay(nd);
+        writeToInput(nd);
         onChange(v24);
       }
       return;
@@ -308,23 +327,20 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         const v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         const nd = digitsFrom24(v24);
         setBuf(nd);
-        if (inputRef.current) inputRef.current.value = getDisplay(nd);
+        writeToInput(nd);
         onChange(v24);
       }
       return;
     }
 
-    // 4 digits → already complete
+    // 4 digits → complete
     if (d.length === 4) {
       const v24 = digits4To24(d);
-      if (v24) {
-        if (inputRef.current) inputRef.current.value = getDisplay(d);
-        onChange(v24);
-      }
+      if (v24) { writeToInput(d); onChange(v24); }
     }
   };
 
-  // ── Keyboard ────────────────────────────────────────────────────────────────
+  // ── Keyboard handler ─────────────────────────────────────────────────────────
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') { e.currentTarget.blur(); return; }
     if (e.key === 'Escape') { setIsClockOpen(false); return; }
@@ -332,23 +348,28 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     // Digit 0–9
     if (/^[0-9]$/.test(e.key)) {
       e.preventDefault();
-      keyHandledRef.current = true;  // Block subsequent handleChange
+      // Set flag BEFORE the browser can fire onChange. Cleared synchronously
+      // in handleChange (not via setTimeout — that caused the race condition).
+      keyHandledRef.current = true;
 
-      const curBuf = bufRef.current;  // Always current (ref, not stale state)
+      const curBuf = bufRef.current;
       const input = e.currentTarget;
+      // Check if all text is selected — but only for 2+ char values.
+      // For a 1-char display (no colon), selectionEnd=1 always; we must NOT
+      // treat this as "all selected" because the user is mid-entry.
+      const displayLen = input.value.length;
       const allSelected =
-        input.selectionStart === 0 && input.selectionEnd === input.value.length;
+        displayLen > 1 &&
+        input.selectionStart === 0 &&
+        input.selectionEnd === displayLen;
       const reset = freshFocusRef.current || allSelected || curBuf.length >= 4;
       freshFocusRef.current = false;
 
       applyBuf(reset ? e.key : curBuf + e.key);
-
-      // Clear the flag after this event loop tick
-      setTimeout(() => { keyHandledRef.current = false; }, 0);
       return;
     }
 
-    // Backspace – remove last digit, preserve colon structure
+    // Backspace
     if (e.key === 'Backspace') {
       e.preventDefault();
       keyHandledRef.current = true;
@@ -359,28 +380,26 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         input.selectionStart === 0 && input.selectionEnd === input.value.length;
       if (allSelected || bufRef.current.length <= 1) {
         setBuf('');
-        if (inputRef.current) inputRef.current.value = '';
+        writeToInput('');
         onChange('');
       } else {
         applyBuf(bufRef.current.slice(0, -1));
       }
-      setTimeout(() => { keyHandledRef.current = false; }, 0);
       return;
     }
 
-    // Delete – clear all
+    // Delete
     if (e.key === 'Delete') {
       e.preventDefault();
       keyHandledRef.current = true;
       freshFocusRef.current = false;
       setBuf('');
-      if (inputRef.current) inputRef.current.value = '';
+      writeToInput('');
       onChange('');
-      setTimeout(() => { keyHandledRef.current = false; }, 0);
       return;
     }
 
-    // 'h'/'H' – Vietnamese shorthand: "18h" → "18:00"
+    // 'h'/'H' – Vietnamese shorthand "18h" → "18:00"
     if (e.key === 'h' || e.key === 'H') {
       e.preventDefault();
       freshFocusRef.current = false;
@@ -391,21 +410,21 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
           const v24 = `${String(h).padStart(2, '0')}:00`;
           const nd = digitsFrom24(v24);
           setBuf(nd);
-          if (inputRef.current) inputRef.current.value = getDisplay(nd);
+          writeToInput(nd);
           onChange(v24);
         }
       }
       return;
     }
 
-    // ':' – pad single digit hour
+    // ':'
     if (e.key === ':') {
       e.preventDefault();
       freshFocusRef.current = false;
       if (bufRef.current.length === 1) {
         const nd = bufRef.current.padStart(2, '0');
         setBuf(nd);
-        if (inputRef.current) inputRef.current.value = getDisplay(nd);
+        writeToInput(nd);
       }
       return;
     }
@@ -418,7 +437,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     }
   };
 
-  // ── Paste ───────────────────────────────────────────────────────────────────
+  // ── Paste ────────────────────────────────────────────────────────────────────
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text');
@@ -430,7 +449,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         onRangeDetected(range.start, range.end);
         const d = digitsFrom24(range.start);
         setBuf(d);
-        if (inputRef.current) inputRef.current.value = getDisplay(d);
+        writeToInput(d);
         onChange(range.start);
         return;
       }
@@ -440,7 +459,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     if (norm) {
       const d = digitsFrom24(norm);
       setBuf(d);
-      if (inputRef.current) inputRef.current.value = getDisplay(d);
+      writeToInput(d);
       onChange(norm);
       return;
     }
@@ -449,25 +468,33 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     if (d) applyBuf(d);
   };
 
-  // ── Cut ─────────────────────────────────────────────────────────────────────
+  // ── Cut ──────────────────────────────────────────────────────────────────────
   const handleCut = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     try { navigator.clipboard?.writeText(getDisplay()); } catch {}
     setBuf('');
-    if (inputRef.current) inputRef.current.value = '';
+    writeToInput('');
     onChange('');
   };
 
-  // ── onChange: ONLY fires on mobile IME / browser autocomplete.
-  //    Desktop keyboard input is fully handled by handleKeyDown + e.preventDefault().
-  //    We NEVER call normalizeTimeString here to avoid transforming partial "1:"→"01:00".
+  // ── onChange: last-resort for mobile IME / browser autocomplete only ─────────
+  //
+  // Desktop keyboard: handleKeyDown intercepts every digit with e.preventDefault()
+  // so handleChange should never fire for normal desktop typing.
+  // If it fires (mobile IME, autofill, etc.), we process it here.
+  //
+  // The keyHandledRef flag is cleared SYNCHRONOUSLY here (not via setTimeout),
+  // which was the root cause of the race condition in the previous version.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // If handleKeyDown already handled this input, ignore
-    if (keyHandledRef.current) return;
+    // If a keyDown handler already handled this — skip and clear the flag
+    if (keyHandledRef.current) {
+      keyHandledRef.current = false; // Clear synchronously
+      return;
+    }
 
     const raw = e.target.value;
 
-    // Range detection (for paste-like scenarios)
+    // Range detection
     if (onRangeDetected) {
       const range = parseTimeRangeString(raw);
       if (range) {
@@ -479,14 +506,15 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       }
     }
 
-    // Extract digits only – do NOT normalise here to avoid "1:" → "01:00"
+    // Extract digits only. Do NOT call normalizeTimeString here — that would
+    // transform intermediate states like "1" → "01:00" or "1:" → "01:00".
     const d = raw.replace(/\D/g, '').slice(0, 4);
     if (d !== bufRef.current) {
       applyBuf(d);
     }
   };
 
-  // ── Select from clock picker ─────────────────────────────────────────────────
+  // ── Select from clock picker ──────────────────────────────────────────────────
   const selectFromClock = (hStr: string, mStr: string = '00', period?: 'AM' | 'PM') => {
     let v24: string;
     const p = period ?? clockPeriod;
@@ -501,7 +529,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     }
     const d = digitsFrom24(v24);
     setBuf(d);
-    if (inputRef.current) inputRef.current.value = getDisplay(d);
+    writeToInput(d);
     setClockPeriod(parseInt(v24.split(':')[0], 10) >= 12 ? 'PM' : 'AM');
     onChange(v24);
     setIsClockOpen(false);
@@ -615,8 +643,8 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   };
 
   // ── Shared input props ────────────────────────────────────────────────────────
-  // NOTE: We use defaultValue + ref management instead of value= to prevent
-  // React's controlled-input reconciliation from fighting our manual DOM updates.
+  // Using defaultValue (uncontrolled) + imperative ref updates avoids React's
+  // controlled-input reconciliation fighting our manual DOM writes.
   const inputProps = {
     ref: inputRef,
     type: 'text' as const,
@@ -633,7 +661,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     inputMode: 'numeric' as const,
   };
 
-  // ─── Variant: Compact ────────────────────────────────────────────────────────
+  // ─── Variant: Compact ─────────────────────────────────────────────────────────
   if (variant === 'compact') {
     return (
       <div ref={containerRef} className="relative inline-flex items-center">
@@ -646,7 +674,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     );
   }
 
-  // ─── Variant: Underline ──────────────────────────────────────────────────────
+  // ─── Variant: Underline ───────────────────────────────────────────────────────
   if (variant === 'underline') {
     return (
       <div ref={containerRef} className="relative w-full flex items-center justify-between border-b border-slate-300 dark:border-slate-500 pb-1">
@@ -677,7 +705,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     );
   }
 
-  // ─── Variant: Box (Default) ──────────────────────────────────────────────────
+  // ─── Variant: Box (Default) ───────────────────────────────────────────────────
   return (
     <div
       ref={containerRef}
