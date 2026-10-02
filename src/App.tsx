@@ -216,8 +216,16 @@ const calculateDefaultWakeTime = (bedtimeStr: string, sleepHours = 8) => {
 };
 
 export default function App() {
-  // Navigation state - Default starts at Dashboard per flowchart
   const [activeFeature, setActiveFeature] = useState<AppFeature>('dashboard');
+  const [plannerKey, setPlannerKey] = useState<number>(0);
+
+  const handleSelectFeature = (feature: AppFeature) => {
+    if (feature === 'planner') {
+      setPlannerKey((prev) => prev + 1);
+    }
+    setActiveFeature(feature);
+  };
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [activeFeature]);
@@ -415,6 +423,8 @@ export default function App() {
         localStorage.removeItem('owlup_schedule_applied');
         localStorage.removeItem('owlup_schedule_date');
         localStorage.removeItem('owlup_history');
+        localStorage.removeItem('owlup_has_rolled_over');
+        localStorage.removeItem('owlup_has_passed_midnight');
         localStorage.setItem('owlup_last_active_date', todayStr);
         localStorage.setItem('owlup_bedtime', initialBedtime);
         localStorage.setItem('owlup_waketime', initialWakeTime);
@@ -443,6 +453,8 @@ export default function App() {
       localStorage.removeItem('owlup_schedule_applied');
       localStorage.removeItem('owlup_schedule_date');
       localStorage.removeItem('owlup_history');
+      localStorage.removeItem('owlup_has_rolled_over');
+      localStorage.removeItem('owlup_has_passed_midnight');
       localStorage.setItem('owlup_last_active_date', todayStr);
       const initialBedtime = profile.usualBedtime || '22:30';
       const initialWakeTime = calculateDefaultWakeTime(initialBedtime, 8);
@@ -539,17 +551,8 @@ export default function App() {
         }
       } catch {}
 
-      // Reset today's active schedule and caffeine log for the new day
-      localStorage.removeItem('owlup_schedule_applied');
-      localStorage.removeItem('owlup_schedule_date');
-      localStorage.removeItem('owlup_commitments');
-      localStorage.removeItem('owlup_planned_nap');
-      localStorage.removeItem('owlup_caffeine_log');
-      localStorage.setItem('owlup_last_active_date', todayStr);
-
-      setCommitments([]);
-      setCaffeineLog([]);
-      setPlannedNap(null);
+      // Migrate tomorrow's plan if available, or reset schedule and caffeine for new day
+      handleDailyRollover(todayStr);
       account.commitments = [];
       account.caffeineLog = [];
       account.lastActiveDate = todayStr;
@@ -623,6 +626,8 @@ export default function App() {
         localStorage.removeItem('owlup_nap_end');
         localStorage.removeItem('owlup_planned_nap');
         localStorage.removeItem('owlup_schedule_applied');
+        localStorage.removeItem('owlup_has_rolled_over');
+        localStorage.removeItem('owlup_has_passed_midnight');
       } catch {}
       setCaffeineLog([]);
       setBedtime('22:30');
@@ -820,10 +825,10 @@ export default function App() {
       localStorage.setItem('owlup_schedule_applied', 'true');
       const todayDateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
       localStorage.setItem('owlup_schedule_date', todayDateStr);
-      if (napStart && napDuration) {
+      const dur = parseInt(napDuration || '0');
+      if (napStart && dur > 0) {
         const h = parseInt(napStart.split(':')[0]);
         const m = parseInt(napStart.split(':')[1]);
-        const dur = parseInt(napDuration);
         const endMins = h * 60 + m + dur;
         const endH = Math.floor(endMins / 60) % 24;
         const endM = endMins % 60;
@@ -831,6 +836,9 @@ export default function App() {
         const napObj = { start: napStart, end: endStr, duration: dur };
         localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
         setPlannedNap(napObj);
+      } else {
+        localStorage.removeItem('owlup_planned_nap');
+        setPlannedNap(null);
       }
       const commitmentsRaw = localStorage.getItem('owlup_commitments');
       const comms = commitmentsRaw ? JSON.parse(commitmentsRaw) : [];
@@ -863,20 +871,143 @@ export default function App() {
     } catch {}
   };
 
-  // Daily rollover effect: reset today's active plan if new day begins
+  // Daily rollover logic: migrate tomorrow's plan or reset today's active plan if new day begins (00:00)
+  const handleDailyRollover = (todayStr: string) => {
+    localStorage.setItem('owlup_has_rolled_over', 'true');
+    localStorage.setItem('owlup_has_passed_midnight', 'true');
+
+    // Archive previous day's metrics into history if not already archived
+    const lastActive = localStorage.getItem('owlup_last_active_date');
+    if (lastActive && lastActive !== todayStr) {
+      try {
+        const rawHist = localStorage.getItem('owlup_history');
+        const hist = rawHist ? JSON.parse(rawHist) : {};
+        if (!hist[lastActive] && bedtime && wakeTime) {
+          const [bh, bm] = bedtime.split(':').map(Number);
+          const [wh, wm] = wakeTime.split(':').map(Number);
+          let diff = (wh * 60 + wm) - (bh * 60 + bm);
+          if (diff <= 0) diff += 24 * 60;
+          const dur = Number((diff / 60).toFixed(1));
+          const currentCaff = caffeineLog || [];
+          const totalCaff = currentCaff.reduce((sum: number, it: any) => sum + (it.caffeineMg || 0), 0);
+          hist[lastActive] = {
+            date: lastActive,
+            sleepHours: dur,
+            sleepDurationHours: dur,
+            sleepScore: dur >= 7.5 ? 88 : dur >= 6.5 ? 75 : 62,
+            caffeineMg: totalCaff,
+            status: dur >= 7.0 ? 'optimal' : 'deficit'
+          };
+          localStorage.setItem('owlup_history', JSON.stringify(hist));
+        }
+      } catch {}
+    }
+
+    // Check if user had scheduled a plan for tomorrow
+    const savedTomorrow = localStorage.getItem('owlup_tomorrow_schedule');
+    const savedTomorrowGoal = localStorage.getItem('owlup_tomorrow_recovery_goal');
+
+    if (savedTomorrow) {
+      try {
+        const parsedTomorrow = JSON.parse(savedTomorrow);
+        // Prioritize exact bedtime from tomorrow's plan preview
+        const newBed = parsedTomorrow.bedtimeTonight || parsedTomorrow.expectedBedtimeTomorrow || '22:30';
+        const newWake = parsedTomorrow.wakeTimeTomorrow || '06:30';
+        const [bh, bm] = newBed.split(':').map(Number);
+        const [wh, wm] = newWake.split(':').map(Number);
+        let diff = (wh * 60 + wm) - (bh * 60 + bm);
+        if (diff <= 0) diff += 24 * 60;
+        const durHours = (diff / 60).toFixed(1);
+
+        setBedtime(newBed);
+        setWakeTime(newWake);
+        setTotalSleepHours(durHours);
+        localStorage.setItem('owlup_bedtime', newBed);
+        localStorage.setItem('owlup_waketime', newWake);
+        localStorage.setItem('owlup_total_sleep_hours', durHours);
+        localStorage.setItem('owlup_schedule_applied', 'true');
+        localStorage.setItem('owlup_schedule_date', todayStr);
+        localStorage.setItem('owlup_schedule_rolled_from_tomorrow', 'true');
+
+        // Transfer commitments if tomorrow had any
+        if (Array.isArray(parsedTomorrow.commitments) && parsedTomorrow.commitments.length > 0) {
+          localStorage.setItem('owlup_commitments', JSON.stringify(parsedTomorrow.commitments));
+          setCommitments(parsedTomorrow.commitments);
+        } else {
+          localStorage.removeItem('owlup_commitments');
+          setCommitments([]);
+        }
+
+        // Power nap from preview
+        if (parsedTomorrow.napTomorrowDuration && parsedTomorrow.napTomorrowDuration > 0 && parsedTomorrow.napTomorrowStart) {
+          const [nh, nm] = parsedTomorrow.napTomorrowStart.split(':').map(Number);
+          const endMins = (nh * 60 + nm + parsedTomorrow.napTomorrowDuration) % 1440;
+          const endH = Math.floor(endMins / 60);
+          const endM = endMins % 60;
+          const napObj = {
+            start: parsedTomorrow.napTomorrowStart,
+            end: `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
+            duration: parsedTomorrow.napTomorrowDuration
+          };
+          localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
+          setPlannedNap(napObj);
+        } else {
+          localStorage.removeItem('owlup_planned_nap');
+          setPlannedNap(null);
+        }
+
+        // Recovery Goal
+        if (savedTomorrowGoal) {
+          localStorage.setItem('owlup_recovery_goal', savedTomorrowGoal);
+        }
+
+        // Clean up tomorrow keys now that they are rolled into today
+        localStorage.removeItem('owlup_tomorrow_schedule');
+        localStorage.removeItem('owlup_tomorrow_commitments');
+        localStorage.removeItem('owlup_tomorrow_recovery_goal');
+      } catch {
+        // Fallback if parsing fails
+        localStorage.removeItem('owlup_schedule_applied');
+        localStorage.removeItem('owlup_schedule_date');
+        localStorage.removeItem('owlup_planned_nap');
+        localStorage.removeItem('owlup_commitments');
+        localStorage.removeItem('owlup_schedule_rolled_from_tomorrow');
+        setPlannedNap(null);
+        setCommitments([]);
+      }
+    } else {
+      localStorage.removeItem('owlup_schedule_applied');
+      localStorage.removeItem('owlup_schedule_date');
+      localStorage.removeItem('owlup_planned_nap');
+      localStorage.removeItem('owlup_commitments');
+      localStorage.removeItem('owlup_schedule_rolled_from_tomorrow');
+      setPlannedNap(null);
+      setCommitments([]);
+    }
+
+    // Tomorrow commitments are strictly cleared from data for the new day
+    localStorage.removeItem('owlup_tomorrow_commitments');
+
+    // Caffeine log is cleared every day at 00:00 rollover
+    localStorage.removeItem('owlup_caffeine_log');
+    localStorage.setItem('owlup_last_active_date', todayStr);
+    setCaffeineLog([]);
+
+    const activeEmail = localStorage.getItem('owlup_active_email');
+    if (activeEmail && activeEmail !== 'guest') {
+      saveAccountData(activeEmail, {
+        commitments: [],
+        caffeineLog: [],
+        lastActiveDate: todayStr,
+      });
+    }
+  };
+
   useEffect(() => {
     const todayStr = getTodayDateStr();
     const lastActive = localStorage.getItem('owlup_last_active_date');
     if (lastActive && lastActive !== todayStr) {
-      localStorage.removeItem('owlup_schedule_applied');
-      localStorage.removeItem('owlup_schedule_date');
-      localStorage.removeItem('owlup_commitments');
-      localStorage.removeItem('owlup_planned_nap');
-      localStorage.removeItem('owlup_caffeine_log');
-      localStorage.setItem('owlup_last_active_date', todayStr);
-      setCommitments([]);
-      setCaffeineLog([]);
-      setPlannedNap(null);
+      handleDailyRollover(todayStr);
     } else if (!lastActive) {
       localStorage.setItem('owlup_last_active_date', todayStr);
     }
@@ -892,9 +1023,17 @@ export default function App() {
     }
   }, [userProfile?.caffeineFrequency]);
 
-  // Live timer tick
+  // Live timer tick and midnight rollover check
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 10000);
+    const timer = setInterval(() => {
+      const now = new Date();
+      setCurrentTime(now);
+      const todayStr = getTodayDateStr();
+      const lastActive = localStorage.getItem('owlup_last_active_date');
+      if (lastActive && lastActive !== todayStr) {
+        handleDailyRollover(todayStr);
+      }
+    }, 10000);
     return () => clearInterval(timer);
   }, []);
 
@@ -989,7 +1128,7 @@ export default function App() {
 
       <Header
         activeFeature={activeFeature}
-        setActiveFeature={setActiveFeature}
+        setActiveFeature={handleSelectFeature}
         isNight={isNight}
         language={settings.language || 'en'}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -1015,8 +1154,8 @@ export default function App() {
               plannedNap={plannedNap}
               caffeineLog={caffeineLog}
               dailyLimitMg={settings.dailyCaffeineLimitMg || 400}
-              onSelectFeature={setActiveFeature}
-              onNavigateToPlanner={() => setActiveFeature('planner')}
+              onSelectFeature={handleSelectFeature}
+              onNavigateToPlanner={() => handleSelectFeature('planner')}
               onNavigateToCaffeine={() => setActiveFeature('caffeine')}
               onNavigateToTimeline={() => setActiveFeature('timeline')}
               onOpenSettings={() => setIsSettingsOpen(true)}
@@ -1026,6 +1165,7 @@ export default function App() {
           {/* 2. Recovery Planner (Flowchart: Occupied times -> Free slots -> Recommendation -> Agree/Customize -> Qualified/Unqualified -> Save) */}
           <div className={activeFeature === 'planner' ? 'block animate-premium-in' : 'hidden'}>
             <RecoveryPlanner
+              key={plannerKey}
               isNight={isNight}
               language={settings.language || 'en'}
               userProfile={userProfile}
@@ -1074,12 +1214,23 @@ export default function App() {
               commitments={commitments}
               caffeineLog={caffeineLog}
               napStart={plannedNap?.start}
-              napDuration={plannedNap?.duration ? plannedNap.duration.toString() : undefined}
+              napDuration={plannedNap && plannedNap.duration > 0 ? plannedNap.duration.toString() : '0'}
               userProfile={userProfile}
               currentGoal={settings.recoveryGoal || 'healthy_balanced'}
               onUpdateRecoveryGoal={(goal: DayRecoveryGoal) => handleUpdateSettings({ recoveryGoal: goal })}
               onUpdateBedtime={handleApplySchedule}
-              onNavigateToPlanner={() => setActiveFeature('planner')}
+              onUpdateCaffeineLog={handleUpdateCaffeineLog}
+              onUpdateCommitments={(newComms) => {
+                setCommitments(newComms);
+                try {
+                  localStorage.setItem('owlup_commitments', JSON.stringify(newComms));
+                  const activeEmail = localStorage.getItem('owlup_active_email');
+                  if (activeEmail && activeEmail !== 'guest') {
+                    saveAccountData(activeEmail, { commitments: newComms });
+                  }
+                } catch {}
+              }}
+              onNavigateToPlanner={() => handleSelectFeature('planner')}
               onNavigateToCaffeine={() => setActiveFeature('caffeine')}
               onNavigateToDashboard={() => setActiveFeature('dashboard')}
             />

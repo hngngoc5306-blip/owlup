@@ -71,7 +71,12 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               key={feature}
               id={`nav-tab-${feature}`}
-              onClick={() => setActiveFeature(feature as AppFeature)}
+              onClick={() => {
+                if (feature === 'planner') {
+                  try { localStorage.removeItem('owlup_planning_mode'); } catch {}
+                }
+                setActiveFeature(feature as AppFeature);
+              }}
               className={`px-2.5 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-2.5 rounded-full text-xs sm:text-sm font-sans whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                 activeFeature === feature
                   ? (isNight ? 'bg-[#62D2FB]/20 text-[#62D2FB] font-semibold' : 'bg-[#FDE6A5] text-[#1F2937] font-semibold shadow-sm')

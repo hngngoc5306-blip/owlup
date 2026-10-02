@@ -482,9 +482,17 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
         <div className="absolute top-6 sm:top-10 right-6 sm:right-10 w-10 h-10 rounded-full bg-[#fffff8] dark:bg-[#1E3A2F] flex items-center justify-center">
           <Coffee className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB]" />
         </div>
-        <h3 className="text-[#4CB28E] dark:text-[#62D2FB] font-bold text-xl sm:text-2xl tracking-wide uppercase font-heading mb-6">
+        <h3 className="text-[#4CB28E] dark:text-[#62D2FB] font-bold text-xl sm:text-2xl tracking-wide uppercase font-heading mb-2">
           {isEn ? "Log A Drink" : "Ghi nhận đồ uống"}
         </h3>
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6 flex items-center gap-1.5 font-medium">
+          <span>🌿</span>
+          <span>
+            {isEn 
+              ? "Caffeine tracking is recorded for today's active 24h recovery cycle." 
+              : "Ghi nhận caffeine áp dụng cho chu kỳ phục hồi 24h của ngày hôm nay."}
+          </span>
+        </p>
 
         {!isCustom ? (
         <div className="mb-7 animate-fade-in">

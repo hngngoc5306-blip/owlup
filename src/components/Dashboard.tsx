@@ -161,6 +161,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return false;
   })();
 
+  const hasTomorrowSchedule = (() => {
+    try {
+      return Boolean(localStorage.getItem('owlup_tomorrow_schedule'));
+    } catch {
+      return false;
+    }
+  })();
+
+  const handleNavigateToTomorrow = () => {
+    try {
+      localStorage.setItem('owlup_planning_mode', 'tomorrow');
+    } catch {}
+    if (onNavigateToPlanner) {
+      onNavigateToPlanner();
+    }
+  };
+
+  const handleNavigateToTodayPlanner = () => {
+    try {
+      localStorage.setItem('owlup_planning_mode', 'today');
+    } catch {}
+    if (onNavigateToPlanner) {
+      onNavigateToPlanner();
+    }
+  };
+
   const hasCaffeineLog = caffeineLog.length > 0;
 
   // Time-of-day greeting (Morning 4-12, Afternoon 12-18, Evening 18-24, Night 0-4)
@@ -329,7 +355,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               ) : (
                 <>
                   {/* 1. Afternoon Power Nap (Moved on top) */}
-                  {plannedNap && plannedNap.start && plannedNap.end && (
+                  {plannedNap && plannedNap.start && plannedNap.end && plannedNap.duration > 0 && (
                   <div className={`w-full ${
                     isNapUpcomingOrActive 
                       ? 'border-2 border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#233355]/80 shadow-sm' 
@@ -386,12 +412,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
 
-                  <button 
-                    onClick={onNavigateToPlanner}
-                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-5 px-4 text-base sm:text-lg font-sans font-medium flex justify-center items-center gap-2 transition-colors shadow-lg shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-1 text-center cursor-pointer"
-                  >
-                    <span>{isEn ? 'Adjust Sleep & Nap Schedule' : 'Tùy chỉnh lịch ngủ'}</span> <span className='font-sans font-normal ml-1'>→</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      onClick={handleNavigateToTodayPlanner}
+                      className="flex-1 bg-white dark:bg-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#2A374F] border border-slate-200 dark:border-slate-700 text-[#1F2937] dark:text-white rounded-full py-3.5 sm:py-4 px-4 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-sm hover:-translate-y-0.5 cursor-pointer text-center"
+                    >
+                      <span>{isEn ? 'Adjust Today Schedule' : 'Tùy chỉnh lịch hôm nay'}</span>
+                    </button>
+                    <button 
+                      onClick={handleNavigateToTomorrow}
+                      className="flex-1 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-4 px-4 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer text-center"
+                    >
+                      <span>{hasTomorrowSchedule 
+                        ? (isEn ? "Tomorrow's Sleep Schedule" : "Lịch ngủ ngày mai") 
+                        : (isEn ? "Plan for Tomorrow" : "Sắp xếp lịch cho ngày mai")}</span>
+                      <span className='font-sans font-normal ml-0.5'>→</span>
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -558,8 +595,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* 3. Power nap */}
             <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '3. Power Nap' : '3. Chợp mắt'}</span>
-              <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(plannedNap?.start || '12:30', isEn)}</span>
-              <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{(plannedNap?.duration || 20)} {isEn ? 'min recharge' : 'phút sạc pin'}</span>
+              {plannedNap && plannedNap.start && plannedNap.duration > 0 ? (
+                <>
+                  <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(plannedNap.start, isEn)}</span>
+                  <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{plannedNap.duration} {isEn ? 'min recharge' : 'phút sạc pin'}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-sm sm:text-[13px] lg:text-[12.5px] xl:text-sm font-bold font-heading text-slate-400 dark:text-slate-400 mb-1 tracking-tight">{isEn ? 'No Nap' : 'Không xếp lịch'}</span>
+                  <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{isEn ? 'Protect night sleep' : 'Bảo vệ giấc ngủ đêm'}</span>
+                </>
+              )}
             </div>
 
             {/* 4. Cutoff Curfew */}

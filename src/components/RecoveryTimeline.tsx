@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { AppLanguage, UserProfile, DayRecoveryGoal } from '../types';
 import { formatDisplayTime } from '../utils/timeFormat';
-import { TimePickerInput } from './TimePickerInput';
 import { getDrinkIcon } from './CaffeineAdvisor';
+import { Trash2 } from 'lucide-react';
 
 interface RecoveryTimelineProps {
   isNight: boolean;
@@ -21,6 +21,8 @@ interface RecoveryTimelineProps {
   onNavigateToDashboard?: () => void;
   onNavigateToPlanner?: () => void;
   onNavigateToCaffeine?: () => void;
+  onUpdateCaffeineLog?: (items: any[]) => void;
+  onUpdateCommitments?: (commitments: any[]) => void;
 }
 
 export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
@@ -38,11 +40,14 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   onNavigateToDashboard,
   onNavigateToPlanner,
   onNavigateToCaffeine,
+  onUpdateCaffeineLog,
+  onUpdateCommitments,
 }) => {
   const isEn = language === 'en';
   const timelineRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timelineKey, setTimelineKey] = useState(0);
+
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -66,17 +71,25 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
-  let nap = { start: '12:30', duration: 20 };
-  if (napStartProp && napDurationProp) {
-    nap = { start: napStartProp, duration: parseInt(napDurationProp) || 20 };
+  let nap: { start: string; duration: number } | null = null;
+  if (napDurationProp !== undefined) {
+    const dur = parseInt(napDurationProp) || 0;
+    if (dur > 0 && napStartProp) {
+      nap = { start: napStartProp, duration: dur };
+    }
   } else {
     try {
       const p = localStorage.getItem('owlup_planned_nap');
-      if (p) nap = JSON.parse(p);
+      if (p) {
+        const parsed = JSON.parse(p);
+        if (parsed.duration > 0 && parsed.start) {
+          nap = parsed;
+        }
+      }
     } catch {}
   }
   
-  let commitments: {title: string, start: string, end: string}[] = commitmentsProp && commitmentsProp.length > 0
+  let commitments: {title: string, start: string, end: string}[] = commitmentsProp !== undefined
     ? commitmentsProp 
     : (() => {
         try {
@@ -87,26 +100,10 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
         }
       })();
 
-  // Check if nap collides with any daytime commitments (e.g. afternoon class 12:45 - 15:00)
-  let napStartMins = parseMins(nap.start);
-  const napDuration = nap.duration || 20;
-  if (commitments.length > 0) {
-    const sortedComms = [...commitments]
-      .map(c => ({ ...c, s: parseMins(c.start), e: parseMins(c.end) }))
-      .sort((a, b) => a.s - b.s);
-    for (const c of sortedComms) {
-      const napEndMins = napStartMins + napDuration;
-      // If nap overlaps with a commitment, move nap to 15 mins after commitment ends
-      if (napStartMins < c.e && napEndMins > c.s) {
-        napStartMins = c.e + 15;
-      }
-    }
-    // Safety guard: power nap should stay in afternoon window
-    if (napStartMins > 16 * 60 + 30 || napStartMins < 11 * 60) {
-      napStartMins = 12 * 60 + 30;
-    }
-  }
-  const effectiveNapStart = formatMins(napStartMins);
+  const napDuration = nap ? (nap.duration || 0) : 0;
+  const hasValidNap = Boolean(nap && napDuration > 0 && nap.start);
+  const effectiveNapStart = hasValidNap && nap ? nap.start : '12:30';
+  const napStartMins = hasValidNap ? parseMins(effectiveNapStart) : 0;
 
   // ABSOLUTE TIMELINE LOGIC
   // The timeline covers the 24-hour waking day from Today's Wake Time to Tonight's Bedtime
@@ -166,19 +163,21 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       duration: 15
   });
 
-  // 2. Power Nap
-  let absNapStart = napStartMins;
-  while (absNapStart <= absWakeMins) absNapStart += 24 * 60;
-  rawEvents.push({
-      absTime: absNapStart,
-      time: effectiveNapStart,
-      tag: isEn ? 'POWER NAP' : 'CHỢP MẮT',
-      tagColor: 'text-[#4CB28E] dark:text-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 border-[#4CB28E]/20 dark:border-[#62D2FB]/20',
-      icon: '🔋',
-      title: isEn ? `Scheduled Power Nap: ${napDuration} min` : `Chợp mắt: ${napDuration} phút`,
-      desc: isEn ? 'Rest quietly to recharge your afternoon battery.' : 'Nghỉ ngơi để sạc lại năng lượng cho buổi chiều.',
-      duration: napDuration
-  });
+  // 2. Power Nap (only if there is a valid open window)
+  if (hasValidNap) {
+    let absNapStart = napStartMins;
+    while (absNapStart <= absWakeMins) absNapStart += 24 * 60;
+    rawEvents.push({
+        absTime: absNapStart,
+        time: effectiveNapStart,
+        tag: isEn ? 'POWER NAP' : 'CHỢP MẮT',
+        tagColor: 'text-[#4CB28E] dark:text-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 border-[#4CB28E]/20 dark:border-[#62D2FB]/20',
+        icon: '🔋',
+        title: isEn ? `Scheduled Power Nap: ${napDuration} min` : `Chợp mắt: ${napDuration} phút`,
+        desc: isEn ? 'Rest quietly to recharge your afternoon battery.' : 'Nghỉ ngơi để sạc lại năng lượng cho buổi chiều.',
+        duration: napDuration
+    });
+  }
   
   // 3. Commitments
   commitments.forEach(c => {
@@ -207,15 +206,15 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       absTime: absCurfew,
       time: formatMins(absCurfew),
       tag: isEn ? 'CAFFEINE CURFEW' : 'NGỪNG CAFFEINE',
-      tagColor: 'text-red-500 bg-red-50 border-red-200',
+      tagColor: 'text-[#7F1D1D] dark:text-[#FCA5A5] bg-[#FEE2E2] dark:bg-[#7F1D1D]/30 border-[#991B1B]/70 dark:border-[#B91C1C]',
       icon: '🚫',
       title: isEn ? 'Caffeine Curfew' : 'Ngừng caffeine',
       desc: isEn ? 'Stop all caffeine to ensure it clears from your system before bed.' : 'Ngừng mọi loại thức uống có caffeine để cơ thể đào thải hết trước khi ngủ.',
       duration: 30
   });
 
-  // 5. Logged Caffeine Drinks (CHỈ hiển thị khi user đã bấm "Ghi nhận đồ uống" trong tab Caffeine)
-  const activeDrinks: any[] = (caffeineLog && caffeineLog.length > 0) ? caffeineLog : (() => {
+  // 5. Logged Caffeine Drinks (Đồng bộ theo ngày, hiển thị trực tiếp lên Timeline)
+  const activeDrinks: any[] = caffeineLog !== undefined ? caffeineLog : (() => {
     try {
       const rawCaffeine = localStorage.getItem('owlup_caffeine_log');
       if (rawCaffeine) {
@@ -246,7 +245,8 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
           icon: it.icon || getDrinkIcon(it.name) || '☕',
           title: `${it.name || (isEn ? 'Caffeine intake' : 'Nạp caffeine')} (${it.caffeineMg || 0}mg)`,
           desc: isEn ? `Logged intake of ${it.caffeineMg || 0}mg caffeine.` : `Đã nạp ${it.caffeineMg || 0}mg caffeine vào thời điểm này.`,
-          duration: 30
+          duration: 30,
+          drinkId: it.id,
         });
       }
     }
@@ -378,8 +378,42 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 mb-6 sm:mb-8 border-b border-slate-200 dark:border-slate-700 pb-3 sm:pb-4">
-        <h2 className="text-xl sm:text-2xl font-heading font-bold text-[#1F2937] dark:text-white">{isEn ? "Detailed Timeline" : "Chi tiết Lộ trình"}</h2>
+      {/* COMMITMENTS RESET NOTICE BANNER: Khi sang ngày mới, thời gian bận đã được xóa hết */}
+      {commitments.length === 0 && (
+        <div className="w-full rounded-[24px] bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-800/60 p-5 sm:p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xl shrink-0 shadow-sm">
+              📅
+            </div>
+            <div>
+              <h4 className="font-heading font-bold text-base sm:text-lg text-amber-950 dark:text-amber-100 mb-0.5">
+                {isEn ? "Busy times reset for the new day" : "Thời gian bận đã được làm mới cho ngày hôm nay"}
+              </h4>
+              <p className="text-xs sm:text-sm text-amber-800/90 dark:text-amber-300/90 leading-relaxed font-sans">
+                {isEn 
+                  ? "Please enter your commitments for today (classes, shifts, meetings) so OwlUp can optimize your restorative schedule." 
+                  : "Vui lòng nhập lịch bận mới hôm nay (lớp học, ca làm, họp) để OwlUp hoàn thiện và tối ưu lộ trình phục hồi."}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onNavigateToPlanner}
+            className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer hover:-translate-y-0.5 whitespace-nowrap self-end sm:self-center"
+          >
+            <span>{isEn ? "Enter busy times" : "Nhập lịch bận mới"}</span>
+            <span className="font-normal">&rarr;</span>
+          </button>
+        </div>
+      )}
+
+      {/* DETAILED TIMELINE HEADER & ACTION BUTTONS */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-6 sm:mb-8 border-b border-slate-200 dark:border-slate-700 pb-3 sm:pb-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-heading font-bold text-[#1F2937] dark:text-white">
+            {isEn ? "Detailed Timeline" : "Chi tiết Lộ trình"}
+          </h2>
+        </div>
+        
         <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm font-medium text-slate-500">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-300"/> {isEn ? 'Past' : 'Đã qua'}</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] animate-pulse"/> {isEn ? 'Active' : 'Đang diễn ra'}</span>
@@ -407,10 +441,26 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
                 <div className={`text-xs font-bold tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1.5 uppercase ${evt.tagColor}`}>
                   {evt.icon} {evt.tag}
                 </div>
-                <div className={`text-sm sm:text-base font-heading font-bold whitespace-nowrap shrink-0 tabular-nums ${
-                  evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
-                  evt.status === 'past' ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'
-                }`}>{formatDisplayTime(evt.time, isEn)}</div>
+                <div className="flex items-center gap-2">
+                  <div className={`text-sm sm:text-base font-heading font-bold whitespace-nowrap shrink-0 tabular-nums ${
+                    evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 
+                    evt.status === 'past' ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'
+                  }`}>{formatDisplayTime(evt.time, isEn)}</div>
+                  {evt.drinkId && onUpdateCaffeineLog && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const updated = activeDrinks.filter((it: any) => it.id !== evt.drinkId);
+                        onUpdateCaffeineLog(updated);
+                        try { localStorage.setItem('owlup_caffeine_log', JSON.stringify(updated)); } catch {}
+                      }}
+                      title={isEn ? "Remove this drink" : "Xóa đồ uống này"}
+                      className="p-1 text-slate-400 hover:text-red-500 transition-colors cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
               <h4 className={`text-base sm:text-lg font-heading font-bold mb-1.5 ${
                 evt.status === 'active' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 

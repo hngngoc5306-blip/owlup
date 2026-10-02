@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile, AppLanguage } from '../types';
-import { CheckCircle2, ArrowRight, Plus, ArrowLeft, Trash2, Edit2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Plus, ArrowLeft, Trash2, Edit2, AlertCircle, X, Calendar, Clock, Sparkles, Moon, Sunrise } from 'lucide-react';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { TimePickerInput } from './TimePickerInput';
 
@@ -27,7 +27,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   bedtime = '22:30',
   wakeTime = '06:30',
   totalSleepHours = '8.0',
-  plannedNap = { start: '12:30', end: '12:50', duration: 20 },
+  plannedNap,
   commitments: commitmentsProp = [],
   onApplySchedule,
   onUpdateCommitments,
@@ -62,29 +62,170 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     }
   })();
 
+  // Check if user has tomorrow's schedule saved
+  const hasTomorrowSavedSchedule = (() => {
+    try {
+      return Boolean(localStorage.getItem('owlup_tomorrow_schedule'));
+    } catch {
+      return false;
+    }
+  })();
+
+  // Check if user is on Day 1 (brand new user who hasn't experienced a rollover from tomorrow)
+  const isDayOneUser = (() => {
+    try {
+      if (localStorage.getItem('owlup_has_rolled_over') === 'true') return false;
+      if (localStorage.getItem('owlup_schedule_rolled_from_tomorrow') === 'true') return false;
+      const rawHist = localStorage.getItem('owlup_history');
+      if (rawHist) {
+        const hist = JSON.parse(rawHist);
+        if (Object.keys(hist).length > 0) return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  const isRolledFromTomorrow = (() => {
+    try {
+      return localStorage.getItem('owlup_schedule_rolled_from_tomorrow') === 'true';
+    } catch {
+      return false;
+    }
+  })();
+
+  // Tomorrow-specific states initialized at top
+  const [tomorrowPredictedBedtime, setTomorrowPredictedBedtime] = useState(() => {
+    try {
+      return localStorage.getItem('owlup_tomorrow_predicted_bedtime') || '23:00';
+    } catch {
+      return '23:00';
+    }
+  });
+
+  const [tomorrowSavedData, setTomorrowSavedData] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('owlup_tomorrow_schedule');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Time-Aware Context (Threshold: 20:00 / 8 PM):
+  // - Morning to 19:59 (< 20:00): Focus on TODAY (enter today's busy hours to optimize real schedule).
+  // - 20:00 onwards (>= 20:00 / night): Focus on TOMORROW (wind-down window, prep ahead for day 2).
+  const currentHour = new Date().getHours();
+  const isNightWindDown = currentHour >= 20 || currentHour < 4;
+
+  const isTodayScheduleSaved = isScheduleAppliedToday || localStorage.getItem('owlup_schedule_applied') === 'true';
+  const isTomorrowScheduleSaved = Boolean(tomorrowSavedData || localStorage.getItem('owlup_tomorrow_schedule'));
+
+  // Active Tab state ('today' | 'tomorrow'):
+  const [activePlannerTab, setActivePlannerTab] = useState<'today' | 'tomorrow'>(() => {
+    try {
+      const savedMode = localStorage.getItem('owlup_planning_mode');
+      if (savedMode === 'tomorrow' || savedMode === 'today') {
+        if (isNightWindDown && !isTomorrowScheduleSaved) {
+          return 'tomorrow';
+        }
+        return savedMode;
+      }
+    } catch {}
+    return isNightWindDown ? 'tomorrow' : 'today';
+  });
+
+  const [planningMode, setPlanningMode] = useState<'today' | 'tomorrow'>(() => {
+    try {
+      const savedMode = localStorage.getItem('owlup_planning_mode');
+      if (savedMode === 'tomorrow' || savedMode === 'today') {
+        if (isNightWindDown && !isTomorrowScheduleSaved) {
+          return 'tomorrow';
+        }
+        return savedMode;
+      }
+    } catch {}
+    return isNightWindDown ? 'tomorrow' : 'today';
+  });
+
   // Step states:
   // 1: Busy commitments
-  // 2: Recovery Goal selection (NOT PRESELECTED)
-  // 3: Recommended recovery routine & caffeine curfew
+  // 2: Recovery Goal selection
+  // 3: Recommended recovery routine & caffeine curfew (Image 2)
   // 4: Flexible customization
   // 5: Schedule applied success
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
-    return isScheduleAppliedToday ? 5 : 1;
-  });
-  
-  // Selected recovery goal: NOT PRESELECTED per user requirement
-  const [selectedGoal, setSelectedGoal] = useState<'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl' | null>(null);
+    try {
+      const mode = (isNightWindDown && !isTomorrowScheduleSaved)
+        ? 'tomorrow'
+        : (localStorage.getItem('owlup_planning_mode') || (isNightWindDown ? 'tomorrow' : 'today'));
+      
+      if (mode === 'tomorrow') {
+        const savedTomorrow = localStorage.getItem('owlup_tomorrow_schedule');
+        if (savedTomorrow) return 3; // Saved tomorrow card
+        const savedTomorrowComms = localStorage.getItem('owlup_tomorrow_commitments');
+        if (savedTomorrowComms && JSON.parse(savedTomorrowComms).length > 0) return 2; // Goal
+        return 1; // Step 1: Input tomorrow's busy hours
+      }
 
-  // Step 1 states with LocalStorage persistence
+      if (mode === 'today') {
+        const savedTodayApplied = localStorage.getItem('owlup_schedule_applied') === 'true' || isScheduleAppliedToday;
+        if (savedTodayApplied) return 3; // Already configured today
+        // If before 20:00 and not configured yet: prompt user to enter busy hours today
+        if (!isNightWindDown) {
+          const savedTodayComms = localStorage.getItem('owlup_commitments');
+          if (savedTodayComms && JSON.parse(savedTodayComms).length > 0) return 2;
+          return 1; // Step 1: Enter today's busy hours
+        }
+        // If after 20:00 and user checks today tab: directly display tonight's recommended bedtime card!
+        return 3;
+      }
+    } catch {}
+    return 1;
+  });
+
+  const [isTomorrowSavedBanner, setIsTomorrowSavedBanner] = useState(false);
+  const [isTodaySavedBanner, setIsTodaySavedBanner] = useState(false);
+  
+  // Selected recovery goal: isolated for tomorrow and today
+  const [selectedGoal, setSelectedGoal] = useState<'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl' | null>(() => {
+    try {
+      const mode = (isNightWindDown && !isTomorrowScheduleSaved)
+        ? 'tomorrow'
+        : (localStorage.getItem('owlup_planning_mode') || (isNightWindDown ? 'tomorrow' : 'today'));
+      const goalKey = mode === 'tomorrow' ? 'owlup_tomorrow_recovery_goal' : 'owlup_recovery_goal';
+      const savedGoal = localStorage.getItem(goalKey);
+      if (savedGoal && ['healthy_balanced', 'max_productivity', 'catch_up', 'night_owl'].includes(savedGoal)) {
+        return savedGoal as any;
+      }
+      if (mode === 'today') {
+        return userProfile?.energyCrave === 'productivity' ? 'max_productivity' : 'healthy_balanced';
+      }
+    } catch {}
+    return null;
+  });
+
+  // Step 1 states with strict storage separation
   const [isAdding, setIsAdding] = useState(false);
   const [commitments, setCommitments] = useState<{title: string, start: string, end: string}[]>(() => {
-    if (!isScheduleAppliedToday) return [];
-    if (commitmentsProp && commitmentsProp.length > 0) return commitmentsProp;
     try {
-      const saved = localStorage.getItem('owlup_commitments');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
+      const mode = (isNightWindDown && !isTomorrowScheduleSaved)
+        ? 'tomorrow'
+        : (localStorage.getItem('owlup_planning_mode') || (isNightWindDown ? 'tomorrow' : 'today'));
+      if (mode === 'tomorrow') {
+        const savedTomorrow = localStorage.getItem('owlup_tomorrow_commitments');
+        if (savedTomorrow) return JSON.parse(savedTomorrow);
+        return [];
+      } else {
+        const saved = localStorage.getItem('owlup_commitments');
+        if (saved) return JSON.parse(saved);
+        if (commitmentsProp && commitmentsProp.length > 0) return commitmentsProp;
+        return [];
+      }
+    } catch {
+      return [];
+    }
   });
   const [newTitle, setNewTitle] = useState('');
   const [newStart, setNewStart] = useState('');
@@ -130,15 +271,132 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const [hasAppliedOptimal, setHasAppliedOptimal] = useState(false);
   const [showNapWarning, setShowNapWarning] = useState(false);
 
-  // Synchronize with App-level schedule when props update
-  React.useEffect(() => {
-    if (step !== 4) {
-      if (bedtime) setCustomBedtime(bedtime);
-      if (wakeTime) setCustomWakeTime(wakeTime);
-      if (plannedNap?.start) setNapStart(plannedNap.start);
-      if (plannedNap?.duration) setNapDuration(plannedNap.duration.toString());
+  // Keep tomorrowSavedData fresh on mount or step/tab changes
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('owlup_tomorrow_schedule');
+      setTomorrowSavedData(saved ? JSON.parse(saved) : null);
+    } catch {
+      setTomorrowSavedData(null);
     }
-  }, [bedtime, wakeTime, plannedNap, step]);
+  }, [step, activePlannerTab]);
+
+  // Tab switcher handler
+  const handleSwitchTab = (newTab: 'today' | 'tomorrow') => {
+    setActivePlannerTab(newTab);
+    setPlanningMode(newTab);
+    setIsTomorrowSavedBanner(false);
+    setIsTodaySavedBanner(false);
+    try {
+      localStorage.setItem('owlup_planning_mode', newTab);
+    } catch {}
+
+    if (newTab === 'tomorrow') {
+      const savedTomorrow = localStorage.getItem('owlup_tomorrow_schedule');
+      if (savedTomorrow) {
+        try {
+          const parsed = JSON.parse(savedTomorrow);
+          setTomorrowSavedData(parsed);
+          if (parsed.bedtimeTonight) setCustomBedtime(parsed.bedtimeTonight);
+          if (parsed.wakeTimeTomorrow) setCustomWakeTime(parsed.wakeTimeTomorrow);
+          if (parsed.napTomorrowStart) setNapStart(parsed.napTomorrowStart);
+          if (parsed.napTomorrowDuration !== undefined) setNapDuration(parsed.napTomorrowDuration.toString());
+          if (parsed.goal) setSelectedGoal(parsed.goal);
+          if (parsed.commitments) setCommitments(parsed.commitments);
+        } catch {}
+        // ALWAYS DIRECTLY DISPLAY IMAGE 2 (STEP 3) FOR CONFIGURED TOMORROW SCHEDULE!
+        setStep(3);
+        return;
+      }
+
+      // If no full schedule yet, check commitments and goal
+      const savedTomorrowComms = localStorage.getItem('owlup_tomorrow_commitments');
+      const savedTomorrowGoal = localStorage.getItem('owlup_tomorrow_recovery_goal');
+      if (savedTomorrowGoal) {
+        setSelectedGoal(savedTomorrowGoal as any);
+      } else {
+        setSelectedGoal(null);
+      }
+
+      if (savedTomorrowComms) {
+        try {
+          const parsedComms = JSON.parse(savedTomorrowComms);
+          if (Array.isArray(parsedComms) && parsedComms.length > 0) {
+            setCommitments(parsedComms);
+            setStep(2); // Jump straight to Goal selection
+            return;
+          }
+        } catch {}
+      }
+
+      setCommitments([]);
+      setStep(1);
+    } else {
+      // Today tab
+      const activeBed = bedtime || localStorage.getItem('owlup_bedtime') || userProfile?.usualBedtime || '22:30';
+      const activeWake = wakeTime || localStorage.getItem('owlup_waketime') || '06:30';
+      setCustomBedtime(activeBed);
+      setCustomWakeTime(activeWake);
+
+      let napObj = plannedNap;
+      if (!napObj) {
+        try {
+          const p = localStorage.getItem('owlup_planned_nap');
+          if (p) napObj = JSON.parse(p);
+        } catch {}
+      }
+      if (napObj && napObj.start && napObj.duration > 0) {
+        setNapStart(napObj.start);
+        setNapDuration(napObj.duration.toString());
+      } else {
+        setNapStart(napObj?.start || '12:30');
+        setNapDuration('0');
+      }
+
+      const savedTodayComms = localStorage.getItem('owlup_commitments');
+      if (savedTodayComms) {
+        try {
+          setCommitments(JSON.parse(savedTodayComms));
+        } catch {
+          setCommitments([]);
+        }
+      } else if (commitmentsProp && commitmentsProp.length > 0) {
+        setCommitments(commitmentsProp);
+      } else {
+        setCommitments([]);
+      }
+
+      const savedTodayGoal = localStorage.getItem('owlup_recovery_goal');
+      if (savedTodayGoal) {
+        setSelectedGoal(savedTodayGoal as any);
+      } else {
+        setSelectedGoal(userProfile?.energyCrave === 'productivity' ? 'max_productivity' : 'healthy_balanced');
+      }
+
+      setHasAppliedOptimal(false);
+      const savedTodayApplied = localStorage.getItem('owlup_schedule_applied') === 'true' || isScheduleAppliedToday;
+      if (savedTodayApplied) {
+        setStep(3);
+      } else {
+        const currentH = new Date().getHours();
+        if (currentH >= 20 || currentH < 4) {
+          // After 20:00: show Step 3 recommendation directly for tonight's bedtime
+          setStep(3);
+        } else {
+          // Before 20:00: guide user to enter busy hours today to optimize real schedule
+          if (savedTodayComms) {
+            try {
+              if (JSON.parse(savedTodayComms).length > 0) {
+                setStep(2);
+                return;
+              }
+            } catch {}
+          }
+          setStep(1);
+        }
+      }
+    }
+  };
 
   React.useEffect(() => {
     if (commitmentsProp && commitmentsProp.length > 0) {
@@ -222,14 +480,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     return diffToBed >= 3 * 60;
   })();
 
+  const parsedNapVal = parseInt(napDuration) || 0;
   const isStep3Valid = Boolean(
-    isTimeFormatValid(napStart) &&
     isTimeFormatValid(customBedtime) &&
     isTimeFormatValid(customWakeTime) &&
-    (parseInt(napDuration) || 0) > 0 &&
-    isNapInCircadianWindow &&
     hasValidNightSleep &&
-    isNapFarFromBedtime
+    (parsedNapVal === 0 || (isTimeFormatValid(napStart) && isNapInCircadianWindow && isNapFarFromBedtime))
   );
 
   const liveScore = !isStep3Valid ? 0 : (scoreDuration + scoreCircadian);
@@ -459,6 +715,37 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     setIsAdding(true);
   };
 
+  const handleBackFromStep1 = () => {
+    if (planningMode === 'tomorrow') {
+      const hasTomorrow = Boolean(tomorrowSavedData || localStorage.getItem('owlup_tomorrow_schedule'));
+      if (hasTomorrow) {
+        setStep(4);
+      } else {
+        if (onNavigateToDashboard) {
+          onNavigateToDashboard();
+        } else {
+          setStep(4);
+        }
+      }
+    } else {
+      // today mode
+      const hasToday = Boolean(
+        isScheduleAppliedToday ||
+        localStorage.getItem('owlup_schedule_applied') === 'true' ||
+        localStorage.getItem('owlup_custom_schedule_configured') === 'true'
+      );
+      if (hasToday) {
+        setStep(4);
+      } else {
+        if (onNavigateToDashboard) {
+          onNavigateToDashboard();
+        } else {
+          setStep(4);
+        }
+      }
+    }
+  };
+
   const validateSingleTime = (time: string, label: string): string | null => {
     if (!time || time === '--:--' || time === ':') return null;
     const parts = time.split(':');
@@ -591,10 +878,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     
     setCommitments(finalMerged);
     try {
+      if (planningMode === 'tomorrow') {
+        localStorage.setItem('owlup_tomorrow_commitments', JSON.stringify(finalMerged));
+      } else {
         localStorage.setItem('owlup_commitments', JSON.stringify(finalMerged));
         localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+        if (onUpdateCommitments) onUpdateCommitments(finalMerged);
+      }
     } catch {}
-    if (onUpdateCommitments) onUpdateCommitments(finalMerged);
     
     setIsAdding(false);
     setEditingIndex(null);
@@ -605,10 +896,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     const updated = commitments.filter((_, i) => i !== index);
     setCommitments(updated);
     try {
-      localStorage.setItem('owlup_commitments', JSON.stringify(updated));
-      localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+      if (planningMode === 'tomorrow') {
+        localStorage.setItem('owlup_tomorrow_commitments', JSON.stringify(updated));
+      } else {
+        localStorage.setItem('owlup_commitments', JSON.stringify(updated));
+        localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+        if (onUpdateCommitments) onUpdateCommitments(updated);
+      }
     } catch {}
-    if (onUpdateCommitments) onUpdateCommitments(updated);
   };
 
 
@@ -787,7 +1082,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
   const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
 
-  // 4. Calculate Afternoon Power Nap (Vùng trũng sinh học buổi trưa 12:30 - 14:30)
+  // 4. Calculate Afternoon Power Nap (Vùng trũng sinh học buổi trưa 12:30 - 16:30)
   const userHasNapCrave = userProfile?.craves?.includes('nap') 
     || userProfile?.energyCraves?.includes('nap')
     || userProfile?.energyCrave === 'nap'
@@ -799,31 +1094,89 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   }
   let calcNapDuration = Math.min(45, baseNap + Math.min(20, Math.floor(lostSleepMins / 30) * 10));
 
-  // Giờ chợp trưa mặc định: 12:30 - 13:00 (chuẩn circadian post-lunch dip)
-  let napStartMins = selectedGoal === 'night_owl' ? 13 * 60 : 12 * 60 + 30;
-  
-  // Kiểm tra va chạm với lịch bận: nếu trùng thì tìm khoảng trống gần nhất trong khung 11:30 - 15:30
+  // Giờ chợp trưa mặc định: 13:00 (chuẩn vùng trũng sinh học sau ăn trưa, hoặc 13:15 cho cú đêm)
+  let idealNapStartMins = selectedGoal === 'night_owl' ? 13 * 60 + 15 : 13 * 60;
+  let napStartMins = idealNapStartMins;
+  let canNapToday = true;
+
+  // Kiểm tra va chạm với lịch bận:
+  // Lịch chợp mắt tuyệt đối KHÔNG ĐƯỢC đè lên lịch bận và CẦN ít nhất 30 phút nghỉ ngơi/ăn trưa/di chuyển
+  // sau khi kết thúc việc bận (người dùng không thể vừa xong việc 12:30 là ngủ ngay lập tức lúc 12:30).
   if (commitments.length > 0) {
     const sortedComms = [...commitments]
       .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
       .sort((a, b) => a.startMins - b.startMins);
 
-    for (const c of sortedComms) {
-      const napEndMins = napStartMins + calcNapDuration;
-      // Trùng lịch bận
-      if (napStartMins < c.endMins && napEndMins > c.startMins) {
-        // Ưu tiên dời sau ca bận nếu còn trong khung trưa
-        if (c.endMins + 15 + calcNapDuration <= 16 * 60) {
-          napStartMins = c.endMins + 15;
-        } else if (c.startMins - calcNapDuration - 15 >= 11 * 60 + 30) {
-          // Hoặc trước ca bận
-          napStartMins = c.startMins - calcNapDuration - 15;
+    // Buffer tối thiểu 30 phút sau khi kết thúc công việc trước khi chợp mắt
+    const POST_COMMITMENT_BUFFER = 30;
+    // Buffer tối thiểu 15 phút trước khi bắt đầu ca tiếp theo
+    const PRE_COMMITMENT_BUFFER = 15;
+
+    const isOverlapWithBuffer = (s: number, dur: number) => {
+      const e = s + dur;
+      return sortedComms.some(c => {
+        // Nếu ca bận kết thúc ngay sát trước giờ ngủ mà chưa đủ 30 phút đệm
+        const effectiveBusyStart = c.startMins - PRE_COMMITMENT_BUFFER;
+        const effectiveBusyEnd = c.endMins + POST_COMMITMENT_BUFFER;
+        return s < effectiveBusyEnd && e > effectiveBusyStart;
+      });
+    };
+
+    // Kiểm tra xem khung giờ mặc định (13:00) có bị va chạm hoặc thiếu thời gian đệm không
+    if (isOverlapWithBuffer(napStartMins, calcNapDuration)) {
+      let foundSlot = false;
+      // 1. Thử tìm khe rảnh sau các ca bận buổi trưa (phải cách ca bận ít nhất 30-45 phút đệm ăn trưa/nghỉ ngơi)
+      for (const c of sortedComms) {
+        // Cho người dùng ít nhất 30 phút hoặc 45 phút đệm sau ca bận kết thúc
+        let candidateStart = c.endMins + POST_COMMITMENT_BUFFER;
+        // Làm tròn lên mốc 5 phút hoặc 15 phút gần nhất (VD: 12:30 + 30p = 13:00)
+        candidateStart = Math.ceil(candidateStart / 5) * 5;
+
+        // Vùng trũng chợp mắt an toàn: từ 12:45 đến muộn nhất kết thúc trước 15:30
+        if (candidateStart >= 12 * 60 && candidateStart + calcNapDuration <= 15 * 60 + 30) {
+          if (!isOverlapWithBuffer(candidateStart, calcNapDuration)) {
+            napStartMins = candidateStart;
+            foundSlot = true;
+            break;
+          }
         }
       }
-    }
 
-    if (napStartMins > 16 * 60 || napStartMins < 11 * 60 + 30) {
-      napStartMins = 12 * 60 + 30;
+      // 2. Nếu sau ca bận không kịp, thử tìm khe rảnh trước ca bận buổi trưa (tối thiểu 11:30 và cách ca bận 15p)
+      if (!foundSlot) {
+        for (const c of sortedComms) {
+          const candidateStart = c.startMins - calcNapDuration - PRE_COMMITMENT_BUFFER;
+          if (candidateStart >= 11 * 60 + 30 && candidateStart + calcNapDuration <= 15 * 60 + 30) {
+            if (!isOverlapWithBuffer(candidateStart, calcNapDuration)) {
+              napStartMins = candidateStart;
+              foundSlot = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // 3. Nếu bận kín qua 15:30 hoặc không đủ 30 phút đệm:
+      // Tuyệt đối KHÔNG xếp chợp mắt sau 15:30 vì chợp mắt sau 15:30/16:00 sẽ phá hỏng áp lực ngủ đêm (sleep pressure)
+      // Chuyển sang KHÔNG CHỢP MẮT và ưu tiên ngủ đêm sớm hơn để bù sức
+      if (!foundSlot) {
+        canNapToday = false;
+        calcNapDuration = 0;
+      }
+    } else {
+      // Dù khung mặc định không bị overlap trực tiếp, kiểm tra xem có ca bận nào vừa kết thúc ngay trước đó không
+      // Đảm bảo napStartMins luôn cách ca bận gần nhất phía trước ít nhất 30 phút
+      const precedingComm = sortedComms.filter(c => c.endMins <= napStartMins).pop();
+      if (precedingComm && napStartMins < precedingComm.endMins + POST_COMMITMENT_BUFFER) {
+        let adjustedStart = precedingComm.endMins + POST_COMMITMENT_BUFFER;
+        adjustedStart = Math.ceil(adjustedStart / 5) * 5;
+        if (adjustedStart + calcNapDuration <= 15 * 60 + 30 && !isOverlapWithBuffer(adjustedStart, calcNapDuration)) {
+          napStartMins = adjustedStart;
+        } else {
+          canNapToday = false;
+          calcNapDuration = 0;
+        }
+      }
     }
   }
 
@@ -919,20 +1272,130 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         {isEn ? "Synchronize Sleep & Power Nap" : "Đồng bộ Giấc ngủ & Chợp mắt"}
       </h2>
 
-      {/* STEP 1: COMMITMENTS */}
-      {step === 1 && (
-        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[24px] sm:rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-4 sm:p-8 md:p-14 relative animate-fade-in">
-          
-          <div className="inline-block px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-6 sm:mb-8">
-            {isEn ? "Step 1: Your busy hours" : "Bước 1: Khung giờ bận trong ngày"}
+      {/* FOLDER TABS: LỊCH NGỦ HÔM NAY (LEFT) & LỊCH NGỦ NGÀY MAI (RIGHT) (IMAGE 1 STYLE) */}
+      <div className="flex items-end pl-4 sm:pl-8">
+        {/* Tab 1: Lịch ngủ hôm nay */}
+        <button 
+          type="button"
+          onClick={() => handleSwitchTab('today')}
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-transform duration-200 ease-in-out cursor-pointer ${
+            activePlannerTab === 'today' 
+            ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-4 sm:pb-6 border-slate-200 dark:border-slate-700' 
+            : 'bg-[#fffff8]/60 dark:bg-[#0F172A] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 border-slate-200 dark:border-slate-700'
+          }`}
+        >
+          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${activePlannerTab === 'today' ? 'bg-white dark:bg-[#1E3A2F]' : 'bg-white/50 dark:bg-slate-800'}`}>
+            <Moon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activePlannerTab === 'today' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400'}`} />
           </div>
-          
-          <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-2">
-            {isEn ? "When are you busy today?" : "Hôm nay bạn bận khi nào?"}
-          </h3>
-          <p className="text-slate-500 mb-8 sm:mb-10 text-sm sm:text-base md:text-lg">
-            {isEn ? "Enter classes, shifts, meetings, or workouts" : "Nhập lịch học, ca làm, họp hoặc tập luyện"}
-          </p>
+          <span className="font-heading text-xs sm:text-base md:text-lg whitespace-nowrap">{isEn ? "Today's sleep schedule" : "Lịch ngủ hôm nay"}</span>
+        </button>
+        
+        {/* Tab 2: Lịch ngủ ngày mai */}
+        <button 
+          type="button"
+          onClick={() => handleSwitchTab('tomorrow')}
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 md:px-10 py-2 sm:py-3.5 md:py-4 rounded-t-[20px] sm:rounded-t-[24px] border border-b-0 font-bold transition-transform duration-200 ease-in-out -ml-3 sm:-ml-6 cursor-pointer ${
+            activePlannerTab === 'tomorrow' 
+            ? 'bg-[#fffff8] dark:bg-[#233355] text-[#1F2937] dark:text-white z-20 pb-4 sm:pb-6 border-slate-200 dark:border-slate-700' 
+            : 'bg-[#fffff8]/60 dark:bg-[#162032] text-slate-500 z-0 opacity-80 hover:opacity-100 hover:-translate-y-1 border-slate-200 dark:border-slate-700'
+          }`}
+        >
+          <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${activePlannerTab === 'tomorrow' ? 'bg-white dark:bg-[#1E3A2F]' : 'bg-white/50 dark:bg-slate-800'}`}>
+            <Sunrise className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activePlannerTab === 'tomorrow' ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400'}`} />
+          </div>
+          <span className="font-heading text-xs sm:text-base md:text-lg whitespace-nowrap">{isEn ? "Tomorrow's sleep schedule" : "Lịch ngủ ngày mai"}</span>
+        </button>
+      </div>
+
+      {/* MAIN CONTAINER */}
+      <div className={`relative w-full rounded-[32px] border transition-shadow duration-200 ease-in-out shadow-[0_12px_40px_rgba(0,0,0,0.06)] z-10 p-6 sm:p-10 md:p-12 ${
+        activePlannerTab === 'today' 
+        ? 'bg-[#fffff8] dark:bg-[#233355] border-slate-200 dark:border-slate-700 rounded-tl-none' 
+        : 'bg-[#fffff8] dark:bg-[#233355] border-slate-200 dark:border-slate-700'
+      }`}>
+        {/* Banner notifications */}
+        {isTomorrowSavedBanner && (
+          <div className="mb-6 p-4 rounded-2xl bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] flex items-center justify-between gap-3 animate-fade-in text-left">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-[#007b4d] dark:text-[#62D2FB]">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>
+                {isEn 
+                  ? "Tomorrow's sleep schedule saved! It will automatically sync to Timeline at 00:00 midnight."
+                  : "Đã lưu lịch ngủ ngày mai thành công! Kế hoạch sẽ tự động áp dụng vào Timeline sau 00:00 đêm nay."}
+              </span>
+            </div>
+            <button onClick={() => setIsTomorrowSavedBanner(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {isTodaySavedBanner && (
+          <div className="mb-6 p-4 rounded-2xl bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] flex items-center justify-between gap-3 animate-fade-in text-left">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-[#007b4d] dark:text-[#62D2FB]">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>
+                {isEn 
+                  ? "Today's sleep schedule saved and updated on Timeline!"
+                  : "Đã lưu và cập nhật lịch ngủ hôm nay vào Dòng thời gian thành công!"}
+              </span>
+            </div>
+            <button onClick={() => setIsTodaySavedBanner(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* STEP 1: COMMITMENTS */}
+        {step === 1 && (
+          <div className="w-full relative animate-fade-in text-left">
+            {planningMode === 'tomorrow' && (
+              <div className="w-full mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-700/40 flex items-start gap-3.5 text-left animate-fade-in shadow-sm">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0 text-xl">
+                  🌙
+                </div>
+                <div>
+                  <div className="font-bold text-sm sm:text-base text-amber-900 dark:text-amber-200">
+                    {isEn ? "Why plan for tomorrow at night (after 20:00)?" : "Vì sao nên lên lịch ngày mai vào buổi tối (sau 20:00)?"}
+                  </div>
+                  <div className="text-xs sm:text-sm text-amber-800/90 dark:text-amber-200/80 mt-1 leading-relaxed font-sans">
+                    {isEn 
+                      ? "After 20:00 is the optimal wind-down window before sleep. Planning ahead prevents morning sleep inertia: OwlUp proactively calculates your wake time, power nap window, and caffeine cutoff right from the start of tomorrow." 
+                      : "Sau 20:00 là thời điểm vàng trước khi đi ngủ để chuẩn bị cho ngày mới. Lên kế hoạch trước giúp cơ thể không bị động: OwlUp sẽ tính toán sẵn giờ thức giấc, khung chợp mắt trưa mai và mốc ngừng nạp caffeine chính xác ngay từ đầu ngày mai mà bạn không cần bận tâm."}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={handleBackFromStep1}
+                  title={isEn ? "Back" : "Quay lại"}
+                  className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] hover:bg-emerald-50 dark:hover:bg-slate-800 p-2 -ml-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 text-sm font-bold"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>{isEn ? "Back" : "Quay lại"}</span>
+                </button>
+                <div className="inline-block px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider">
+                  {planningMode === 'tomorrow'
+                    ? (isEn ? "Step 1: Tomorrow's busy hours" : "Bước 1: Lịch bận ngày mai")
+                    : (isEn ? "Step 1: Your busy hours today" : "Bước 1: Lịch bận hôm nay")}
+                </div>
+              </div>
+            </div>
+            
+            <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-2">
+              {planningMode === 'tomorrow'
+                ? (isEn ? "When are you busy tomorrow?" : "Ngày mai bạn bận khi nào?")
+                : (isEn ? "When are you busy today?" : "Hôm nay bạn bận khi nào?")}
+            </h3>
+            <p className="text-slate-500 mb-6 sm:mb-8 text-sm sm:text-base md:text-lg">
+              {planningMode === 'tomorrow'
+                ? (isEn ? "Enter classes, shifts, meetings, or workouts for tomorrow" : "Nhập lịch học, ca làm, họp hoặc tập luyện ngày mai")
+                : (isEn ? "Enter classes, shifts, meetings, or workouts" : "Nhập lịch học, ca làm, họp hoặc tập luyện")}
+            </p>
           
           <div className="mb-12">
             {commitments.length > 0 && !isAdding && (
@@ -1006,9 +1469,37 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6 py-2">
-                  <div className="flex-1"><TimePickerInput value={newStart} onChange={(val) => { setNewStart(val); }} isEn={isEn} placeholder="--:--" /></div>
-                  <ArrowRight className="w-5 h-5 text-[#007b4d] dark:text-[#62D2FB]/50 shrink-0 mx-auto rotate-90 sm:rotate-0" />
-                  <div className="flex-1"><TimePickerInput value={newEnd} onChange={(val) => { setNewEnd(val); }} isEn={isEn} placeholder="--:--" /></div>
+                  <div className="flex-1">
+                    <div className="text-xs sm:text-sm text-[#007b4d] dark:text-[#62D2FB]/80 mb-2 font-medium">
+                      {isEn ? "Start time (e.g., 09:00)" : "Bắt đầu (VD: 09:00)"}
+                    </div>
+                    <TimePickerInput 
+                      value={newStart} 
+                      onChange={(val) => { setNewStart(val); }} 
+                      onRangeDetected={(start, end) => {
+                        setNewStart(start);
+                        setNewEnd(end);
+                      }}
+                      isEn={isEn} 
+                      placeholder={isEn ? "09:00" : "09:00"} 
+                    />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-[#007b4d] dark:text-[#62D2FB]/50 shrink-0 mx-auto rotate-90 sm:rotate-0 mt-6 sm:mt-6" />
+                  <div className="flex-1">
+                    <div className="text-xs sm:text-sm text-[#007b4d] dark:text-[#62D2FB]/80 mb-2 font-medium">
+                      {isEn ? "End time (e.g., 12:00)" : "Kết thúc (VD: 12:00)"}
+                    </div>
+                    <TimePickerInput 
+                      value={newEnd} 
+                      onChange={(val) => { setNewEnd(val); }} 
+                      onRangeDetected={(start, end) => {
+                        setNewStart(start);
+                        setNewEnd(end);
+                      }}
+                      isEn={isEn} 
+                      placeholder={isEn ? "12:00" : "12:00"} 
+                    />
+                  </div>
                 </div>
 
                 {(() => {
@@ -1073,14 +1564,21 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
           </div>
           
           {!isAdding && (
-            <div className="flex justify-end mt-12">
+            <div className="flex items-center justify-between mt-12 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <button 
+                type="button"
+                onClick={handleBackFromStep1}
+                className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer py-2"
+              >
+                <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
+              </button>
               <button 
                 onClick={() => setStep(2)}
                 disabled={commitments.length === 0}
-                className={`rounded-full px-12 py-3.5 text-lg font-bold transition-all whitespace-nowrap ${
+                className={`rounded-full px-8 sm:px-12 py-3.5 text-base sm:text-lg font-bold transition-all whitespace-nowrap ${
                   commitments.length > 0 
-                    ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white shadow-md cursor-pointer hover:-translate-y-1' 
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white shadow-md cursor-pointer hover:-translate-y-1' 
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                 }`}
               >
                 {isEn ? "Next" : "Tiếp"}
@@ -1092,18 +1590,26 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
       {/* STEP 2: RECOVERY GOAL SELECTION (NOT PRESELECTED) */}
       {step === 2 && (
-        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[24px] sm:rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-4 sm:p-8 md:p-14 relative animate-fade-in text-left">
+        <div className="w-full relative animate-fade-in text-left">
           <div className="inline-block px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-6 sm:mb-8">
-            {isEn ? "Step 2: Recovery goal for today" : "Bước 2: Mục tiêu phục hồi hôm nay"}
+            {planningMode === 'tomorrow'
+              ? (isEn ? "Step 2: Recovery goal for tomorrow" : "Bước 2: Mục tiêu phục hồi ngày mai")
+              : (isEn ? "Step 2: Recovery goal for today" : "Bước 2: Mục tiêu phục hồi hôm nay")}
           </div>
 
           <h3 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-3">
-            {isEn ? "Choose your recovery goal today" : "Hôm nay mục tiêu phục hồi của bạn là gì?"}
+            {planningMode === 'tomorrow'
+              ? (isEn ? "Choose your recovery goal for tomorrow" : "Mục tiêu phục hồi ngày mai của bạn là gì?")
+              : (isEn ? "Choose your recovery goal today" : "Hôm nay mục tiêu phục hồi của bạn là gì?")}
           </h3>
           <p className="text-slate-500 mb-8 sm:mb-10 text-sm sm:text-base md:text-lg leading-relaxed">
-            {isEn 
-              ? "Select one of the 4 goals below. OwlUp will calculate your optimal night sleep, power nap, and caffeine curfew." 
-              : "Chọn 1 trong 4 mục tiêu dưới đây để OwlUp đề xuất thời gian ngủ đêm, chợp mắt và mốc ngừng caffeine tối ưu."}
+            {planningMode === 'tomorrow'
+              ? (isEn 
+                ? "Select one of the 4 goals below. OwlUp will calculate your optimal night sleep, power nap, and caffeine curfew for tomorrow." 
+                : "Chọn 1 trong 4 mục tiêu dưới đây để OwlUp đề xuất thời gian ngủ đêm, chợp mắt và mốc ngừng caffeine tối ưu cho ngày mai.")
+              : (isEn 
+                ? "Select one of the 4 goals below. OwlUp will calculate your optimal night sleep, power nap, and caffeine curfew." 
+                : "Chọn 1 trong 4 mục tiêu dưới đây để OwlUp đề xuất thời gian ngủ đêm, chợp mắt và mốc ngừng caffeine tối ưu.")}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-12">
@@ -1163,9 +1669,6 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                         {goal.title}
                       </h4>
                     </div>
-                    <div className="text-sm font-semibold text-[#007b4d] dark:text-[#62D2FB] mb-2">
-                      {goal.subtitle}
-                    </div>
                     <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                       {goal.desc}
                     </p>
@@ -1195,6 +1698,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             <button 
               onClick={() => {
                 if (selectedGoal) {
+                  setCustomBedtime(recBedtime);
+                  setCustomWakeTime(recWake);
+                  setNapStart(recNapStart);
+                  setNapDuration(recNapDurationMins.toString());
                   setStep(3);
                 }
               }}
@@ -1211,30 +1718,96 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         </div>
       )}
 
-      {/* STEP 3: RECOMMENDATION (BASED ON SELECTED GOAL) */}
+      {/* STEP 3: RECOMMENDATION (BASED ON SELECTED GOAL - MATCHING IMAGE 2) */}
       {step === 3 && (
-        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-8 sm:p-14 relative animate-fade-in text-left">
+        <div className="w-full relative animate-fade-in text-left">
+          {/* CONTEXTUAL BANNER FOR TODAY (DAYTIME VS EVENING AFTER 20:00) */}
+          {planningMode === 'today' && !isTodayScheduleSaved && (
+            <div className="w-full mb-6 p-4 sm:p-5 rounded-2xl bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#4CB28E]/40 dark:border-[#62D2FB]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left animate-fade-in shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl shrink-0 mt-0.5">{isNightWindDown ? "🌙" : "💡"}</span>
+                <div>
+                  <div className="font-bold text-sm sm:text-base text-[#007b4d] dark:text-[#62D2FB]">
+                    {isNightWindDown
+                      ? (isEn ? "Tonight's Recommended Bedtime" : "Giấc ngủ đề xuất cho đêm nay")
+                      : (isEn ? "Day 1 Initial Estimate" : "Ước tính ban đầu cho hôm nay")}
+                  </div>
+                  <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed font-sans">
+                    {isNightWindDown
+                      ? (isEn
+                          ? "It's past 20:00! You can review or adjust tonight's bedtime below to ensure fresh wake up tomorrow morning. Don't forget to set up Tomorrow's Schedule for full optimization!"
+                          : "Đã qua 20:00 tối! Bạn có thể xem hoặc tùy chỉnh ngay giờ ngủ đêm nay bên dưới để thức dậy sáng mai thật sảng khoái. Đừng quên thiết lập Lịch ngày mai để đón đầu năng lượng nhé!")
+                      : (isEn
+                          ? "Today's schedule uses your onboarding profile estimate. You can adjust it below or set up your busy hours to customize precisely!"
+                          : "Lịch hôm nay đang dùng ước tính ban đầu từ khảo sát của bạn. Bạn có thể tùy chỉnh ngay giờ ngủ bên dưới để phù hợp với lịch thực tế!")}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSwitchTab('tomorrow')}
+                className="px-5 py-2.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] text-xs sm:text-sm font-bold shrink-0 transition-all cursor-pointer shadow-sm flex items-center gap-1.5 whitespace-nowrap hover:-translate-y-0.5"
+              >
+                <span>{isEn ? "Plan Tomorrow →" : "Lập lịch ngày mai →"}</span>
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-            <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider">
-              {isEn ? "Step 3: Recommended recovery routine" : "Bước 3: Lịch phục hồi đề xuất"}
+            <div className="flex items-center flex-wrap gap-2.5">
+              <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider">
+                {planningMode === 'tomorrow'
+                  ? (isEn ? "Step 3: Tomorrow's Recommended Sleep Schedule" : "Bước 3: Lịch ngủ ngày mai đề xuất")
+                  : (isEn ? "Step 3: Today's Recommended Sleep Schedule" : "Bước 3: Lịch ngủ hôm nay đề xuất")}
+              </div>
+
+              {planningMode === 'tomorrow' && (tomorrowSavedData || isTomorrowSavedBanner) && (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 text-[#007b4d] dark:text-[#62D2FB] border border-[#007b4d]/30 dark:border-[#62D2FB]/30">
+                  <span>✓</span>
+                  <span>{isEn ? "Saved for tomorrow" : "Đã lưu cho ngày mai"}</span>
+                </span>
+              )}
+
+              {planningMode === 'today' && isDayOneUser && !isRolledFromTomorrow && (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 text-[#007b4d] dark:text-[#62D2FB] border border-[#007b4d]/30 dark:border-[#62D2FB]/30">
+                  <span>🌱</span>
+                  <span>{isEn ? "Day 1 Initial Estimate" : "Ước tính Ngày 1 (Khảo sát)"}</span>
+                </span>
+              )}
+
+              {planningMode === 'today' && isRolledFromTomorrow && (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 text-[#007b4d] dark:text-[#62D2FB] border border-[#007b4d]/30 dark:border-[#62D2FB]/30">
+                  <span>✓</span>
+                  <span>{isEn ? "Active from tomorrow's plan" : "Kích hoạt từ lịch ngày mai"}</span>
+                </span>
+              )}
+
+              {planningMode === 'today' && !isDayOneUser && !isRolledFromTomorrow && (isScheduleAppliedToday || isTodaySavedBanner || localStorage.getItem('owlup_schedule_applied') === 'true') && (
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 text-[#007b4d] dark:text-[#62D2FB] border border-[#007b4d]/30 dark:border-[#62D2FB]/30">
+                  <span>✓</span>
+                  <span>{isEn ? "Saved for today" : "Đã lưu hôm nay"}</span>
+                </span>
+              )}
             </div>
 
-            {selectedGoal && (
-              <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
-                <span>
-                  {selectedGoal === 'healthy_balanced' && '🌱 Cân bằng lành mạnh'}
-                  {selectedGoal === 'max_productivity' && '🚀 Năng suất tối đa'}
-                  {selectedGoal === 'catch_up' && '⚡ Ngủ bù & Phục hồi'}
-                  {selectedGoal === 'night_owl' && '🦉 Cú đêm / Ca muộn'}
-                </span>
-                <button 
-                  onClick={() => setStep(2)}
-                  className="text-[#007b4d] dark:text-[#62D2FB] hover:underline ml-1 cursor-pointer"
-                >
-                  ({isEn ? "Change" : "Đổi"})
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedGoal && (
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
+                  <span>
+                    {selectedGoal === 'healthy_balanced' && '🌱 Cân bằng lành mạnh'}
+                    {selectedGoal === 'max_productivity' && '🚀 Năng suất tối đa'}
+                    {selectedGoal === 'catch_up' && '⚡ Ngủ bù & Phục hồi'}
+                    {selectedGoal === 'night_owl' && '🦉 Cú đêm / Ca muộn'}
+                  </span>
+                  <button 
+                    onClick={() => setStep(2)}
+                    className="text-[#007b4d] dark:text-[#62D2FB] hover:underline ml-1 cursor-pointer font-bold"
+                  >
+                    ({isEn ? "Change" : "Đổi"})
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="flex justify-between items-center mb-10">
@@ -1269,113 +1842,340 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             </div>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-12">
-            {/* 1. Afternoon Power Nap */}
-            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
-              <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">{isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI CHIỀU"}</div>
-              <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
-                <span className="whitespace-nowrap">{formatDisplayTime(recNapStart, isEn)}</span>
-                <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
-                <span className="whitespace-nowrap">{formatDisplayTime(recNapEnd, isEn)}</span>
-              </div>
-              <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recNapDurationMins} min` : `Thời lượng: ${recNapDurationMins} phút`}</div>
-              <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">{isEn ? "Scheduled during the circadian dip to discharge adenosine." : "Được lên lịch vào vùng trũng sinh học để xả adenosine."}</div>
-            </div>
+          {/* Values resolution for display */}
+          {(() => {
+            const displayBed = planningMode === 'tomorrow'
+              ? (tomorrowSavedData?.bedtimeTonight || customBedtime || recBedtime)
+              : (customBedtime || bedtime || recBedtime);
 
-            {/* 2. Main Night Sleep */}
-            <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-3xl p-5 sm:p-6 lg:p-8 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm overflow-hidden">
-              <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-4 uppercase">{isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}</div>
-              <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
-                <span className="whitespace-nowrap">{formatDisplayTime(recBedtime, isEn)}</span>
-                <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
-                <span className="whitespace-nowrap">{formatDisplayTime(recWake, isEn)}</span>
-              </div>
-              <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${recSleepDuration} hours` : `Thời lượng: ${recSleepDuration} giờ`}</div>
-              <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">{isEn ? "Aligned with open windows to maximize restorative REM." : "Đồng bộ hóa với lịch rảnh để tối ưu giấc ngủ REM."}</div>
-            </div>
+            const displayWake = planningMode === 'tomorrow'
+              ? (tomorrowSavedData?.wakeTimeTomorrow || customWakeTime || recWake)
+              : (customWakeTime || wakeTime || recWake);
 
-            {/* 3. Recommended Caffeine Curfew */}
-            <div className="border border-red-200 dark:border-red-500/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-[#FEF5F5] dark:bg-red-950/20 shadow-sm overflow-hidden md:col-span-2">
-              <div className="flex items-center gap-2 text-sm font-bold text-red-600 dark:text-red-400 tracking-wider mb-4 uppercase">
-                <span>🚫</span> {isEn ? "RECOMMENDED CAFFEINE CURFEW" : "NGỪNG CAFFEINE ĐỀ XUẤT"}
-              </div>
-              <div className="text-xl sm:text-2xl md:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-2 tabular-nums">
-                {isEn ? `Before ${formatDisplayTime(recCaffeineCutoff, isEn)}` : `Trước ${formatDisplayTime(recCaffeineCutoff, isEn)}`}
-              </div>
-              <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
-                {isEn 
-                  ? `(10 hours before your ${formatDisplayTime(recBedtime, isEn)} bedtime)` 
-                  : `(10 tiếng trước giờ đi ngủ ${formatDisplayTime(recBedtime, isEn)})`}
-              </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
-                {isEn 
-                  ? "This bedtime is used to determine your optimal caffeine curfew, ensuring your body eliminates caffeine before entering deep sleep cycles."
-                  : "Thời gian ngủ này được dùng làm cơ sở đề xuất giờ ngừng nạp caffeine, đảm bảo cơ thể kịp đào thải sạch trước khi bước vào chu kỳ ngủ sâu."}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-between items-center mt-4">
-            <button 
-              onClick={() => setStep(2)} 
-              className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-lg flex items-center gap-2 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
-            </button>
-            <div className="flex items-center gap-6">
-              <button onClick={() => {
-                setCustomBedtime(recBedtime);
-                setCustomWakeTime(recWake);
-                setNapStart(recNapStart);
-                setNapDuration(recNapDurationMins.toString());
-                setHasAppliedOptimal(false);
-                setStep(4);
-              }} className="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer transition-colors">{isEn ? "Adjust Sleep Times" : "Tùy chỉnh giờ ngủ"}</button>
-              <button 
-                onClick={() => {
-                  setCustomBedtime(recBedtime);
-                  setCustomWakeTime(recWake);
-                  setNapStart(recNapStart);
-                  setNapDuration(recNapDurationMins.toString());
-                  try {
-                    localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
-                    localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
-                  } catch {}
-                  onApplySchedule(recBedtime, recWake, recSleepDuration, recNapStart, recNapDurationMins.toString());
-                  setStep(5);
-                }}
-                className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white rounded-full px-14 py-4 text-lg font-bold transition-all duration-300 shadow-md cursor-pointer hover:-translate-y-1"
-              >
-                {isEn ? "Agree" : "Đồng ý"}
-              </button>
-            </div>
-          </div>
+            const displayNStart = planningMode === 'tomorrow'
+              ? (tomorrowSavedData?.napTomorrowStart || napStart || recNapStart)
+              : (napStart || plannedNap?.start || recNapStart);
+
+            let displayNDur: number;
+            if (planningMode === 'tomorrow') {
+              if (tomorrowSavedData?.napTomorrowDuration !== undefined) {
+                displayNDur = Number(tomorrowSavedData.napTomorrowDuration);
+              } else {
+                const parsed = parseInt(napDuration);
+                displayNDur = !isNaN(parsed) ? parsed : recNapDurationMins;
+              }
+            } else {
+              const parsed = parseInt(napDuration);
+              if (!isNaN(parsed)) {
+                displayNDur = parsed;
+              } else if (plannedNap?.duration !== undefined) {
+                displayNDur = plannedNap.duration;
+              } else {
+                displayNDur = recNapDurationMins;
+              }
+            }
+
+            const [dbh, dbm] = displayBed.split(':').map(Number);
+            const [dwh, dwm] = displayWake.split(':').map(Number);
+            let nSleepMins = (dwh * 60 + dwm) - (dbh * 60 + dbm);
+            if (nSleepMins < 0) nSleepMins += 24 * 60;
+            const displaySleepDuration = (nSleepMins / 60).toFixed(1);
+
+            let caffCurfewMins = (dbh * 60 + dbm) - 10 * 60;
+            while (caffCurfewMins < 0) caffCurfewMins += 24 * 60;
+            const displayCaffeineCutoff = formatMins(caffCurfewMins);
+
+            const [dnh, dnm] = displayNStart.split(':').map(Number);
+            const displayNEnd = formatMins((dnh * 60 + dnm + displayNDur) % 1440);
+
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-12">
+                  {/* 1. Afternoon Power Nap */}
+                  <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
+                    <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">
+                      {planningMode === 'tomorrow'
+                        ? (isEn ? "TOMORROW'S POWER NAP" : "CHỢP MẮT TRƯA MAI")
+                        : (isEn ? "TODAY'S POWER NAP" : "CHỢP MẮT TRƯA NAY")}
+                    </div>
+                    {displayNDur > 0 ? (
+                      <>
+                        <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
+                          <span className="whitespace-nowrap">{formatDisplayTime(displayNStart, isEn)}</span>
+                          <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
+                          <span className="whitespace-nowrap">{formatDisplayTime(displayNEnd, isEn)}</span>
+                        </div>
+                        <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${displayNDur} min` : `Thời lượng: ${displayNDur} phút`}</div>
+                        <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">
+                          {isEn ? "Scheduled in your open window to discharge adenosine." : "Được lên lịch vào khung giờ rảnh để xả adenosine."}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xl sm:text-2xl font-heading font-bold text-[#1F2937] dark:text-white mb-2">
+                          {isEn ? "No Nap Scheduled" : "Không xếp lịch chợp mắt"}
+                        </div>
+                        <p className="text-sm text-[#1F2937]/70 dark:text-white/70 leading-relaxed mt-2 font-sans">
+                          {isEn 
+                            ? "Your busy commitments occupy the entire afternoon dip window. OwlUp protects your focus and prioritizes full restorative night sleep instead." 
+                            : "Lịch bận kéo dài qua khung giờ trưa/chiều, không còn khoảng trống an toàn. OwlUp sẽ tối ưu giấc ngủ đêm để bù đắp năng lượng trọn vẹn cho bạn."}
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* 2. Main Night Sleep */}
+                  <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-3xl p-5 sm:p-6 lg:p-8 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm overflow-hidden">
+                    <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-4 uppercase">
+                      {planningMode === 'tomorrow'
+                        ? (isEn ? "MAIN NIGHT SLEEP TOMORROW" : "GIẤC NGỦ ĐÊM MAI")
+                        : (isEn ? "MAIN NIGHT SLEEP TONIGHT" : "GIẤC NGỦ ĐÊM NAY")}
+                    </div>
+                    <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
+                      <span className="whitespace-nowrap">{formatDisplayTime(displayBed, isEn)}</span>
+                      <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
+                      <span className="whitespace-nowrap">{formatDisplayTime(displayWake, isEn)}</span>
+                    </div>
+                    <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">{isEn ? `Duration: ${displaySleepDuration} hours` : `Thời lượng: ${displaySleepDuration} giờ`}</div>
+                    <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-4 leading-relaxed">
+                      {planningMode === 'tomorrow'
+                        ? (isEn ? "Target bedtime tonight to ensure fresh awakening tomorrow." : "Giờ đi ngủ đêm nay để đảm bảo thức dậy sáng mai sảng khoái.")
+                        : (isEn ? "Aligned with open windows to maximize restorative sleep." : "Giờ đi ngủ đêm nay để đảm bảo thức dậy sáng mai sảng khoái.")}
+                    </div>
+                  </div>
+
+                  {/* 3. Recommended Caffeine Curfew */}
+                  <div className="border border-red-200 dark:border-red-500/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-[#FEF5F5] dark:bg-red-950/20 shadow-sm overflow-hidden md:col-span-2">
+                    <div className="flex items-center gap-2 text-sm font-bold text-red-700 dark:text-red-300 tracking-wider mb-4 uppercase">
+                      <span>🚫</span> {isEn ? "RECOMMENDED CAFFEINE CURFEW TIME" : "THỜI GIAN NGỪNG CAFFEINE ĐỀ XUẤT"}
+                    </div>
+                    <div className="text-xl sm:text-2xl md:text-xl lg:text-2xl xl:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 tabular-nums">
+                      {formatDisplayTime(displayCaffeineCutoff, isEn)}
+                    </div>
+                    <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
+                      {isEn 
+                        ? `(10 hours before your ${formatDisplayTime(displayBed, isEn)} bedtime)` 
+                        : `(10 tiếng trước giờ đi ngủ ${formatDisplayTime(displayBed, isEn)})`}
+                    </div>
+                    <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
+                      {isEn 
+                        ? "This bedtime is used to determine your optimal caffeine curfew, ensuring your body eliminates caffeine before entering deep sleep cycles."
+                        : "Thời gian ngủ này được dùng làm cơ sở đề xuất giờ ngừng nạp caffeine, đảm bảo cơ thể kịp đào thải sạch trước khi bước vào chu kỳ ngủ sâu."}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom action bar (Image 2 style) */}
+                <div className="flex justify-between items-center mt-4">
+                  <button 
+                    onClick={() => setStep(2)} 
+                    className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
+                  </button>
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <button 
+                      onClick={() => {
+                        setCustomBedtime(displayBed);
+                        setCustomWakeTime(displayWake);
+                        setNapStart(displayNStart);
+                        setNapDuration(displayNDur.toString());
+                        setHasAppliedOptimal(false);
+                        setStep(4);
+                      }} 
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-base sm:text-lg cursor-pointer transition-colors"
+                    >
+                      {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
+                    </button>
+                    {!(planningMode === 'tomorrow'
+                      ? Boolean(tomorrowSavedData || isTomorrowSavedBanner || localStorage.getItem('owlup_tomorrow_schedule'))
+                      : Boolean(isScheduleAppliedToday || isTodaySavedBanner || localStorage.getItem('owlup_schedule_applied') === 'true')
+                    ) && (
+                      <button 
+                        onClick={() => {
+                          setCustomBedtime(displayBed);
+                          setCustomWakeTime(displayWake);
+                          setNapStart(displayNStart);
+                          setNapDuration(displayNDur.toString());
+                          try {
+                            if (planningMode === 'tomorrow') {
+                              const tomorrowData = {
+                                bedtimeTonight: displayBed,
+                                wakeTimeTomorrow: displayWake,
+                                napTomorrowStart: displayNStart,
+                                napTomorrowDuration: displayNDur,
+                                expectedBedtimeTomorrow: tomorrowPredictedBedtime || '23:00',
+                                goal: selectedGoal || 'healthy_balanced',
+                                commitments: commitments,
+                                createdAt: new Date().toISOString()
+                              };
+                              localStorage.setItem('owlup_tomorrow_commitments', JSON.stringify(commitments));
+                              localStorage.setItem('owlup_tomorrow_recovery_goal', selectedGoal || 'healthy_balanced');
+                              localStorage.setItem('owlup_tomorrow_schedule', JSON.stringify(tomorrowData));
+                              setTomorrowSavedData(tomorrowData);
+                              setIsTomorrowSavedBanner(true);
+                              setIsTodaySavedBanner(false);
+                              setStep(5); // Hiện thông báo đã lưu thành công kèm các tác vụ!
+                              return;
+                            } else {
+                              localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                              localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
+                              localStorage.setItem('owlup_schedule_applied', 'true');
+                              onApplySchedule(displayBed, displayWake, displaySleepDuration, displayNStart, displayNDur.toString());
+                              setIsTodaySavedBanner(true);
+                              setIsTomorrowSavedBanner(false);
+                              setStep(5); // Hiện thông báo đã lưu thành công kèm các tác vụ!
+                              return;
+                            }
+                          } catch {}
+                        }}
+                        className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all duration-300 shadow-md cursor-pointer hover:-translate-y-1"
+                      >
+                        {isEn ? "Agree" : "Đồng ý"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
       {/* STEP 4: CUSTOMIZE */}
       {step === 4 && (
-        <div className="bg-[#fffff8] dark:bg-[#233355] rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm p-8 sm:p-14 relative animate-fade-in">
-          <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-8">
-            {isEn ? "Step 4: Flexible customization" : "Bước 4: Tùy chỉnh linh hoạt"}
+        <div className="w-full relative animate-fade-in text-left">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div className="inline-block px-5 py-2 rounded-full text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider">
+              {planningMode === 'tomorrow'
+                ? (isEn ? "Step 4: Adjustment Hub (Tomorrow)" : "Bước 4: Trung tâm tùy chỉnh lịch trình (Ngày mai)")
+                : (isEn ? "Step 4: Adjustment Hub (Today)" : "Bước 4: Trung tâm tùy chỉnh lịch trình (Hôm nay)")}
+            </div>
           </div>
           
-          <h3 className="text-3xl sm:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-8 text-left">
-            {isEn ? "Customize Sleep, Nap, or Both" : "Tùy chỉnh lịch trình hôm nay"}
+          <h3 className="text-3xl sm:text-4xl font-heading font-bold text-[#1F2937] dark:text-white mb-2 text-left">
+            {planningMode === 'tomorrow'
+              ? (isEn ? "Customize Tomorrow's Schedule" : "Tùy chỉnh lịch trình ngày mai")
+              : (isEn ? "Customize Today's Schedule" : "Tùy chỉnh lịch trình hôm nay")}
           </h3>
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 mb-6">
+            {isEn
+              ? "You can let OwlUp auto-recalculate by updating your commitments or recovery goal, or manually fine-tune sleep & nap hours below."
+              : "Bạn có thể để OwlUp tự động tính lại bằng cách cập nhật lịch bận/mục tiêu phục hồi, hoặc tự tinh chỉnh giờ ngủ bên dưới."}
+          </p>
+
+          {/* Quick Adjustment Options: Commitments & Goal (Solution 2) */}
+          <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base sm:text-lg">⚡</span>
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                {isEn ? "Auto-Recalculate Sleep Cycles" : "Tự động tính lại chu kỳ tối ưu"}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4">
+              {isEn
+                ? "Changed your daytime plans? Update your busy slots or sleep goal to let OwlUp recalculate fresh optimal sleep windows:"
+                : "Lịch trình thực tế có thay đổi? Hãy cập nhật khung giờ bận hoặc mục tiêu để OwlUp tính lại lịch ngủ phù hợp nhất:"}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {/* Button 1: Edit commitments */}
+              <button
+                onClick={() => setStep(1)}
+                className="flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700 hover:border-[#007b4d] dark:hover:border-[#62D2FB] hover:shadow-md transition-all group text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-[#007b4d] dark:text-[#62D2FB] flex items-center justify-center text-xl shrink-0">
+                    📅
+                  </div>
+                  <div>
+                    <div className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 group-hover:text-[#007b4d] dark:group-hover:text-[#62D2FB] transition-colors">
+                      {planningMode === 'tomorrow'
+                        ? (isEn ? "Edit Tomorrow's Commitments" : "Sửa khung giờ bận ngày mai")
+                        : (isEn ? "Edit Today's Commitments" : "Sửa khung giờ bận hôm nay")}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {commitments.length > 0
+                        ? (isEn ? `${commitments.length} busy slot(s) added` : `Đang có ${commitments.length} khung giờ bận`)
+                        : (isEn ? "No commitments added yet" : "Chưa có khung giờ bận")}
+                    </div>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-[#007b4d] dark:group-hover:text-[#62D2FB] group-hover:bg-emerald-50 dark:group-hover:bg-[#62D2FB]/10 transition-all shrink-0">
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </button>
+
+              {/* Button 2: Change recovery goal */}
+              <button
+                onClick={() => setStep(2)}
+                className="flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-700 hover:border-[#007b4d] dark:hover:border-[#62D2FB] hover:shadow-md transition-all group text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl shrink-0">
+                    🎯
+                  </div>
+                  <div>
+                    <div className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 group-hover:text-[#007b4d] dark:group-hover:text-[#62D2FB] transition-colors">
+                      {isEn ? "Change Recovery Goal" : "Đổi mục tiêu phục hồi"}
+                    </div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {selectedGoal === 'high_performance'
+                        ? (isEn ? "Peak Recovery (8.5 - 9h)" : "Phục hồi tối đa (8.5 - 9h)")
+                        : selectedGoal === 'exam_crunch'
+                        ? (isEn ? "Busy & Exam Mode (6 - 7h)" : "Ôn thi & Bận rộn (6 - 7h)")
+                        : (isEn ? "Balanced & Natural (7.5 - 8h)" : "Cân bằng & Tự nhiên (7.5 - 8h)")}
+                    </div>
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-[#007b4d] dark:group-hover:text-[#62D2FB] group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/40 transition-all shrink-0">
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Section title for manual fine-tuning */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm sm:text-base font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+              <span>✍️</span>
+              <span>{isEn ? "Or fine-tune sleep & nap hours manually:" : "Hoặc tự tinh chỉnh giờ ngủ & chợp mắt thủ công:"}</span>
+            </div>
+            {!hasAppliedOptimal && (
+              <button
+                onClick={() => {
+                  if (tipData) {
+                    setCustomBedtime(tipData.optimalBedtime);
+                    setCustomWakeTime(tipData.optimalWake);
+                    setNapStart(tipData.optimalNapStart);
+                    setNapDuration(tipData.optimalNapDuration);
+                    setHasAppliedOptimal(true);
+                  }
+                }}
+                className="text-xs sm:text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <span>✨</span>
+                <span>{isEn ? "Reset to optimal" : "Lấy lại giờ tối ưu"}</span>
+              </button>
+            )}
+          </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 mt-4 mb-10">
             {/* 1. Power Nap (Yellow) */}
             <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
               <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] mb-4 uppercase">
-                {isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI CHIỀU"}
+                {planningMode === 'tomorrow'
+                  ? (isEn ? "TOMORROW'S POWER NAP" : "CHỢP MẮT TRƯA MAI")
+                  : (isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI CHIỀU")}
               </div>
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="flex-1 min-w-0 flex flex-col">
                   <div className="border-b border-[#FDE047]/80 pb-1 overflow-hidden">
                     <TimePickerInput value={napStart} onChange={(val) => { setNapStart(val); setHasAppliedOptimal(false); }} isEn={isEn} variant="underline" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Nap start" : "Bắt đầu chợp mắt"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">
+                    {planningMode === 'tomorrow' ? (isEn ? "Nap Start" : "Giờ chợp mắt") : (isEn ? "Nap start" : "Giờ chợp mắt")}
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col">
                   <input type="number" value={napDuration} onChange={(e) => { 
@@ -1388,7 +2188,9 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     setNapDuration(val.toString()); 
                     setHasAppliedOptimal(false); 
                   }} className="w-full bg-transparent border-b border-[#FDE047]/80 px-1 py-1 font-heading text-xl sm:text-2xl lg:text-[26px] font-bold text-[#1F2937] dark:text-white focus:outline-none focus:border-[#EAB308] transition-colors tabular-nums tracking-tight"/>
-                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Duration (min)" : "Thời lượng (phút)"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">
+                    {isEn ? "Duration (min)" : "Thời lượng (phút)"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1396,20 +2198,26 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {/* 2. Main night sleep (Green) */}
             <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-2xl p-5 sm:p-6 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm overflow-hidden">
               <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] mb-4 uppercase">
-                {isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}
+                {planningMode === 'tomorrow'
+                  ? (isEn ? "MAIN NIGHT SLEEP TOMORROW" : "GIẤC NGỦ ĐÊM MAI")
+                  : (isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY")}
               </div>
               <div className="flex items-center gap-3 sm:gap-4 mb-2">
                 <div className="flex-1 min-w-0 flex flex-col">
                   <div className="border-b border-slate-300 dark:border-slate-500 pb-1 overflow-hidden">
                     <TimePickerInput value={customBedtime} onChange={(val) => { setCustomBedtime(val); setHasAppliedOptimal(false); }} isEn={isEn} variant="underline" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Bedtime" : "Giờ đi ngủ"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">
+                    {planningMode === 'tomorrow' ? (isEn ? "Bedtime" : "Giờ đi ngủ") : (isEn ? "Bedtime" : "Giờ đi ngủ")}
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col">
                   <div className="border-b border-slate-300 dark:border-slate-500 pb-1 overflow-hidden">
                     <TimePickerInput value={customWakeTime} onChange={(val) => { setCustomWakeTime(val); setHasAppliedOptimal(false); }} isEn={isEn} variant="underline" />
                   </div>
-                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">{isEn ? "Wake time" : "Giờ thức dậy"}</div>
+                  <div className="text-xs sm:text-sm text-slate-500 mt-1 truncate">
+                    {planningMode === 'tomorrow' ? (isEn ? "Wake time" : "Giờ thức dậy") : (isEn ? "Wake time" : "Giờ thức dậy")}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1420,17 +2228,34 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             const step3Errors: string[] = [];
             
             // Validate napStart
-            const napStartErr = validateSingleTime(napStart, isEn ? "nap start time" : "thời gian bắt đầu chợp mắt");
-            if (napStartErr) {
-              step3Errors.push(napStartErr);
-            } else if (!napStart || napStart === '--:--' || !napStart.includes(':')) {
-              step3Errors.push(isEn ? "Please enter a valid nap start time." : "Vui lòng nhập giờ bắt đầu chợp mắt hợp lệ.");
-            } else if (!isNapInCircadianWindow) {
-              step3Errors.push(
-                isEn
-                  ? "Afternoon power nap must be scheduled between 11:00 AM and 04:30 PM (11:00 - 16:30) to match circadian rhythms."
-                  : "Giấc chợp mắt buổi chiều phải nằm trong khoảng 11:00 đến 16:30 để đồng bộ với nhịp trũng sinh học."
-              );
+            // Check if napDuration is valid (allowed to be 0 if nap is omitted due to busy afternoon)
+            const napDurNum = parseInt(napDuration) || 0;
+            if (napDurNum < 0) {
+              step3Errors.push(isEn ? "Nap duration cannot be negative." : "Thời lượng chợp mắt không được là số âm.");
+            }
+
+            // Only validate nap start and bedtime proximity if nap is active (> 0 min)
+            if (napDurNum > 0) {
+              const napStartErr = validateSingleTime(napStart, isEn ? "nap start time" : "thời gian bắt đầu chợp mắt");
+              if (napStartErr) {
+                step3Errors.push(napStartErr);
+              } else if (!napStart || napStart === '--:--' || !napStart.includes(':')) {
+                step3Errors.push(isEn ? "Please enter a valid nap start time." : "Vui lòng nhập giờ bắt đầu chợp mắt hợp lệ.");
+              } else if (!isNapInCircadianWindow) {
+                step3Errors.push(
+                  isEn
+                    ? "Afternoon power nap must be scheduled between 11:00 AM and 04:30 PM (11:00 - 16:30) to match circadian rhythms."
+                    : "Giấc chợp mắt buổi chiều phải nằm trong khoảng 11:00 đến 16:30 để đồng bộ với nhịp trũng sinh học."
+                );
+              }
+
+              if (isTimeFormatValid(napStart) && isTimeFormatValid(customBedtime) && !isNapFarFromBedtime) {
+                step3Errors.push(
+                  isEn
+                    ? "Nap ends too close to bedtime. Keep at least 3 hours buffer before night sleep."
+                    : "Giờ chợp mắt quá gần giờ ngủ đêm. Cần cách giờ đi ngủ tối thiểu 3 tiếng để tránh mất ngủ đêm."
+                );
+              }
             }
 
             // Validate customBedtime
@@ -1453,21 +2278,6 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   ? "Night sleep duration must be at least 4 hours."
                   : "Thời lượng giấc ngủ đêm tối thiểu phải từ 4 tiếng trở lên."
               );
-            }
-
-            // Check if nap is too close to bedtime
-            if (isTimeFormatValid(napStart) && isTimeFormatValid(customBedtime) && !isNapFarFromBedtime) {
-              step3Errors.push(
-                isEn
-                  ? "Nap ends too close to bedtime. Keep at least 3 hours buffer before night sleep."
-                  : "Giờ chợp mắt quá gần giờ ngủ đêm. Cần cách giờ đi ngủ tối thiểu 3 tiếng để tránh mất ngủ đêm."
-              );
-            }
-
-            // Check if napDuration is valid
-            const napDurNum = parseInt(napDuration);
-            if (isNaN(napDurNum) || napDurNum <= 0) {
-              step3Errors.push(isEn ? "Nap duration must be greater than 0 minutes." : "Thời lượng chợp mắt phải lớn hơn 0 phút.");
             }
 
             if (step3Errors.length === 0) return null;
@@ -1539,7 +2349,9 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <button 
-              onClick={() => setStep(3)} 
+              onClick={() => {
+                setStep(3);
+              }} 
               className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center justify-center sm:justify-start gap-2 transition-colors cursor-pointer py-2 sm:py-0"
             >
               <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
@@ -1547,18 +2359,52 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             
             {isQualified ? (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-8 animate-fade-in">
-                <button onClick={() => setStep(3)} className="text-[#999999] hover:text-[#1F2937] font-bold text-base sm:text-lg cursor-pointer transition-colors py-2 text-center">
+                <button onClick={() => {
+                  setStep(3);
+                }} className="text-[#999999] hover:text-[#1F2937] font-bold text-base sm:text-lg cursor-pointer transition-colors py-2 text-center">
                   {isEn ? "Cancel" : "Hủy"}
                 </button>
                 <button 
                   onClick={() => {
                     if (!isStep3Valid) return;
                     try {
-                      localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
-                      localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
-                    } catch {}
-                    onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
-                    setStep(5);
+                      if (planningMode === 'tomorrow') {
+                        const tomorrowData = {
+                          bedtimeTonight: customBedtime,
+                          wakeTimeTomorrow: customWakeTime,
+                          napTomorrowStart: napStart,
+                          napTomorrowDuration: parseInt(napDuration) || 20,
+                          expectedBedtimeTomorrow: tomorrowPredictedBedtime || '23:00',
+                          goal: selectedGoal || 'healthy_balanced',
+                          commitments: commitments,
+                          createdAt: new Date().toISOString()
+                        };
+                        localStorage.setItem('owlup_tomorrow_commitments', JSON.stringify(commitments));
+                        localStorage.setItem('owlup_tomorrow_recovery_goal', selectedGoal || 'healthy_balanced');
+                        localStorage.setItem('owlup_tomorrow_schedule', JSON.stringify(tomorrowData));
+                        setTomorrowSavedData(tomorrowData);
+                        setIsTomorrowSavedBanner(true);
+                        setStep(5); // Hiện thông báo đã lưu thành công
+                        return;
+                      } else {
+                        localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                        localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
+                        localStorage.setItem('owlup_schedule_applied', 'true');
+                        onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
+                        setIsTodaySavedBanner(true);
+                        setIsTomorrowSavedBanner(false);
+                        setStep(5); // Hiện thông báo đã lưu thành công
+                      }
+                    } catch {
+                      if (planningMode === 'tomorrow') {
+                        setStep(5);
+                      } else {
+                        onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
+                        setIsTodaySavedBanner(true);
+                        setIsTomorrowSavedBanner(false);
+                        setStep(5);
+                      }
+                    }
                   }} 
                   disabled={!isStep3Valid}
                   className={`rounded-full px-8 sm:px-12 py-3 sm:py-3.5 text-base sm:text-lg font-bold transition-all shadow-md text-center ${
@@ -1567,7 +2413,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
                   }`}
                 >
-                  {isEn ? "Agree" : "Đồng ý"}
+                  {isEn ? (planningMode === 'today' ? "Save Schedule" : "Agree") : (planningMode === 'today' ? "Lưu lịch trình" : "Đồng ý")}
                 </button>
               </div>
             ) : (
@@ -1576,11 +2422,43 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   onClick={() => {
                     if (!isStep3Valid) return;
                     try {
-                      localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
-                      localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
-                    } catch {}
-                    onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
-                    setStep(5);
+                      if (planningMode === 'tomorrow') {
+                        const tomorrowData = {
+                          bedtimeTonight: customBedtime,
+                          wakeTimeTomorrow: customWakeTime,
+                          napTomorrowStart: napStart,
+                          napTomorrowDuration: parseInt(napDuration) || 20,
+                          expectedBedtimeTomorrow: tomorrowPredictedBedtime || '23:00',
+                          goal: selectedGoal || 'healthy_balanced',
+                          commitments: commitments,
+                          createdAt: new Date().toISOString()
+                        };
+                        localStorage.setItem('owlup_tomorrow_commitments', JSON.stringify(commitments));
+                        localStorage.setItem('owlup_tomorrow_recovery_goal', selectedGoal || 'healthy_balanced');
+                        localStorage.setItem('owlup_tomorrow_schedule', JSON.stringify(tomorrowData));
+                        setTomorrowSavedData(tomorrowData);
+                        setIsTomorrowSavedBanner(true);
+                        setStep(5); // Hiện thông báo đã lưu thành công
+                        return;
+                      } else {
+                        localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                        localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
+                        localStorage.setItem('owlup_schedule_applied', 'true');
+                        onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
+                        setIsTodaySavedBanner(true);
+                        setIsTomorrowSavedBanner(false);
+                        setStep(5); // Hiện thông báo đã lưu thành công
+                      }
+                    } catch {
+                      if (planningMode === 'tomorrow') {
+                        setStep(5);
+                      } else {
+                        onApplySchedule(customBedtime, customWakeTime, (totalSleepMins / 60).toFixed(1), napStart, napDuration);
+                        setIsTodaySavedBanner(true);
+                        setIsTomorrowSavedBanner(false);
+                        setStep(5);
+                      }
+                    }
                   }} 
                   disabled={!isStep3Valid}
                   className={`font-bold text-sm sm:text-base md:text-lg px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-dashed rounded-full text-center transition-all ${
@@ -1589,7 +2467,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       : 'border-slate-200 text-slate-400 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  {isEn ? "Keep Custom" : "Giữ tùy chỉnh"}
+                  {isEn ? (planningMode === 'today' ? "Save Custom" : "Keep Custom") : (planningMode === 'today' ? "Lưu lịch tùy chỉnh" : "Giữ tùy chỉnh")}
                 </button>
                 <button 
                   onClick={() => {
@@ -1613,10 +2491,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
       {/* STEP 5: SUCCESS / SUMMARY */}
       {step === 5 && (() => {
-        const effectiveBed = customBedtime || bedtime || '22:30';
-        const effectiveWake = customWakeTime || wakeTime || '06:30';
-        const effectiveNStart = napStart || plannedNap?.start || '12:30';
-        const effectiveNDur = parseInt(napDuration) || plannedNap?.duration || 20;
+        const effectiveBed = planningMode === 'tomorrow'
+          ? (tomorrowSavedData?.bedtimeTonight || customBedtime || '22:30')
+          : (customBedtime || bedtime || '22:30');
+        const effectiveWake = planningMode === 'tomorrow'
+          ? (tomorrowSavedData?.wakeTimeTomorrow || customWakeTime || '06:30')
+          : (customWakeTime || wakeTime || '06:30');
+        const effectiveNStart = planningMode === 'tomorrow'
+          ? (tomorrowSavedData?.napTomorrowStart || napStart || '12:30')
+          : (napStart || plannedNap?.start || '12:30');
+        const rawDurNum = planningMode === 'tomorrow'
+          ? (tomorrowSavedData?.napTomorrowDuration !== undefined ? Number(tomorrowSavedData.napTomorrowDuration) : parseInt(napDuration))
+          : parseInt(napDuration);
+        const effectiveNDur = !isNaN(rawDurNum) ? rawDurNum : (plannedNap?.duration !== undefined ? plannedNap.duration : 0);
         const [nh, nm] = effectiveNStart.split(':').map(Number);
         const nEndMins = (nh * 60 + nm + effectiveNDur) % 1440;
         const neh = Math.floor(nEndMins / 60);
@@ -1644,33 +2531,51 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               <CheckCircle2 className="w-12 h-12 text-[#4CB28E] dark:text-[#62D2FB]" />
             </div>
 
-            <h3 className="text-2xl font-heading font-bold text-[#1F2937] dark:text-white mb-8">
-              {isEn ? "Schedule Successfully Saved!" : "Đã lưu lịch ngủ thành công!"}
+            <h3 className="text-2xl font-heading font-bold text-[#1F2937] dark:text-white mb-2">
+              {planningMode === 'tomorrow'
+                ? (isEn ? "Tomorrow's Schedule Saved!" : "Đã lưu lịch ngày mai thành công!")
+                : (isEn ? "Schedule Successfully Saved!" : "Đã lưu lịch ngủ thành công!")}
             </h3>
+
+            {planningMode === 'tomorrow' && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 font-medium">
+                {isEn
+                  ? "This schedule will automatically become Today's sleep schedule and sync to Timeline after 00:00 midnight (Day 2)."
+                  : "Lịch trình này sẽ tự động chuyển thành Lịch ngủ hôm nay và đồng bộ vào Dòng thời gian sau 00:00 đêm nay (khi bước sang Ngày 2)."}
+              </p>
+            )}
             
-            <div className="flex flex-col text-left mb-10 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#233355] rounded-2xl p-5 shadow-sm">
+            <div className={`flex flex-col text-left mb-8 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#233355] rounded-2xl p-5 shadow-sm ${planningMode === 'tomorrow' ? 'mt-3' : 'mt-6'}`}>
               <div className="py-3.5 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex justify-between items-baseline gap-3 sm:gap-4">
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
-                    {isEn ? "Afternoon Nap" : "Chợp mắt buổi trưa"}
+                    {planningMode === 'tomorrow' ? (isEn ? "Tomorrow's Nap" : "Chợp mắt trưa mai") : (isEn ? "Afternoon Nap" : "Chợp mắt buổi trưa")}
                   </div>
-                  <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0 inline-flex items-baseline">
-                    <span className="whitespace-nowrap">{formatDisplayTime(effectiveNStart, isEn)}</span>
-                    <span className="font-sans font-normal text-slate-400 mx-1 sm:mx-1.5 shrink-0">→</span>
-                    <span className="whitespace-nowrap">{formatDisplayTime(effectiveNEnd, isEn)}</span>
+                  {effectiveNDur > 0 ? (
+                    <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0 inline-flex items-baseline">
+                      <span className="whitespace-nowrap">{formatDisplayTime(effectiveNStart, isEn)}</span>
+                      <span className="font-sans font-normal text-slate-400 mx-1 sm:mx-1.5 shrink-0">→</span>
+                      <span className="whitespace-nowrap">{formatDisplayTime(effectiveNEnd, isEn)}</span>
+                    </div>
+                  ) : (
+                    <div className="text-sm sm:text-base font-heading font-bold text-[#1F2937] dark:text-white text-right whitespace-nowrap shrink-0">
+                      {isEn ? "No Nap Scheduled" : "Không xếp lịch chợp mắt"}
+                    </div>
+                  )}
+                </div>
+                {effectiveNDur > 0 && (
+                  <div className="flex justify-end mt-0.5">
+                    <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400 whitespace-nowrap">
+                      {effectiveNDur} {isEn ? "min" : "phút"}
+                    </span>
                   </div>
-                </div>
-                <div className="flex justify-end mt-0.5">
-                  <span className="text-xs sm:text-sm font-normal text-slate-400 dark:text-slate-400 whitespace-nowrap">
-                    {effectiveNDur} {isEn ? "min" : "phút"}
-                  </span>
-                </div>
+                )}
               </div>
 
               <div className="py-3.5 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex justify-between items-baseline gap-3 sm:gap-4">
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
-                    {isEn ? "Main Sleep" : "Giấc ngủ đêm"}
+                    {planningMode === 'tomorrow' ? (isEn ? "Tomorrow's Sleep" : "Giấc ngủ đêm mai") : (isEn ? "Main Sleep" : "Giấc ngủ đêm")}
                   </div>
                   <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0 inline-flex items-baseline">
                     <span className="whitespace-nowrap">{formatDisplayTime(effectiveBed, isEn)}</span>
@@ -1688,7 +2593,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               <div className="py-3.5">
                 <div className="flex justify-between items-baseline gap-3 sm:gap-4">
                   <div className="text-sm sm:text-base font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
-                    {isEn ? "Caffeine Curfew" : "Ngừng Caffeine"}
+                    {planningMode === 'tomorrow' ? (isEn ? "Tomorrow's Caffeine Curfew" : "Ngừng Caffeine ngày mai") : (isEn ? "Caffeine Curfew" : "Ngừng Caffeine")}
                   </div>
                   <div className="text-base sm:text-lg md:text-xl font-heading font-bold text-[#4CB28E] dark:text-[#62D2FB] tabular-nums text-right whitespace-nowrap shrink-0">
                     {formatDisplayTime(summaryCurfew, isEn)}
@@ -1697,60 +2602,82 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               </div>
             </div>
 
+            {planningMode === 'today' && (
+              <div className="mb-6 p-4 rounded-2xl bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d]/30 dark:border-[#62D2FB]/30 text-left animate-fade-in flex items-start gap-3 shadow-sm">
+                <span className="text-xl shrink-0 mt-0.5">💡</span>
+                <div>
+                  <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB]">
+                    {isEn ? "Tonight's Routine Tip" : "Gợi ý lịch trình buổi tối"}
+                  </div>
+                  <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed font-sans">
+                    {isEn
+                      ? "You now have an optimal plan for today! In the evening (after 20:00 before bed), come back to plan for tomorrow to stay ahead of your energy curve."
+                      : "Bạn đã có lịch tối ưu cho hôm nay! Vào buổi tối (từ 20:00 trước khi đi ngủ), hãy quay lại sắp xếp lịch cho ngày mai để đón đầu năng lượng nhé."}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-3">
-              <button 
-                onClick={() => {
-                  if (onNavigateToCaffeine) onNavigateToCaffeine();
-                }}
-                className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white rounded-full py-4 text-lg font-bold transition-all duration-300 shadow-md hover:-translate-y-1 cursor-pointer"
-              >
-                {isEn ? "Log Caffeine" : "Nhập Caffeine"}
-              </button>
+              {planningMode === 'today' && (
+                <button 
+                  onClick={() => {
+                    if (onNavigateToCaffeine) onNavigateToCaffeine();
+                  }}
+                  className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white rounded-full py-4 text-lg font-bold transition-all duration-300 shadow-md hover:-translate-y-1 cursor-pointer"
+                >
+                  {isEn ? "Log Caffeine" : "Nhập Caffeine"}
+                </button>
+              )}
 
               <button 
                 onClick={() => {
                   if (onNavigateToDashboard) onNavigateToDashboard();
                 }}
-                className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:bg-[#62D2FB] text-white rounded-full py-4 text-lg font-bold transition-all duration-300 shadow-md hover:-translate-y-1 cursor-pointer"
+                className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white rounded-full py-4 text-lg font-bold transition-all duration-300 shadow-md hover:-translate-y-1 cursor-pointer"
               >
                 {isEn ? "Back to Dashboard" : "Về Tổng quan"}
               </button>
 
               <div className="flex flex-col sm:flex-row gap-2.5 mt-1">
                 <button 
-                  onClick={() => setStep(1)}
-                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer"
+                  onClick={() => setStep(3)}
+                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer text-center"
                 >
-                  {isEn ? "Edit Busy Schedule" : "Sửa lịch bận"}
-                </button>
-                <button 
-                  onClick={() => setStep(2)}
-                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer"
-                >
-                  {isEn ? "Change Goal" : "Đổi mục tiêu"}
+                  {isEn ? "View Schedule Card" : "Xem thẻ lịch ngủ"}
                 </button>
                 <button 
                   onClick={() => setStep(4)}
-                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-2.5 sm:py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer flex flex-col items-center justify-center leading-tight"
+                  className="flex-1 bg-transparent border border-slate-300 dark:border-slate-600 hover:border-[#4CB28E] dark:hover:border-[#62D2FB] text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] rounded-full py-3 text-sm sm:text-base font-bold transition-colors cursor-pointer text-center"
                 >
-                  {isEn ? (
-                    <>
-                      <span>Adjust</span>
-                      <span>Sleep</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Tùy chỉnh</span>
-                      <span>giờ ngủ</span>
-                    </>
-                  )}
+                  {isEn ? "Adjust Sleep & Nap Again" : "Chỉnh sửa lại giấc ngủ"}
                 </button>
               </div>
+
+              {planningMode === 'today' ? (
+                <button 
+                  onClick={() => handleSwitchTab('tomorrow')}
+                  className="mt-2 text-xs sm:text-sm font-semibold text-[#007b4d] dark:text-[#62D2FB] hover:underline flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>🌅</span>
+                  <span>{isEn ? "Plan for Tomorrow (Optional) →" : "Lập luôn lịch ngày mai (Tùy chọn) →"}</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => handleSwitchTab('today')}
+                  className="mt-2 text-xs sm:text-sm font-semibold text-slate-400 hover:text-[#007b4d] dark:hover:text-[#62D2FB] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>🌙</span>
+                  <span>{isEn ? "Switch to Today Schedule" : "Chuyển sang Lịch ngủ hôm nay"}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
         );
       })()}
+
+      </div>
     </div>
   );
 };
