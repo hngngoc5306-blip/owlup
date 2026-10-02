@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : (isNight ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50')
               }`}
             >
-              {feature === 'dashboard' ? (language === 'en' ? 'Dashboard' : 'Tổng quan') : feature === 'planner' ? (language === 'en' ? 'Sleep Schedule' : 'Lịch ngủ') : feature === 'caffeine' ? (language === 'en' ? 'Caffeine' : 'Caffeine') : (language === 'en' ? 'Timeline' : 'Lộ trình')}
+              {feature === 'dashboard' ? (language === 'en' ? 'Dashboard' : 'Tổng quan') : feature === 'planner' ? (language === 'en' ? 'Sleep Schedule' : 'Lịch ngủ') : feature === 'caffeine' ? (language === 'en' ? 'Caffeine Advisor' : 'Caffeine Advisor') : (language === 'en' ? 'Recovery Timeline' : 'Recovery Timeline')}
             </button>
           ))}
         </nav>

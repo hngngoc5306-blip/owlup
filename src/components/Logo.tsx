@@ -45,7 +45,7 @@ export const Logo: React.FC<LogoProps> = ({
             <span style={{ color: '#FDE047' }}>Up</span>
           </div>
           <div className="font-sans font-medium tracking-wide mt-1 text-white" style={{ fontSize: size === 'sm' ? '11px' : '13px' }}>
-            Reveal Circadian Science
+            Real Circadian Science
           </div>
         </div>
       </div>

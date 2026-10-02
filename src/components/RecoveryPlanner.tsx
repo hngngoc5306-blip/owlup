@@ -1884,7 +1884,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-12">
                   {/* 1. Afternoon Power Nap */}
-                  <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
+                  <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 dark:bg-[#0F172A] shadow-sm overflow-hidden" style={{ backgroundColor: '#FFFFF8' }}>
                     <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">
                       {planningMode === 'tomorrow'
                         ? (isEn ? "TOMORROW'S POWER NAP" : "CHỢP MẮT TRƯA MAI")
@@ -2154,7 +2154,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 mt-4 mb-10">
             {/* 1. Power Nap (Yellow) */}
-            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-5 sm:p-6 bg-white dark:bg-[#0F172A] shadow-sm overflow-hidden">
+            <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-5 sm:p-6 dark:bg-[#0F172A] shadow-sm overflow-hidden" style={{ backgroundColor: '#FFFFF8' }}>
               <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] mb-4 uppercase">
                 {planningMode === 'tomorrow'
                   ? (isEn ? "TOMORROW'S POWER NAP" : "CHỢP MẮT TRƯA MAI")
