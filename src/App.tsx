@@ -425,6 +425,12 @@ export default function App() {
         localStorage.removeItem('owlup_history');
         localStorage.removeItem('owlup_has_rolled_over');
         localStorage.removeItem('owlup_has_passed_midnight');
+        // Clear any stale tomorrow / planning-mode data from previous sessions
+        localStorage.removeItem('owlup_planning_mode');
+        localStorage.removeItem('owlup_tomorrow_schedule');
+        localStorage.removeItem('owlup_tomorrow_commitments');
+        localStorage.removeItem('owlup_tomorrow_recovery_goal');
+        localStorage.removeItem('owlup_recovery_goal');
         localStorage.setItem('owlup_last_active_date', todayStr);
         localStorage.setItem('owlup_bedtime', initialBedtime);
         localStorage.setItem('owlup_waketime', initialWakeTime);
@@ -455,6 +461,12 @@ export default function App() {
       localStorage.removeItem('owlup_history');
       localStorage.removeItem('owlup_has_rolled_over');
       localStorage.removeItem('owlup_has_passed_midnight');
+      // Clear any stale tomorrow / planning-mode data from previous sessions
+      localStorage.removeItem('owlup_planning_mode');
+      localStorage.removeItem('owlup_tomorrow_schedule');
+      localStorage.removeItem('owlup_tomorrow_commitments');
+      localStorage.removeItem('owlup_tomorrow_recovery_goal');
+      localStorage.removeItem('owlup_recovery_goal');
       localStorage.setItem('owlup_last_active_date', todayStr);
       const initialBedtime = profile.usualBedtime || '22:30';
       const initialWakeTime = calculateDefaultWakeTime(initialBedtime, 8);

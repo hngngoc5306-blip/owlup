@@ -122,32 +122,26 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const isTodayScheduleSaved = isScheduleAppliedToday || localStorage.getItem('owlup_schedule_applied') === 'true';
   const isTomorrowScheduleSaved = Boolean(tomorrowSavedData || localStorage.getItem('owlup_tomorrow_schedule'));
 
-  // Active Tab state ('today' | 'tomorrow'):
-  const [activePlannerTab, setActivePlannerTab] = useState<'today' | 'tomorrow'>(() => {
-    try {
-      const savedMode = localStorage.getItem('owlup_planning_mode');
-      if (savedMode === 'tomorrow' || savedMode === 'today') {
-        if (isNightWindDown && !isTomorrowScheduleSaved) {
-          return 'tomorrow';
-        }
-        return savedMode;
-      }
-    } catch {}
+  /**
+   * Resolves the correct planning mode based on:
+   * 1. If it's nighttime (>= 20:00) and no tomorrow schedule → 'tomorrow'
+   * 2. If it's daytime (< 20:00) and no tomorrow schedule → ALWAYS 'today'
+   *    (ignore any stale 'tomorrow' saved in localStorage)
+   * 3. Otherwise respect the saved mode (user may have explicitly opened tomorrow tab)
+   */
+  const resolveInitialMode = (): 'today' | 'tomorrow' => {
+    const savedMode = localStorage.getItem('owlup_planning_mode') as 'today' | 'tomorrow' | null;
+    if (isNightWindDown && !isTomorrowScheduleSaved) return 'tomorrow';
+    // Before 20:00 with no tomorrow schedule → always start on today
+    if (!isNightWindDown && savedMode === 'tomorrow' && !isTomorrowScheduleSaved) return 'today';
+    if (savedMode === 'tomorrow' || savedMode === 'today') return savedMode;
     return isNightWindDown ? 'tomorrow' : 'today';
-  });
+  };
 
-  const [planningMode, setPlanningMode] = useState<'today' | 'tomorrow'>(() => {
-    try {
-      const savedMode = localStorage.getItem('owlup_planning_mode');
-      if (savedMode === 'tomorrow' || savedMode === 'today') {
-        if (isNightWindDown && !isTomorrowScheduleSaved) {
-          return 'tomorrow';
-        }
-        return savedMode;
-      }
-    } catch {}
-    return isNightWindDown ? 'tomorrow' : 'today';
-  });
+  // Active Tab state ('today' | 'tomorrow'):
+  const [activePlannerTab, setActivePlannerTab] = useState<'today' | 'tomorrow'>(resolveInitialMode);
+
+  const [planningMode, setPlanningMode] = useState<'today' | 'tomorrow'>(resolveInitialMode);
 
   // Step states:
   // 1: Busy commitments
@@ -157,9 +151,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   // 5: Schedule applied success
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
     try {
-      const mode = (isNightWindDown && !isTomorrowScheduleSaved)
-        ? 'tomorrow'
-        : (localStorage.getItem('owlup_planning_mode') || (isNightWindDown ? 'tomorrow' : 'today'));
+      const mode = resolveInitialMode();
       
       if (mode === 'tomorrow') {
         const savedTomorrow = localStorage.getItem('owlup_tomorrow_schedule');

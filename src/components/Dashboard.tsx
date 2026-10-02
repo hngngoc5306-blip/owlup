@@ -187,6 +187,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  // Navigate to planner: before 20:00 → today, from 20:00 → tomorrow
+  const handleSetupSleepSchedule = () => {
+    const hour = new Date().getHours();
+    const isNight = hour >= 20 || hour < 4;
+    try {
+      localStorage.setItem('owlup_planning_mode', isNight ? 'tomorrow' : 'today');
+    } catch {}
+    if (onNavigateToPlanner) {
+      onNavigateToPlanner();
+    }
+  };
+
   const hasCaffeineLog = caffeineLog.length > 0;
 
   // Time-of-day greeting (Morning 4-12, Afternoon 12-18, Evening 18-24, Night 0-4)
@@ -345,7 +357,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       : "Hãy nhập các khung giờ bận trong ngày (học tập, làm việc) để OwlUp tự động tính toán giờ ngủ tối ưu và sắp xếp giấc ngủ ngắn phục hồi năng lượng cho bạn."}
                   </p>
                   <button
-                    onClick={onNavigateToPlanner}
+                    onClick={handleSetupSleepSchedule}
                     className="w-full sm:w-auto px-10 py-4 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full text-lg font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-1 cursor-pointer"
                   >
                     <span>{isEn ? "Set up sleep schedule" : "Thiết lập lịch ngủ ngay"}</span>
@@ -569,7 +581,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 : "5 mốc phục hồi trong ngày (giờ đón nắng, khung giờ caffeine tối ưu, giờ chợp mắt, giờ ngừng caffeine và giờ đi ngủ) sẽ được tính toán ngay sau khi bạn thiết lập lịch ngủ."}
             </p>
             <button
-              onClick={onNavigateToPlanner}
+              onClick={handleSetupSleepSchedule}
               className="px-8 py-3.5 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full text-base font-sans font-bold flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-0.5 cursor-pointer"
             >
               <span>{isEn ? "Set Up Sleep Schedule" : "Thiết lập lịch ngủ ngay"}</span>
