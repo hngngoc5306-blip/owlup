@@ -113,6 +113,19 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   const [clockPeriod, setClockPeriod] = useState<'AM' | 'PM'>(getInitialPeriod);
   const [isClockOpen, setIsClockOpen] = useState(false);
 
+  // Hour + Minute picker draft (stored value is always 24h "HH:mm")
+  const splitValue = (v: string): [string, string] => {
+    const n = v ? normalizeTimeString(v) : null;
+    return n ? (n.split(':') as [string, string]) : ['', ''];
+  };
+  const [pickHour, setPickHour] = useState<string>(() => splitValue(value)[0]);
+  const [pickMinute, setPickMinute] = useState<string>(() => splitValue(value)[1]);
+  useEffect(() => {
+    const [h, m] = splitValue(value);
+    setPickHour(h);
+    setPickMinute(m);
+  }, [value]);
+
   // Convert 4-digit buffer to 24h string with period support (does NOT alter user digits)
   const to24 = (d4: string, p: 'AM' | 'PM' = period): string | null => {
     if (d4.length !== 4) return null;
@@ -590,40 +603,51 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   };
 
   const renderSingleInput = (fontSizeClass: string, widthClass: string) => {
-    const display = getDisplayState(rawDigits);
+    const selectClass = `${fontSizeClass} font-heading font-bold tabular-nums text-center bg-transparent outline-none p-0 appearance-none cursor-pointer text-[#1F2937] dark:text-white hover:text-[#007b4d] dark:hover:text-[#62D2FB] focus:text-[#007b4d] dark:focus:text-[#62D2FB] transition-colors`;
+    const commit = (h: string, m: string) => emit(`${h}:${m}`);
     return (
       <div className="flex items-center">
-        <input
-          ref={inputRef}
-          type="text"
-          inputMode="numeric"
-          defaultValue={display}
-          onChange={handleChange}
-          onPaste={handlePaste}
-          onKeyDown={handleKeyDown}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          placeholder={placeholder || '--:--'}
-          autoComplete="off"
-          spellCheck={false}
-          className={`${fontSizeClass} ${widthClass} font-heading font-bold tabular-nums text-center bg-transparent outline-none p-0 tracking-wider text-[#1F2937] dark:text-white hover:text-[#007b4d] dark:hover:text-[#62D2FB] focus:text-[#007b4d] dark:focus:text-[#62D2FB] transition-colors`}
-        />
-        {isEn && (
-          <button
-            type="button"
-            onClick={() => {
-              const nextP = period === 'AM' ? 'PM' : 'AM';
-              setPeriod(nextP);
-              setClockPeriod(nextP);
-              if (rawDigitsRef.current.length === 4) {
-                const v24 = to24(rawDigitsRef.current, nextP);
-                if (v24) emit(v24);
-              }
+        <div className={`${widthClass} flex items-center justify-center tracking-wider`}>
+          <select
+            aria-label={isEn ? 'Hour' : 'Giờ'}
+            value={pickHour}
+            onChange={(e) => {
+              const h = e.target.value;
+              const m = pickMinute || '00';
+              setPickHour(h);
+              setPickMinute(m);
+              commit(h, m);
             }}
-            className="ml-1.5 px-2 py-0.5 text-xs font-bold rounded-md bg-slate-100 dark:bg-slate-800 text-[#007b4d] dark:text-[#62D2FB] hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer select-none"
+            className={selectClass}
           >
-            {period}
-          </button>
+            {!pickHour && <option value="">--</option>}
+            {HOURS_24.map((h) => (
+              <option key={h} value={h} className="text-base text-slate-900">{h}</option>
+            ))}
+          </select>
+          <span className={`${fontSizeClass} font-heading font-bold text-[#1F2937] dark:text-white`}>:</span>
+          <select
+            aria-label={isEn ? 'Minute' : 'Phút'}
+            value={pickMinute}
+            onChange={(e) => {
+              const m = e.target.value;
+              const h = pickHour || '00';
+              setPickHour(h);
+              setPickMinute(m);
+              commit(h, m);
+            }}
+            className={selectClass}
+          >
+            {!pickMinute && <option value="">--</option>}
+            {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map((m) => (
+              <option key={m} value={m} className="text-base text-slate-900">{m}</option>
+            ))}
+          </select>
+        </div>
+        {isEn && pickHour && (
+          <span className="ml-1.5 px-2 py-0.5 text-xs font-bold rounded-md bg-slate-100 dark:bg-slate-800 text-[#007b4d] dark:text-[#62D2FB] select-none">
+            {parseInt(pickHour, 10) >= 12 ? 'PM' : 'AM'}
+          </span>
         )}
       </div>
     );
