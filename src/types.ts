@@ -58,6 +58,8 @@ export interface UserProfile {
   email?: string;
   photoUrl?: string;
   authProvider?: 'google' | 'guest';
+  nickname?: string;
+  googleName?: string;
   onboardingCompleted?: boolean;
   createdAt?: string;
 }

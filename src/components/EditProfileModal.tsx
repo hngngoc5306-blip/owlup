@@ -110,6 +110,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     const updated: UserProfile = {
       ...userProfile,
       name: draftName.trim() || userProfile.name,
+      nickname: draftName.trim() || userProfile.nickname || userProfile.name,
       usualBedtime: chosenBedtime,
       targetBedtime: chosenBedtime,
       bedtime: chosenBedtime,

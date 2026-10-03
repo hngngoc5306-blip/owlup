@@ -148,7 +148,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     return '08:00 - 10:30';
   })();
 
-  const rawName = userProfile?.name?.trim();
+  const rawName = userProfile?.nickname?.trim() || userProfile?.name?.trim();
   const hasName = Boolean(rawName && rawName.toLowerCase() !== 'guest' && rawName.toLowerCase() !== 'khách');
 
   const hasSchedule = (() => {

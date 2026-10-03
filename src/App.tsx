@@ -292,7 +292,18 @@ export default function App() {
     try {
       const stored = localStorage.getItem('owlup_user_profile');
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // If an onboarding draft exists with a nickname from Question 6, prioritize it
+        const draftRaw = localStorage.getItem('owlup_registration_draft');
+        if (draftRaw) {
+          const draft = JSON.parse(draftRaw);
+          if (draft.name && draft.name.trim() && parsed.name !== draft.name.trim()) {
+            parsed.name = draft.name.trim();
+            parsed.nickname = draft.name.trim();
+            localStorage.setItem('owlup_user_profile', JSON.stringify(parsed));
+          }
+        }
+        return parsed;
       }
     } catch {}
     return null;
@@ -404,6 +415,7 @@ export default function App() {
           ...existingAccount.profile,
           ...finalizedProfile,
           name: finalizedProfile.name || existingAccount.profile.name,
+          nickname: finalizedProfile.nickname || finalizedProfile.name || existingAccount.profile.nickname || existingAccount.profile.name,
           onboardingCompleted: true,
         };
         existingAccount.onboardingCompleted = true;
@@ -611,6 +623,19 @@ export default function App() {
     const accounts = getStoredAccounts();
     const account = accounts[email];
     if (!account || !account.profile || account.profile.onboardingCompleted === false) return false;
+
+    // If an onboarding draft exists with a nickname from Question 6, prioritize it
+    try {
+      const draftRaw = localStorage.getItem('owlup_registration_draft');
+      if (draftRaw) {
+        const draft = JSON.parse(draftRaw);
+        if (draft.name && draft.name.trim() && account.profile.name !== draft.name.trim()) {
+          account.profile.name = draft.name.trim();
+          account.profile.nickname = draft.name.trim();
+          saveAccountData(email, account);
+        }
+      }
+    } catch {}
 
     setUserProfile(account.profile);
     localStorage.setItem('owlup_active_email', email);
@@ -1154,7 +1179,14 @@ export default function App() {
           prefilledGoogleUser={prefilledGoogleUser}
           registrationNotice={registrationNotice}
           onCheckExistingAccount={checkAccountRegistered}
-          onExistingAccountLogin={(email) => {
+          onExistingAccountLogin={(email, nicknameFromQ6) => {
+            const normalized = email.toLowerCase().trim();
+            const accounts = getStoredAccounts();
+            if (accounts[normalized] && nicknameFromQ6) {
+              accounts[normalized].profile.name = nicknameFromQ6;
+              accounts[normalized].profile.nickname = nicknameFromQ6;
+              saveAccountData(normalized, accounts[normalized]);
+            }
             handleLoginWithEmail(email);
             setIsOnboardingOpen(false);
           }}
@@ -1321,7 +1353,14 @@ export default function App() {
         prefilledGoogleUser={prefilledGoogleUser}
         registrationNotice={registrationNotice}
         onCheckExistingAccount={checkAccountRegistered}
-        onExistingAccountLogin={(email) => {
+        onExistingAccountLogin={(email, nicknameFromQ6) => {
+          const normalized = email.toLowerCase().trim();
+          const accounts = getStoredAccounts();
+          if (accounts[normalized] && nicknameFromQ6) {
+            accounts[normalized].profile.name = nicknameFromQ6;
+            accounts[normalized].profile.nickname = nicknameFromQ6;
+            saveAccountData(normalized, accounts[normalized]);
+          }
           handleLoginWithEmail(email);
           setIsOnboardingOpen(false);
         }}

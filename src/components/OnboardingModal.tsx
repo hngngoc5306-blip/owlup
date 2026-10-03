@@ -18,7 +18,7 @@ interface OnboardingProps {
   prefilledGoogleUser?: GoogleUserData | null;
   registrationNotice?: string;
   onCheckExistingAccount?: (email: string) => boolean;
-  onExistingAccountLogin?: (email: string) => void;
+  onExistingAccountLogin?: (email: string, nickname?: string) => void;
 }
 
 const GoogleIcon = ({ className = "" }: { className?: string }) => (
@@ -143,12 +143,10 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     } catch {}
   }, [isOpen, isGuestMode]);
 
-  // Synchronize prefilled Google User (e.g. from Flow B redirect)
+  // Synchronize prefilled Google User email (e.g. from Flow B redirect)
+  // NOTE: Question 6 ("What should we call you?") must NEVER be prefilled with Google account name
   React.useEffect(() => {
     if (prefilledGoogleUser) {
-      if (prefilledGoogleUser.name && !name) {
-        setName(prefilledGoogleUser.name);
-      }
       if (prefilledGoogleUser.email && !email) {
         setEmail(prefilledGoogleUser.email);
       }
@@ -236,6 +234,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       onCompleteProfile({
         language: language || 'en',
         name: name.trim() || (isEn ? 'Guest' : 'Khách'),
+        nickname: name.trim() || (isEn ? 'Guest' : 'Khách'),
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
         craves,
@@ -259,14 +258,17 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     if (!prefilledGoogleUser) return;
     setIsSigningIn(true);
     setEmailError('');
-    const customName = name.trim() || prefilledGoogleUser.name || (isEn ? 'Guest' : 'Khách');
+    // Prioritize the nickname the user explicitly entered in Question 6
+    const nicknameFromQ6 = name.trim() || prefilledGoogleUser.name || (isEn ? 'Guest' : 'Khách');
     setTimeout(() => {
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {}
       onCompleteProfile({
         language: language || 'en',
-        name: customName,
+        name: nicknameFromQ6,
+        nickname: nicknameFromQ6,
+        googleName: prefilledGoogleUser.name,
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
         craves,
@@ -291,7 +293,10 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     setEmailError('');
     try {
       const gUser = await signInWithGooglePopup();
-      // Flow C: If account already exists, redirect into existing account without creating duplicate
+      // Prioritize nickname from Question 6
+      const nicknameFromQ6 = name.trim() || gUser.name || (isEn ? 'Guest' : 'Khách');
+
+      // Flow C: If account already exists, redirect into existing account and update nickname
       if (onCheckExistingAccount && onCheckExistingAccount(gUser.email)) {
         setEmailError(
           isEn
@@ -303,19 +308,20 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         } catch {}
         setTimeout(() => {
           if (onExistingAccountLogin) {
-            onExistingAccountLogin(gUser.email);
+            onExistingAccountLogin(gUser.email, nicknameFromQ6);
           }
         }, 800);
         return;
       }
 
-      const customName = name.trim() || gUser.name || (isEn ? 'Guest' : 'Khách');
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {}
       onCompleteProfile({
         language: language || 'en',
-        name: customName,
+        name: nicknameFromQ6,
+        nickname: nicknameFromQ6,
+        googleName: gUser.name,
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
         craves,

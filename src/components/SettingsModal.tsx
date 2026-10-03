@@ -290,13 +290,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         />
                       ) : (
                         <div className="w-12 h-12 rounded-2xl text-white font-bold text-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #4CB28E, #2D8F6F)' }}>
-                          {userProfile.name.charAt(0).toUpperCase()}
+                          {(userProfile.nickname || userProfile.name).charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-heading font-extrabold text-sm sm:text-base truncate">
-                            {userProfile.name}
+                            {userProfile.nickname || userProfile.name}
                           </h4>
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#4CB28E]/15 dark:bg-[#62D2FB]/15 text-[#4CB28E] dark:text-[#62D2FB] border border-[#4CB28E]/30 dark:border-[#62D2FB]/30 flex items-center gap-1">
                             <Check className="w-3 h-3" />

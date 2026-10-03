@@ -55,7 +55,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <Scale className="w-3 h-3" style={{ color: '#4CB28E' }} />
             )}
             <span>
-              {language === 'en' ? 'Welcome' : 'Chào'} {userProfile.name} • {chronotypeLabel}
+              {language === 'en' ? 'Welcome' : 'Chào'} {userProfile.nickname || userProfile.name} • {chronotypeLabel}
             </span>
           </div>
         ) : (
