@@ -84,6 +84,34 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   })();
 
   const [scheduleSaved, setScheduleSaved] = useState<boolean>(() => isScheduleAppliedToday);
+  const [savedSnapshot, setSavedSnapshot] = useState<{
+    bedtime: string;
+    wakeTime: string;
+    goal: string;
+    latestWake: string;
+    commitmentsStr: string;
+  } | null>(() => {
+    try {
+      const todayStr = getTodayDateStr();
+      const applied = localStorage.getItem('owlup_schedule_applied');
+      const scheduleDate = localStorage.getItem('owlup_schedule_date');
+      const isApplied = applied === 'true' && (scheduleDate === todayStr || !scheduleDate);
+      if (isApplied) {
+        return {
+          bedtime: localStorage.getItem('owlup_bedtime') || '',
+          wakeTime: localStorage.getItem('owlup_waketime') || '',
+          goal: localStorage.getItem('owlup_recovery_goal') || 'healthy_balanced',
+          latestWake: localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '07:00',
+          commitmentsStr: localStorage.getItem('owlup_commitments') || '[]',
+        };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [hasUserModified, setHasUserModified] = useState<boolean>(false);
   const hasSavedSchedule = scheduleSaved || isScheduleAppliedToday;
 
   // ── Core Anchor: Latest Wake-Up Time Tomorrow Morning ───────────────────────
@@ -482,6 +510,28 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   while (cutoffMins < 0) cutoffMins += 24 * 60;
   const recCaffeineCutoff = formatMins(cutoffMins);
 
+  // ── Determine if a new schedule is proposed/changed vs viewing saved schedule ─
+  const isNewScheduleProposed = (() => {
+    // 1. If user never saved a schedule today, this is an initial proposal!
+    if (!savedSnapshot) return true;
+
+    // 2. If all current parameters match what was saved, it is the saved schedule!
+    const matchesSaved = (
+      (!selectedGoal || selectedGoal === savedSnapshot.goal) &&
+      (!latestWakeUpTime || latestWakeUpTime === savedSnapshot.latestWake) &&
+      JSON.stringify(commitments) === savedSnapshot.commitmentsStr &&
+      recBedtime === savedSnapshot.bedtime &&
+      recWake === savedSnapshot.wakeTime
+    );
+
+    if (matchesSaved && !hasUserModified) return false;
+
+    // 3. If anything is different, a new schedule is proposed
+    if (!matchesSaved) return true;
+
+    return hasUserModified;
+  })();
+
   // Helper for Step 2 cards: calculate bedtime for each goal dynamically
   const getBedtimeForGoal = (goalId: 'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl') => {
     let dur = 8 * 60;
@@ -633,6 +683,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
     list.sort((a, b) => parseMins(a.start) - parseMins(b.start));
     setCommitments(list);
+    setHasUserModified(true);
     try {
       localStorage.setItem('owlup_commitments', JSON.stringify(list));
       localStorage.setItem('owlup_schedule_date', getTodayDateStr());
@@ -647,6 +698,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const removeCommitment = (index: number) => {
     const updated = commitments.filter((_, i) => i !== index);
     setCommitments(updated);
+    setHasUserModified(true);
     try {
       localStorage.setItem('owlup_commitments', JSON.stringify(updated));
       localStorage.setItem('owlup_schedule_date', getTodayDateStr());
@@ -929,6 +981,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   <TimePickerInput
                     value={latestWakeUpTime}
                     onChange={(val) => {
+                      if (val !== latestWakeUpTime) setHasUserModified(true);
                       setLatestWakeUpTime(val);
                       try { localStorage.setItem('owlup_latest_waketime', val); } catch {}
                     }}
@@ -993,7 +1046,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 return (
                   <div 
                     key={goal.id}
-                    onClick={() => setSelectedGoal(goal.id)}
+                    onClick={() => {
+                      if (goal.id !== selectedGoal) setHasUserModified(true);
+                      setSelectedGoal(goal.id);
+                    }}
                     className={`p-5 sm:p-6 rounded-2xl border-2 transition-all cursor-pointer relative flex flex-col justify-between ${
                       isSelected
                         ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/15 shadow-md transform scale-[1.01]'
@@ -1201,21 +1257,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
               </button>
               <div className="flex items-center gap-4 sm:gap-6">
-                {hasSavedSchedule ? (
-                  <button 
-                    onClick={() => {
-                      setCustomBedtime(recBedtime);
-                      setCustomWakeTime(recWake);
-                      setNapStart(recNapStart);
-                      setNapDuration(recNapDurationMins.toString());
-                      setHasAppliedOptimal(false);
-                      setStep(4);
-                    }} 
-                    className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
-                  >
-                    {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
-                  </button>
-                ) : (
+                {isNewScheduleProposed ? (
                   <>
                     <button 
                       onClick={() => {
@@ -1244,6 +1286,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                           localStorage.setItem('owlup_bedtime', recBedtime);
                           localStorage.setItem('owlup_schedule_applied', 'true');
                           localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                          setSavedSnapshot({
+                            bedtime: recBedtime,
+                            wakeTime: recWake,
+                            goal: selectedGoal || 'healthy_balanced',
+                            latestWake: recWake,
+                            commitmentsStr: JSON.stringify(commitments),
+                          });
+                          setHasUserModified(false);
                           setScheduleSaved(true);
                           onApplySchedule(recBedtime, recWake, recSleepDuration, recNapStart, recNapDurationMins.toString());
                           setIsSavedBanner(true);
@@ -1255,6 +1305,20 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       {isEn ? "Agree" : "Đồng ý"}
                     </button>
                   </>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      setCustomBedtime(recBedtime);
+                      setCustomWakeTime(recWake);
+                      setNapStart(recNapStart);
+                      setNapDuration(recNapDurationMins.toString());
+                      setHasAppliedOptimal(false);
+                      setStep(4);
+                    }} 
+                    className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                  >
+                    {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
+                  </button>
                 )}
               </div>
             </div>
@@ -1436,6 +1500,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                         localStorage.setItem('owlup_bedtime', customBedtime);
                         localStorage.setItem('owlup_schedule_applied', 'true');
                         localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                        setSavedSnapshot({
+                          bedtime: customBedtime,
+                          wakeTime: customWakeTime,
+                          goal: selectedGoal || 'healthy_balanced',
+                          latestWake: customWakeTime,
+                          commitmentsStr: JSON.stringify(commitments),
+                        });
+                        setHasUserModified(false);
                         setScheduleSaved(true);
                         onApplySchedule(customBedtime, customWakeTime, (liveDurationMins / 60).toFixed(1), napStart, napDuration);
                         setIsSavedBanner(true);
