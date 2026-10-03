@@ -6,6 +6,7 @@ import { Trash2 } from 'lucide-react';
 import {
   getTodayWakeInfo,
   getTomorrowWakeInfo,
+  getTomorrowDate,
   formatDisplayDate,
   getLocalDateStr
 } from '../utils/wakeTimeService';
@@ -138,43 +139,60 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   const todayDisplayDate = todayWakeInfo.displayDate;
   const tomorrowDisplayDate = tomorrowWakeInfo.displayDate;
 
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowDate = getTomorrowDate(now);
+
+  const createLocalDate = (baseDate: Date, timeStr: string, addDays: number = 0): Date => {
+    const [h, m] = (timeStr || '00:00').split(':').map(Number);
+    return new Date(
+      baseDate.getFullYear(),
+      baseDate.getMonth(),
+      baseDate.getDate() + addDays,
+      h || 0,
+      m || 0,
+      0,
+      0
+    );
+  };
+
   // Bedtime calculation
   const effectiveBedtime = bedtime || localStorage.getItem('owlup_bedtime') || '22:30';
   const bedMins = parseMins(effectiveBedtime);
-  
-  // Starting point of today:
-  const absWakeMins = effectiveTodayWake ? parseMins(effectiveTodayWake) : 7 * 60;
+  const wakeMins = effectiveTodayWake ? parseMins(effectiveTodayWake) : 7 * 60;
 
-  let tonightBedMins = bedMins;
-  if (tonightBedMins <= absWakeMins) {
-    tonightBedMins += 24 * 60;
-  }
-
-  const isBedtimePastMidnight = tonightBedMins >= 24 * 60;
-  const bedtimeDisplayDate = isBedtimePastMidnight ? tomorrowDisplayDate : todayDisplayDate;
+  // If bedtime is <= today's wake time (e.g. 01:00 AM after 08:00 AM wake-up),
+  // it is in the early morning of tomorrow's calendar day
+  const isBedtimePastMidnight = bedMins <= wakeMins;
+  const bedtimeDate = createLocalDate(todayDate, effectiveBedtime, isBedtimePastMidnight ? 1 : 0);
+  const bedtimeDisplayDate = formatDisplayDate(bedtimeDate, isEn);
 
   // Tonight's wind-down: 30 minutes before tonight's bedtime
-  const absTonightWindDown = tonightBedMins - 30;
-  const isWindDownPastMidnight = absTonightWindDown >= 24 * 60;
-  const windDownDisplayDate = isWindDownPastMidnight ? tomorrowDisplayDate : todayDisplayDate;
+  const windDownDate = new Date(bedtimeDate.getTime() - 30 * 60 * 1000);
+  const windDownTimeStr = `${windDownDate.getHours().toString().padStart(2, '0')}:${windDownDate.getMinutes().toString().padStart(2, '0')}`;
+  const windDownDisplayDate = formatDisplayDate(windDownDate, isEn);
 
-  // Where does current time fit?
-  let absCurrentMins = currentMins;
-  if (absCurrentMins < absWakeMins - 3 * 60) {
-    absCurrentMins += 24 * 60;
-  }
+  // Caffeine curfew: 10 hours before tonight's bedtime
+  const curfewDate = new Date(bedtimeDate.getTime() - 10 * 60 * 60 * 1000);
+  const curfewTimeStr = `${curfewDate.getHours().toString().padStart(2, '0')}:${curfewDate.getMinutes().toString().padStart(2, '0')}`;
+  const curfewDisplayDate = formatDisplayDate(curfewDate, isEn);
 
-  const getStatus = (absEvtMins: number, duration: number = 30) => {
-    if (absCurrentMins >= absEvtMins && absCurrentMins <= absEvtMins + duration) return 'active';
-    if (absCurrentMins > absEvtMins + duration) return 'past';
+  // Status evaluator based on real timestamps
+  const nowMs = now.getTime();
+  const getEventStatus = (eventStart: Date, durationMins: number = 30): 'active' | 'past' | 'upcoming' => {
+    const startMs = eventStart.getTime();
+    const endMs = startMs + durationMins * 60 * 1000;
+    if (nowMs >= startMs && nowMs <= endMs) return 'active';
+    if (nowMs > endMs) return 'past';
     return 'upcoming';
   };
 
   const rawEvents: any[] = [];
   
   // 1. TODAY'S WAKE-UP (Cycle starting point)
+  const todayWakeDate = createLocalDate(todayDate, effectiveTodayWake || '07:00');
   rawEvents.push({
-    absTime: absWakeMins,
+    startDate: todayWakeDate,
+    absTime: todayWakeDate.getTime(),
     time: effectiveTodayWake || '',
     displayDate: todayDisplayDate,
     tag: isEn ? "TODAY'S WAKE-UP" : 'THỨC DẬY HÔM NAY',
@@ -195,12 +213,15 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
 
   // 2. Power Nap (only if valid)
   if (hasValidNap) {
-    let absNapStart = napStartMins;
-    while (absNapStart <= absWakeMins) absNapStart += 24 * 60;
+    let napStartDate = createLocalDate(todayDate, effectiveNapStart);
+    if (napStartDate.getTime() < todayWakeDate.getTime()) {
+      napStartDate = createLocalDate(tomorrowDate, effectiveNapStart);
+    }
     rawEvents.push({
-      absTime: absNapStart,
+      startDate: napStartDate,
+      absTime: napStartDate.getTime(),
       time: effectiveNapStart,
-      displayDate: todayDisplayDate,
+      displayDate: formatDisplayDate(napStartDate, isEn),
       tag: isEn ? 'POWER NAP' : 'CHỢP MẮT',
       tagColor: 'text-[#4CB28E] dark:text-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 border-[#4CB28E]/20 dark:border-[#62D2FB]/20',
       icon: '🔋',
@@ -213,33 +234,40 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   
   // 3. Commitments
   commitments.forEach(c => {
-    let absCStart = parseMins(c.start);
-    while (absCStart <= absWakeMins - 4*60) absCStart += 24 * 60;
+    const cStartMins = parseMins(c.start);
+    const cEndMins = parseMins(c.end);
+    let commitmentStart = createLocalDate(todayDate, c.start);
+    if (cStartMins < wakeMins - 4 * 60) {
+      commitmentStart = createLocalDate(tomorrowDate, c.start);
+    }
     
     const commTitle = (!isEn && (!c.title || c.title.toLowerCase() === 'busy block'))
       ? 'Lịch bận'
       : (isEn && c.title === 'Lịch bận' ? 'Busy Block' : (c.title || (isEn ? 'Busy Block' : 'Lịch bận')));
     
+    const duration = cEndMins < cStartMins ? (cEndMins + 24 * 60 - cStartMins) : (cEndMins - cStartMins);
+
     rawEvents.push({
-      absTime: absCStart,
+      startDate: commitmentStart,
+      absTime: commitmentStart.getTime(),
       time: c.start,
-      displayDate: todayDisplayDate,
+      displayDate: formatDisplayDate(commitmentStart, isEn),
       tag: isEn ? 'COMMITMENT' : 'LỊCH BẬN',
       tagColor: 'text-slate-500 bg-slate-100 border-slate-200',
       icon: '📅',
       title: commTitle,
       desc: isEn ? `Scheduled block until ${formatDisplayTime(c.end, isEn)}.` : `Lịch bận dự kiến đến ${formatDisplayTime(c.end, isEn)}.`,
-      duration: parseMins(c.end) < parseMins(c.start) ? parseMins(c.end) + 24*60 - parseMins(c.start) : parseMins(c.end) - parseMins(c.start),
+      duration,
       isConfigured: true,
     });
   });
 
   // 4. Caffeine Curfew
-  let absCurfew = tonightBedMins - 10 * 60;
   rawEvents.push({
-    absTime: absCurfew,
-    time: formatMins((absCurfew + 24 * 60) % (24 * 60)),
-    displayDate: absCurfew >= 24 * 60 ? tomorrowDisplayDate : todayDisplayDate,
+    startDate: curfewDate,
+    absTime: curfewDate.getTime(),
+    time: curfewTimeStr,
+    displayDate: curfewDisplayDate,
     tag: isEn ? 'CAFFEINE CURFEW' : 'NGỪNG CAFFEINE',
     tagColor: 'text-[#7F1D1D] dark:text-[#FCA5A5] bg-[#FEE2E2] dark:bg-[#7F1D1D]/30 border-[#991B1B]/70 dark:border-[#B91C1C]',
     icon: '🚫',
@@ -270,13 +298,19 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
     if (it.timestamp) {
       const d = it.timestamp instanceof Date ? it.timestamp : new Date(it.timestamp);
       if (!isNaN(d.getTime())) {
-        const itemMins = d.getHours() * 60 + d.getMinutes();
-        let absItemTime = itemMins;
-        while (absItemTime < absWakeMins - 3 * 60) absItemTime += 24 * 60;
+        const drinkTimeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        let drinkDate = d;
+        const dDateStr = getLocalDateStr(d);
+        const todayStr = getLocalDateStr(now);
+        const tomorrowStr = getLocalDateStr(tomorrowDate);
+        if (dDateStr !== todayStr && dDateStr !== tomorrowStr) {
+          drinkDate = createLocalDate(todayDate, drinkTimeStr);
+        }
         rawEvents.push({
-          absTime: absItemTime,
-          time: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-          displayDate: todayDisplayDate,
+          startDate: drinkDate,
+          absTime: drinkDate.getTime(),
+          time: drinkTimeStr,
+          displayDate: formatDisplayDate(drinkDate, isEn),
           tag: isEn ? 'CAFFEINE' : 'CAFFEINE ĐÃ NẠP',
           tagColor: 'text-[#D97706] bg-[#FEF3C7] border-[#FDE68A]',
           icon: it.icon || getDrinkIcon(it.name) || '☕',
@@ -292,8 +326,9 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
 
   // 6. Wind Down
   rawEvents.push({
-    absTime: absTonightWindDown,
-    time: formatMins((absTonightWindDown + 24 * 60) % (24 * 60)),
+    startDate: windDownDate,
+    absTime: windDownDate.getTime(),
+    time: windDownTimeStr,
     displayDate: windDownDisplayDate,
     tag: isEn ? 'WIND DOWN' : 'THƯ GIÃN',
     tagColor: 'text-[#3B82F6] bg-[#3B82F6]/10 border-[#3B82F6]/20',
@@ -306,8 +341,9 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
 
   // 7. Night Sleep (Bedtime Tonight)
   rawEvents.push({
-    absTime: tonightBedMins,
-    time: formatMins(tonightBedMins % (24 * 60)),
+    startDate: bedtimeDate,
+    absTime: bedtimeDate.getTime(),
+    time: effectiveBedtime,
     displayDate: bedtimeDisplayDate,
     tag: isEn ? 'MAIN SLEEP' : 'ĐI NGỦ',
     tagColor: 'text-[#4CB28E] dark:text-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10 border-[#4CB28E]/20 dark:border-[#62D2FB]/20',
@@ -320,16 +356,17 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
 
   // 8. TOMORROW'S WAKE-UP (Cycle Endpoint)
   // Always associated with the next calendar date, chronologically after tonight's bedtime
-  const tomorrowWakeMins = effectiveTomorrowWake ? parseMins(effectiveTomorrowWake) : parseMins('07:00');
-  let absTomorrowWake = 24 * 60 + tomorrowWakeMins;
-  if (absTomorrowWake <= tonightBedMins) {
-    absTomorrowWake += 24 * 60;
+  let tomorrowWakeDate = createLocalDate(tomorrowDate, effectiveTomorrowWake || '07:00');
+  while (tomorrowWakeDate.getTime() <= bedtimeDate.getTime()) {
+    tomorrowWakeDate = new Date(tomorrowWakeDate.getTime() + 24 * 60 * 60 * 1000);
   }
+  const tomorrowWakeDisplayDate = formatDisplayDate(tomorrowWakeDate, isEn);
 
   rawEvents.push({
-    absTime: absTomorrowWake,
+    startDate: tomorrowWakeDate,
+    absTime: tomorrowWakeDate.getTime(),
     time: effectiveTomorrowWake || '',
-    displayDate: tomorrowDisplayDate,
+    displayDate: tomorrowWakeDisplayDate,
     tag: effectiveTomorrowWake
       ? (isEn ? "TOMORROW'S WAKE-UP" : 'THỨC DẬY SÁNG MAI')
       : (isEn ? "TOMORROW'S WAKE-UP (PENDING)" : 'THỨC DẬY SÁNG MAI (CHƯA THIẾT LẬP)'),
@@ -342,8 +379,8 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       : (isEn ? "Tomorrow's Wake-Up (Not configured)" : 'Thức dậy sáng mai (Chưa thiết lập)'),
     desc: effectiveTomorrowWake
       ? (isEn 
-          ? `Planned wake-up at ${formatDisplayTime(effectiveTomorrowWake, isEn)} on ${tomorrowDisplayDate} to complete your 24-hour circadian recovery cycle.` 
-          : `Kế hoạch thức dậy lúc ${formatDisplayTime(effectiveTomorrowWake, isEn)} ngày ${tomorrowDisplayDate} để hoàn thành trọn vẹn chu kỳ phục hồi 24 giờ.`)
+          ? `Planned wake-up at ${formatDisplayTime(effectiveTomorrowWake, isEn)} on ${tomorrowWakeDisplayDate} to complete your 24-hour circadian recovery cycle.` 
+          : `Kế hoạch thức dậy lúc ${formatDisplayTime(effectiveTomorrowWake, isEn)} ngày ${tomorrowWakeDisplayDate} để hoàn thành trọn vẹn chu kỳ phục hồi 24 giờ.`)
       : (isEn
           ? `Tomorrow's wake-up target has not been set yet. Configure your sleep schedule to complete your 24-hour recovery plan.`
           : `Bạn chưa thiết lập giờ thức dậy cho ngày mai. Hãy cài đặt lịch ngủ để hoàn tất lộ trình phục hồi 24 giờ.`),
@@ -353,8 +390,16 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   });
 
   const timelineEvents = rawEvents
-    .sort((a, b) => a.absTime - b.absTime)
-    .map(evt => ({ ...evt, status: getStatus(evt.absTime, evt.duration) }));
+    .sort((a, b) => {
+      const diff = a.startDate.getTime() - b.startDate.getTime();
+      if (diff !== 0) return diff;
+      if (a.isEndpoint === 'start') return -1;
+      if (b.isEndpoint === 'start') return 1;
+      if (a.isEndpoint === 'end') return 1;
+      if (b.isEndpoint === 'end') return -1;
+      return 0;
+    })
+    .map(evt => ({ ...evt, status: getEventStatus(evt.startDate, evt.duration) }));
 
   // Find happening now or up next
   let activeEventIndex = timelineEvents.findIndex(e => e.status === 'active');
@@ -373,7 +418,6 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   let activeEvent = null;
   if (activeEventIndex !== -1) {
      activeEvent = timelineEvents[activeEventIndex];
-     timelineEvents[activeEventIndex].status = 'active';
   }
 
   const hasSchedule = (() => {
