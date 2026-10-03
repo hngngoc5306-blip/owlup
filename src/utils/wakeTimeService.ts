@@ -12,7 +12,6 @@ const STORAGE_KEYS = {
   TOMORROW_WAKE: 'owlup_tomorrow_waketime',
   TOMORROW_WAKE_DATE: 'owlup_tomorrow_wake_date',
   LEGACY_WAKE: 'owlup_waketime',
-  LATEST_WAKE: 'owlup_latest_waketime',
   SCHEDULE_APPLIED: 'owlup_schedule_applied',
   SCHEDULE_DATE: 'owlup_schedule_date',
   LAST_ACTIVE: 'owlup_last_active_date',
@@ -189,7 +188,8 @@ export const getTodayWakeInfo = (
 
 /**
  * Retrieves Tomorrow's Wake-up Time:
- * - Must come from TODAY'S Sleep Schedule in response to "What is the latest time you need to wake up tomorrow?"
+ * - Must come from the wake-up time selected by the user in TODAY'S Sleep Schedule (recWake or customWakeTime)
+ * - Must NOT be retrieved from the answer to "What is the latest time you need to wake up tomorrow?"
  * - Associated with tomorrow's calendar date
  * - If not configured in today's sleep schedule, returns null without generating fake time
  */
@@ -207,9 +207,7 @@ export const getTomorrowWakeInfo = (
   const scheduleDate = localStorage.getItem(STORAGE_KEYS.SCHEDULE_DATE);
 
   if (applied && scheduleDate === todayStr) {
-    const tomorrowWake =
-      localStorage.getItem(STORAGE_KEYS.TOMORROW_WAKE) ||
-      localStorage.getItem(STORAGE_KEYS.LATEST_WAKE);
+    const tomorrowWake = localStorage.getItem(STORAGE_KEYS.TOMORROW_WAKE);
     const tomorrowWakeDate = localStorage.getItem(STORAGE_KEYS.TOMORROW_WAKE_DATE);
 
     if (tomorrowWake && (!tomorrowWakeDate || tomorrowWakeDate === tomorrowStr)) {
@@ -244,7 +242,9 @@ export const getTomorrowWakeInfo = (
 };
 
 /**
- * Saves tomorrow's wake-up time configured in today's Sleep Schedule
+ * Saves tomorrow's wake-up time configured in today's Sleep Schedule.
+ * Stores the user's selected wake-up time (recWake or customWakeTime).
+ * Preserves the user's answer to "What is the latest time you need to wake up tomorrow?" untouched.
  */
 export const recordTomorrowWakePlan = (
   wakeTime: string,
@@ -255,7 +255,6 @@ export const recordTomorrowWakePlan = (
 
   localStorage.setItem(STORAGE_KEYS.TOMORROW_WAKE, wakeTime);
   localStorage.setItem(STORAGE_KEYS.TOMORROW_WAKE_DATE, tomorrowStr);
-  localStorage.setItem(STORAGE_KEYS.LATEST_WAKE, wakeTime);
   localStorage.setItem(STORAGE_KEYS.SCHEDULE_APPLIED, 'true');
   localStorage.setItem(STORAGE_KEYS.SCHEDULE_DATE, todayStr);
 
@@ -266,6 +265,7 @@ export const recordTomorrowWakePlan = (
  * Handles midnight date rollover:
  * - Tomorrow's planned wake time for newTodayStr becomes new today's wake reference
  * - Tomorrow's wake time is cleared until the user sets a new sleep schedule
+ * - Preserves owlup_latest_waketime untouched for any other features
  */
 export const handleDateRolloverWakeState = (
   newTodayStr: string,
@@ -298,7 +298,6 @@ export const handleDateRolloverWakeState = (
   // Clear tomorrow's wake-up time until user configures today's schedule
   localStorage.removeItem(STORAGE_KEYS.TOMORROW_WAKE);
   localStorage.removeItem(STORAGE_KEYS.TOMORROW_WAKE_DATE);
-  localStorage.removeItem(STORAGE_KEYS.LATEST_WAKE);
 
   return {
     todayWake: newTodayWake,

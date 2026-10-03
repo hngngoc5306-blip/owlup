@@ -1151,7 +1151,6 @@ export default function App() {
     localStorage.removeItem('owlup_planned_nap');
     localStorage.removeItem('owlup_commitments');
     localStorage.removeItem('owlup_is_free_all_day');
-    localStorage.removeItem('owlup_latest_waketime');
     localStorage.removeItem('owlup_recovery_goal');
     localStorage.removeItem('owlup_tomorrow_schedule');
     localStorage.removeItem('owlup_tomorrow_commitments');
