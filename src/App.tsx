@@ -1077,7 +1077,7 @@ export default function App() {
     if (userProfile?.caffeineFrequency) {
       const { dailyLimitMg, thresholdMg } = getCaffeineLimitsByFrequency(userProfile.caffeineFrequency);
       if (settings.dailyCaffeineLimitMg !== dailyLimitMg) {
-        handleUpdateSettings({ dailyCaffeineLimitMg, caffeineThresholdMg: thresholdMg });
+        handleUpdateSettings({ dailyCaffeineLimitMg: dailyLimitMg, caffeineThresholdMg: thresholdMg });
       }
     }
   }, [userProfile?.caffeineFrequency]);
