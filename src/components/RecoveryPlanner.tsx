@@ -77,7 +77,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       const todayStr = getTodayDateStr();
       const applied = localStorage.getItem('owlup_schedule_applied');
       const scheduleDate = localStorage.getItem('owlup_schedule_date');
-      return applied === 'true' && (scheduleDate === todayStr || !scheduleDate);
+      return applied === 'true' && scheduleDate === todayStr;
     } catch {
       return false;
     }
@@ -95,13 +95,13 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       const todayStr = getTodayDateStr();
       const applied = localStorage.getItem('owlup_schedule_applied');
       const scheduleDate = localStorage.getItem('owlup_schedule_date');
-      const isApplied = applied === 'true' && (scheduleDate === todayStr || !scheduleDate);
+      const isApplied = applied === 'true' && scheduleDate === todayStr;
       if (isApplied) {
         return {
           bedtime: localStorage.getItem('owlup_bedtime') || '',
           wakeTime: localStorage.getItem('owlup_waketime') || '',
-          goal: localStorage.getItem('owlup_recovery_goal') || 'healthy_balanced',
-          latestWake: localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '07:00',
+          goal: localStorage.getItem('owlup_recovery_goal') || '',
+          latestWake: localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '',
           commitmentsStr: localStorage.getItem('owlup_commitments') || '[]',
         };
       }
@@ -115,25 +115,31 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const hasSavedSchedule = scheduleSaved || isScheduleAppliedToday;
 
   // ── Core Anchor: Latest Wake-Up Time Tomorrow Morning ───────────────────────
-  // Default: 07:00 or user's stored preference
+  // Left blank when entering to plan for the first time in the day
   const [latestWakeUpTime, setLatestWakeUpTime] = useState<string>(() => {
     try {
-      return localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '07:00';
+      if (isScheduleAppliedToday) {
+        return localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '';
+      }
+      return '';
     } catch {
-      return '07:00';
+      return '';
     }
   });
 
   // Selected Recovery Goal (4 scientific goals)
+  // Left blank (unselected) when entering to plan for the first time in the day
   const [selectedGoal, setSelectedGoal] = useState<'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl' | null>(() => {
     try {
-      const savedGoal = localStorage.getItem('owlup_recovery_goal');
-      if (savedGoal && ['healthy_balanced', 'max_productivity', 'catch_up', 'night_owl'].includes(savedGoal)) {
-        return savedGoal as any;
+      if (isScheduleAppliedToday) {
+        const savedGoal = localStorage.getItem('owlup_recovery_goal');
+        if (savedGoal && ['healthy_balanced', 'max_productivity', 'catch_up', 'night_owl'].includes(savedGoal)) {
+          return savedGoal as any;
+        }
       }
-      return userProfile?.energyCrave === 'productivity' ? 'max_productivity' : 'healthy_balanced';
+      return null;
     } catch {
-      return 'healthy_balanced';
+      return null;
     }
   });
 
@@ -534,6 +540,9 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
   // Helper for Step 2 cards: calculate bedtime for each goal dynamically
   const getBedtimeForGoal = (goalId: 'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl') => {
+    if (!latestWakeUpTime) {
+      return '--:--';
+    }
     let dur = 8 * 60;
     let idealBed = 22 * 60 + 30; // 22:30 ideal
     if (goalId === 'max_productivity') {
@@ -547,7 +556,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       idealBed = 23 * 60 + 45; // 23:45
     }
 
-    const wMins = parseMins(latestWakeUpTime || '07:00');
+    const wMins = parseMins(latestWakeUpTime);
     let contDeadline = wMins;
     while (contDeadline <= idealBed) contDeadline += 24 * 60;
 
@@ -1100,7 +1109,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               </button>
               <button 
                 onClick={() => {
-                  if (selectedGoal) {
+                  if (selectedGoal && latestWakeUpTime) {
                     setCustomBedtime(recBedtime);
                     setCustomWakeTime(recWake);
                     setNapStart(recNapStart);
@@ -1108,8 +1117,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     setStep(3);
                   }
                 }}
-                disabled={!selectedGoal}
-                className="rounded-full px-8 sm:px-12 py-3.5 sm:py-4 text-base sm:text-lg font-bold bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white shadow-md cursor-pointer hover:-translate-y-1 transition-all"
+                disabled={!selectedGoal || !latestWakeUpTime}
+                className={`rounded-full px-8 sm:px-12 py-3.5 sm:py-4 text-base sm:text-lg font-bold shadow-md transition-all ${
+                  selectedGoal && latestWakeUpTime
+                    ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                }`}
               >
                 {isEn ? "View Recommended Schedule" : "Xem đề xuất lịch ngủ"} →
               </button>

@@ -500,6 +500,44 @@ export default function App() {
     }
   };
 
+  const handleLoginWithGoogle = (googleUser: { email: string; name: string; picture?: string }) => {
+    const email = googleUser.email.trim().toLowerCase();
+    const accounts = getStoredAccounts();
+    const account = accounts[email];
+    if (account) {
+      handleLoginWithEmail(email);
+      setShowLandingScreen(false);
+      return;
+    }
+
+    // Auto-create account for new Google user
+    const newProfile: UserProfile = {
+      name: googleUser.name || 'OwlUp User',
+      age: 22,
+      usualBedtime: '23:00',
+      targetBedtime: '23:00',
+      chronotype: 'night_owl',
+      energyCrave: 'balanced',
+      energyCraves: ['balanced'],
+      caffeineFrequency: 'once_a_day',
+      email,
+      authProvider: 'google',
+      photoUrl: googleUser.picture,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveAccountData(email, {
+      profile: newProfile,
+      lastActiveDate: getTodayDateStr(),
+    });
+
+    setUserProfile(newProfile);
+    localStorage.setItem('owlup_active_email', email);
+    localStorage.setItem('owlup_user_profile', JSON.stringify(newProfile));
+    setShowLandingScreen(false);
+    setIsOnboardingOpen(false);
+  };
+
   const handleLoginWithEmail = (emailInput: string): boolean => {
     const email = emailInput.trim().toLowerCase();
     const accounts = getStoredAccounts();
@@ -1085,6 +1123,7 @@ export default function App() {
           isNight={isNight}
           language={settings.language}
           onLoginWithEmail={handleLoginWithEmail}
+          onLoginWithGoogle={handleLoginWithGoogle}
           onStartProfileSetup={() => setIsOnboardingOpen(true)}
           onContinueAsGuest={handleContinueAsGuest}
           defaultEmail="k63.2412550051@ftu.edu.vn"

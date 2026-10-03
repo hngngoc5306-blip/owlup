@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ArrowLeft, X, Moon, Sun, Activity, Search, Shield, Zap, User, Mail } from 'lucide-react';
+import { ArrowLeft, X, Moon, Sun, Activity, Search, Shield, Zap, User } from 'lucide-react';
 import { Logo } from './Logo';
 import { TimePickerInput } from './TimePickerInput';
 import { formatDisplayTime } from '../utils/timeFormat';
+import { signInWithGooglePopup } from '../utils/googleAuth';
 
 interface OnboardingProps {
   isOpen: boolean;
@@ -182,6 +183,38 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       });
       setIsSigningIn(false);
     }, 1000);
+  };
+
+  const handleGoogleSignUp = async () => {
+    setIsSigningIn(true);
+    setEmailError('');
+    try {
+      const gUser = await signInWithGooglePopup();
+      onCompleteProfile({
+        language: language || 'en',
+        name: gUser.name || name.trim() || (isEn ? 'Guest' : 'Khách'),
+        usualBedtime: isCustomBedtime ? customBedtime : bedtime,
+        targetBedtime: isCustomBedtime ? customBedtime : bedtime,
+        craves,
+        energyCrave: craves,
+        energyCraves: craves,
+        caffeineFrequency: caffeineFreq || 'once_a_day',
+        chronotype: (chronotype as any) || 'night_owl',
+        goals,
+        age: age === '' ? 25 : age,
+        authProvider: 'google',
+        email: gUser.email,
+        photoUrl: gUser.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(gUser.email)}`,
+        createdAt: new Date().toISOString()
+      });
+    } catch (err: any) {
+      if (err.message !== 'popup_closed') {
+        console.warn('Google sign-up error:', err);
+        setEmailError(err.message || (isEn ? 'Could not complete Google sign-in.' : 'Không thể hoàn tất đăng ký với Google.'));
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   const toggleCrave = (id: string) => setCraves(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -447,34 +480,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
               )}
             </h1>
 
-            <div className="w-full max-w-md mx-auto space-y-5 text-left">
-              <div>
-                <label className="block text-sm font-sans font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  {isEn ? "Enter your email to create an account:" : "Nhập email của bạn để đăng ký tài khoản:"}
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    placeholder="example@gmail.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setEmailError('');
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleComplete('google');
-                    }}
-                    className="w-full px-5 py-4 pl-12 rounded-full border-2 border-slate-200 focus:border-[#4CB28E] dark:border-[#62D2FB] focus:ring-4 focus:ring-[#4CB28E]/20 outline-none font-sans text-base text-[#1F2937] dark:text-white bg-white dark:bg-slate-800 transition-all dark:border-slate-700 shadow-sm"
-                  />
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                </div>
-                {emailError && (
-                  <p className="text-red-500 text-xs mt-2 font-medium px-4">{emailError}</p>
-                )}
-              </div>
-
+            <div className="w-full max-w-md mx-auto space-y-4 text-center">
               <button
-                onClick={() => handleComplete('google')}
+                onClick={handleGoogleSignUp}
                 disabled={isSigningIn}
                 className="w-full py-4 rounded-full border border-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white dark:border-slate-700 flex items-center justify-center gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.16)] hover:-translate-y-1 transition-all duration-300 ease-in-out cursor-pointer active:scale-95"
               >
@@ -482,7 +490,11 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
                 <span className="font-sans font-bold text-lg">{isEn ? 'Sign up with Google' : 'Đăng ký bằng Google'}</span>
               </button>
 
-              <div className="text-center pt-2">
+              {emailError && (
+                <p className="text-red-500 text-xs font-medium px-4">{emailError}</p>
+              )}
+
+              <div className="pt-2">
                 <button
                   onClick={() => handleComplete('guest')}
                   disabled={isSigningIn}

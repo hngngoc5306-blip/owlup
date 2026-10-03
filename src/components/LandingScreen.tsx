@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Logo } from './Logo';
 import { X, Mail } from 'lucide-react';
+import { signInWithGooglePopup, GoogleUserData } from '../utils/googleAuth';
 
 interface LandingScreenProps {
   onStartProfileSetup: () => void;
   onContinueAsGuest: () => void;
   onLoginWithEmail?: (email: string) => boolean;
+  onLoginWithGoogle?: (user: GoogleUserData) => void;
   defaultEmail?: string;
   isNight?: boolean;
   hasCompletedProfile?: boolean;
@@ -26,6 +28,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   onStartProfileSetup,
   onContinueAsGuest,
   onLoginWithEmail,
+  onLoginWithGoogle,
   isNight = false,
   hasCompletedProfile = false,
   language: initialLang
@@ -33,6 +36,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [signInEmail, setSignInEmail] = useState('');
   const [signInError, setSignInError] = useState('');
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   // Auto-detect browser/device language if not explicitly provided
   const detectedLang: 'en' | 'vi' = initialLang || (() => {
@@ -46,9 +50,32 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
   const isEn = detectedLang === 'en';
 
-  const handleOpenSignIn = () => {
-    setShowSignInModal(true);
+  const handleGoogleSignInClick = async () => {
+    setIsGoogleLoading(true);
     setSignInError('');
+    try {
+      const user = await signInWithGooglePopup();
+      if (onLoginWithGoogle) {
+        onLoginWithGoogle(user);
+      } else if (onLoginWithEmail) {
+        onLoginWithEmail(user.email);
+      }
+      setShowSignInModal(false);
+    } catch (err: any) {
+      if (err.message === 'popup_closed') {
+        // User voluntarily dismissed popup
+      } else {
+        console.warn('Google sign in error:', err);
+        setShowSignInModal(true);
+        setSignInError(err.message || (isEn ? 'Google sign-in could not be completed.' : 'Không thể hoàn tất đăng nhập bằng Google. Vui lòng nhập email bên dưới.'));
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleOpenSignIn = () => {
+    handleGoogleSignInClick();
   };
 
   const handleSubmitSignIn = (e?: React.FormEvent) => {
