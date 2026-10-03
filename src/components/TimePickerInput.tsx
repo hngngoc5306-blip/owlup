@@ -66,15 +66,15 @@ const getDisplayState = (d: string): string => {
 };
 
 /**
+ * Display used WHILE TYPING: the raw digits exactly as entered (no ":" mask).
+ * Formatting is applied only on commit (blur / Enter) via applyTime.
+ */
+const getTypingDisplay = (d: string): string => d || '';
+
+/**
  * Calculates correct cursor caret position based on current raw digits.
  */
-const getTargetCursor = (d: string): number => {
-  if (!d || d.length === 0) return 0;
-  if (d.length === 1) return 1; // "1| :"
-  if (d.length === 2) return 4; // "12 :|"
-  if (d.length === 3) return 4; // "12:0|"
-  return 5;                     // "12:00|"
-};
+const getTargetCursor = (d: string): number => (d ? d.length : 0);
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
@@ -181,7 +181,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     const input = inputRef.current;
     const selStart = input?.selectionStart ?? 0;
     const selEnd = input?.selectionEnd ?? 0;
-    const curDisp = getDisplayState(rawDigitsRef.current);
+    const curDisp = input?.value ?? getTypingDisplay(rawDigitsRef.current);
     const allSelected = selStart === 0 && selEnd >= curDisp.length && curDisp.length > 0;
 
     let nextDigits: string;
@@ -193,7 +193,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     }
 
     rawDigitsRef.current = nextDigits;
-    const newDisp = getDisplayState(nextDigits);
+    const newDisp = getTypingDisplay(nextDigits);
 
     if (input) {
       input.value = newDisp;
@@ -306,7 +306,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       if (rawDigitsRef.current.length === 1) {
         const nextDigits = '0' + rawDigitsRef.current;
         rawDigitsRef.current = nextDigits;
-        const newDisp = getDisplayState(nextDigits);
+        const newDisp = getTypingDisplay(nextDigits);
         if (inputRef.current) {
           inputRef.current.value = newDisp;
           const curPos = getTargetCursor(nextDigits);
@@ -315,7 +315,8 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         setRawDigits(nextDigits);
       } else if (rawDigitsRef.current.length === 2) {
         if (inputRef.current) {
-          inputRef.current.setSelectionRange(4, 4);
+          const end = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(end, end);
         }
       }
       return;
@@ -348,7 +349,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       const input = inputRef.current;
       const selStart = input?.selectionStart ?? 0;
       const selEnd = input?.selectionEnd ?? 0;
-      const curDisp = getDisplayState(rawDigitsRef.current);
+      const curDisp = input?.value ?? getTypingDisplay(rawDigitsRef.current);
       const allSelected = selStart === 0 && selEnd >= curDisp.length && curDisp.length > 0;
 
       if (allSelected) {
@@ -362,7 +363,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       if (rawDigitsRef.current.length > 0) {
         const nextDigits = rawDigitsRef.current.slice(0, -1);
         rawDigitsRef.current = nextDigits;
-        const newDisp = getDisplayState(nextDigits);
+        const newDisp = getTypingDisplay(nextDigits);
         if (input) {
           input.value = newDisp;
           const curPos = getTargetCursor(nextDigits);
@@ -403,9 +404,10 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       }
     }
 
-    // 2. Full time string pasted / autofilled
+    // 2. Full time string pasted / autofilled (only COMPLETE values, never partial typing)
     const norm = normalizeTimeString(raw);
-    if (norm && (raw.includes('h') || raw.includes('pm') || raw.includes('am') || raw.includes(':') || raw.length > 5)) {
+    const isCompleteColonTime = /^\s*\d{1,2}\s*:\s*\d{2}\s*$/.test(raw);
+    if (norm && (raw.includes('h') || raw.includes('pm') || raw.includes('am') || isCompleteColonTime || raw.length > 5)) {
       applyTime(norm);
       emit(norm);
       return;
@@ -414,7 +416,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     // 3. Digits extraction (mobile IME / autofill)
     const clean = raw.replace(/\D/g, '').slice(0, 4);
     rawDigitsRef.current = clean;
-    const newDisp = getDisplayState(clean);
+    const newDisp = getTypingDisplay(clean);
     if (inputRef.current) {
       inputRef.current.value = newDisp;
       const curPos = getTargetCursor(clean);
