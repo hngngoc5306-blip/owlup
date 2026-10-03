@@ -916,7 +916,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     <span>⏰</span>
                     <span>{isEn ? "Tomorrow's Wake-Up Target" : "Mốc giờ thức dậy sáng mai"}</span>
                   </div>
-                  <h4 className="font-heading font-bold text-lg sm:text-xl lg:text-[1.35rem] text-[#1F2937] dark:text-white leading-snug">
+                  <h4 className="font-heading font-bold text-base sm:text-lg md:text-xl lg:text-[1.25rem] text-[#1F2937] dark:text-white leading-snug">
                     {isEn ? "What is the latest time you must wake up tomorrow?" : "Sáng mai bạn cần thức dậy muộn nhất lúc mấy\u00A0giờ?"}
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
@@ -925,7 +925,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       : "OwlUp sẽ tính toán lùi từ mốc giờ này để đề xuất giờ lên giường tối nay, đảm bảo bạn thức dậy đúng giờ và cơ thể được phục hồi trọn vẹn."}
                   </p>
                 </div>
-                <div className="w-full sm:w-40 shrink-0">
+                <div className="w-full sm:w-36 shrink-0">
                   <TimePickerInput
                     value={latestWakeUpTime}
                     onChange={(val) => {
@@ -1540,20 +1540,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     {isEn ? "Back to Dashboard" : "Về Tổng quan"}
                   </button>
 
-                  <div className="flex gap-2.5 mt-1">
-                    <button 
-                      onClick={() => setStep(3)}
-                      className="flex-1 border border-slate-300 dark:border-slate-600 rounded-full py-2.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] transition-colors cursor-pointer text-center"
-                    >
-                      {isEn ? "View Schedule Summary" : "Xem thẻ đề xuất"}
-                    </button>
-                    <button 
-                      onClick={() => setStep(4)}
-                      className="flex-1 border border-slate-300 dark:border-slate-600 rounded-full py-2.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] transition-colors cursor-pointer text-center"
-                    >
-                      {isEn ? "Fine-Tune Hours" : "Tự chỉnh lại giờ"}
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => setStep(4)}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded-full py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] transition-colors cursor-pointer text-center mt-1"
+                  >
+                    {isEn ? "Fine-Tune Hours" : "Tự chỉnh lại giờ"}
+                  </button>
                 </div>
               </div>
             </div>
