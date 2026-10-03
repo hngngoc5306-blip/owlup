@@ -302,28 +302,29 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     };
   })();
 
-  // ── Goal Duration Calculation ───────────────────────────────────────────────
-  let goalTargetSleepMins = 8 * 60; // default 480m (healthy_balanced)
+  // ── 1. Target Durations and Circadian Ideal Bedtimes per Goal ──────────────
+  let goalTargetSleepMins = 8 * 60; // 8h default (healthy_balanced)
+  let goalIdealBedMins = 22 * 60 + 30; // 22:30 ideal circadian bedtime
   let goalBaseNap = 20;
 
   if (selectedGoal === 'catch_up') {
     goalTargetSleepMins = 8 * 60 + 45; // 8h45m
+    goalIdealBedMins = 21 * 60 + 45; // 21:45 early sleep for deep restoration
     goalBaseNap = 30;
   } else if (selectedGoal === 'max_productivity') {
     goalTargetSleepMins = 7 * 60 + 15; // 7h15m
+    goalIdealBedMins = 22 * 60 + 30; // 22:30 -> wake at 05:45/06:00
     goalBaseNap = 20;
   } else if (selectedGoal === 'night_owl') {
     goalTargetSleepMins = 7 * 60 + 45; // 7h45m
+    goalIdealBedMins = 23 * 60 + 45; // 23:45
     goalBaseNap = 25;
-  } else {
-    goalTargetSleepMins = 8 * 60; // 8h
-    goalBaseNap = 20;
   }
 
   const extraDebtMins = historyAnalysis.hasDebt ? Math.min(60, Math.round(historyAnalysis.sleepDebtHours * 30)) : 0;
   const targetDurationMins = goalTargetSleepMins + extraDebtMins;
 
-  // ── 1. Calculate Wake Time anchored by latestWakeUpTime ──────────────────────
+  // ── 2. Calculate Wake Deadline anchored by latestWakeUpTime ─────────────────
   const morningComms = commitments
     .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
     .filter(c => c.startMins >= 4 * 60 && c.startMins <= 10 * 60)
@@ -332,38 +333,60 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const hasMorningComm = morningComms.length > 0;
   const latestWakeMins = parseMins(latestWakeUpTime || '07:00');
 
-  // If a morning commitment requires waking up earlier than latestWakeUpTime (with 30m prep), honor it:
-  let requiredWakeMins = latestWakeMins;
+  // Deadline for wake up: earliest of morning commitments (with 30m prep) and latestWakeUpTime
+  let deadlineWakeMins = latestWakeMins;
   if (hasMorningComm) {
     const commWakeRequired = Math.max(4 * 60 + 30, morningComms[0].startMins - 30);
-    requiredWakeMins = Math.min(commWakeRequired, latestWakeMins);
+    deadlineWakeMins = Math.min(commWakeRequired, latestWakeMins);
   }
 
-  // ── 2. Calculate Bedtime Backwards from Wake Time ────────────────────────────
-  let calculatedBedMins = requiredWakeMins - targetDurationMins;
-  while (calculatedBedMins < 0) calculatedBedMins += 24 * 60;
-
-  // Evening commitment delay: if user has commitments ending after 21:00
+  // ── 3. Evening Commitments Constraint ───────────────────────────────────────
   let latestEveningBusyMins = 0;
   commitments.forEach(c => {
     const s = parseMins(c.start);
     let e = parseMins(c.end);
     if (e < s) e += 24 * 60;
-    if (e > 21 * 60 && e > latestEveningBusyMins) {
+    if (e > 20 * 60 && e > latestEveningBusyMins) {
       latestEveningBusyMins = e;
     }
   });
 
   const earliestBedAfterCommMins = latestEveningBusyMins > 0 ? latestEveningBusyMins + 30 : 0;
-  let chosenBedContMins = calculatedBedMins;
+
+  // ── 4. Harmonize Bedtime & Wake Time ─────────────────────────────────────────
+  // Default bedtime starts at the natural circadian ideal (e.g. 22:30 for balanced):
+  let chosenBedContMins = goalIdealBedMins;
   if (chosenBedContMins < 12 * 60) chosenBedContMins += 24 * 60;
 
-  if (earliestBedAfterCommMins > 0) {
-    chosenBedContMins = Math.max(chosenBedContMins, earliestBedAfterCommMins);
+  // If user is busy past the ideal bedtime, delay bedtime accordingly:
+  if (earliestBedAfterCommMins > 0 && earliestBedAfterCommMins > chosenBedContMins) {
+    chosenBedContMins = earliestBedAfterCommMins;
+  }
+
+  // Continuous wake deadline (next morning):
+  let contDeadlineWake = deadlineWakeMins;
+  while (contDeadlineWake <= chosenBedContMins) contDeadlineWake += 24 * 60;
+
+  // Check if sleeping at chosenBedContMins would cause user to wake up AFTER the deadline:
+  let naturalWakeContMins = chosenBedContMins + targetDurationMins;
+
+  // If natural wake exceeds deadline, bedtime must shift earlier:
+  if (naturalWakeContMins > contDeadlineWake) {
+    let shiftedBedMins = contDeadlineWake - targetDurationMins;
+    if (earliestBedAfterCommMins > 0 && shiftedBedMins < earliestBedAfterCommMins) {
+      shiftedBedMins = earliestBedAfterCommMins;
+    }
+    chosenBedContMins = shiftedBedMins;
+  }
+
+  // Calculate final wake time (cannot exceed contDeadlineWake):
+  let finalWakeContMins = chosenBedContMins + targetDurationMins;
+  if (finalWakeContMins > contDeadlineWake) {
+    finalWakeContMins = contDeadlineWake;
   }
 
   let finalBedtimeMins = chosenBedContMins % (24 * 60);
-  let finalWakeMins = requiredWakeMins % (24 * 60);
+  let finalWakeMins = finalWakeContMins % (24 * 60);
 
   // Biological Clamp: Keep night bedtime between 21:00 and 01:30
   if (finalBedtimeMins > 1 * 60 + 30 && finalBedtimeMins < 20 * 60) {
@@ -373,7 +396,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   finalBedtimeMins = Math.round(finalBedtimeMins / 5) * 5 % (24 * 60);
   finalWakeMins = Math.round(finalWakeMins / 5) * 5 % (24 * 60);
 
-  let actualRecDurationMins = finalWakeMins - finalBedtimeMins;
+  let actualRecDurationMins = finalWakeContMins - chosenBedContMins;
   if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
   const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
 
@@ -456,19 +479,34 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   while (cutoffMins < 0) cutoffMins += 24 * 60;
   const recCaffeineCutoff = formatMins(cutoffMins);
 
-  // Helper for Step 2 cards: calculate bed time for each goal dynamically
+  // Helper for Step 2 cards: calculate bedtime for each goal dynamically
   const getBedtimeForGoal = (goalId: 'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl') => {
     let dur = 8 * 60;
-    if (goalId === 'max_productivity') dur = 7 * 60 + 15;
-    else if (goalId === 'catch_up') dur = 8 * 60 + 45;
-    else if (goalId === 'night_owl') dur = 7 * 60 + 45;
+    let idealBed = 22 * 60 + 30; // 22:30 ideal
+    if (goalId === 'max_productivity') {
+      dur = 7 * 60 + 15;
+      idealBed = 22 * 60 + 30; // 22:30
+    } else if (goalId === 'catch_up') {
+      dur = 8 * 60 + 45;
+      idealBed = 21 * 60 + 45; // 21:45
+    } else if (goalId === 'night_owl') {
+      dur = 7 * 60 + 45;
+      idealBed = 23 * 60 + 45; // 23:45
+    }
 
     const wMins = parseMins(latestWakeUpTime || '07:00');
-    let bMins = (wMins - dur + 24 * 60 * 2) % (24 * 60);
-    if (bMins > 1 * 60 + 30 && bMins < 20 * 60) {
-      bMins = goalId === 'night_owl' ? 0 * 60 + 30 : 22 * 60 + 30;
+    let contDeadline = wMins;
+    while (contDeadline <= idealBed) contDeadline += 24 * 60;
+
+    let chosenBed = idealBed;
+    // If waking up naturally exceeds the latest wake deadline, shift bedtime earlier:
+    if (idealBed + dur > contDeadline) {
+      chosenBed = contDeadline - dur;
+      while (chosenBed < 0) chosenBed += 24 * 60;
     }
-    return formatMins(Math.round(bMins / 5) * 5);
+
+    chosenBed = Math.round(chosenBed / 5) * 5 % (24 * 60);
+    return formatMins(chosenBed);
   };
 
   // Free Recovery Windows Calculation
@@ -834,7 +872,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     onClick={() => setStep(2)}
                     className="flex-[1] py-4 px-6 border-2 border-dashed border-slate-300 bg-white dark:bg-[#0f172a] rounded-2xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-3 text-slate-500 font-bold text-lg cursor-pointer"
                   >
-                    <span className="text-xl">✨</span> {isEn ? "No major commitments" : "Không có lịch bận cố định"}
+                    <span className="text-xl">✨</span> {isEn ? "Free all day" : "Rảnh cả ngày"}
                   </button>
                 </div>
               )}
@@ -864,7 +902,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
         {step === 2 && (
           <div className="w-full relative animate-fade-in text-left">
             <div className="inline-block px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-bold bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border border-[#007b4d] dark:border-[#62D2FB] text-[#007b4d] dark:text-[#62D2FB] tracking-wider mb-6 sm:mb-8">
-              {isEn ? "Step 2: Circadian Anchor & Recovery Goal" : "Bước 2: Mỏ neo Giờ dậy & Mục tiêu phục hồi"}
+              {isEn ? "Step 2: Circadian Anchor & Recovery Goal" : "Bước 2: Mốc giờ dậy & Mục tiêu phục hồi"}
             </div>
 
             {/* PROMINENT ANCHOR BOX: LATEST WAKE-UP TIME TOMORROW MORNING */}
@@ -873,10 +911,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider text-[#007b4d] dark:text-[#62D2FB] mb-1.5">
                     <span>⏰</span>
-                    <span>{isEn ? "Circadian Wake-Up Anchor" : "Mỏ neo thức dậy sáng mai"}</span>
+                    <span>{isEn ? "Tomorrow's Wake-Up Target" : "Mốc giờ thức dậy sáng mai"}</span>
                   </div>
                   <h4 className="font-heading font-bold text-xl sm:text-2xl text-[#1F2937] dark:text-white leading-snug">
-                    {isEn ? "What is the latest time you must wake up tomorrow?" : "Sáng mai bạn cần có mặt / thức dậy muộn nhất lúc mấy giờ?"}
+                    {isEn ? "What is the latest time you must wake up tomorrow?" : "Sáng mai bạn cần thức dậy muộn nhất lúc mấy giờ?"}
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
                     {isEn
@@ -1455,16 +1493,26 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-3">
+                  {onNavigateToCaffeine && (
+                    <button 
+                      onClick={onNavigateToCaffeine}
+                      className="w-full bg-[#EAB308] hover:bg-[#CA8A04] text-white rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                    >
+                      <span>☕</span>
+                      <span>{isEn ? "Go to Caffeine Advisor" : "Tư vấn & Ghi nhận Caffeine"}</span>
+                    </button>
+                  )}
+
                   <button 
                     onClick={() => { if (onNavigateToTimeline) onNavigateToTimeline(); }}
-                    className="w-full bg-[#4CB28E] hover:bg-[#007b4d] text-white rounded-full py-4 text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
                   >
-                    {isEn ? "View Recovery Timeline" : "Xem Lộ trình Phục hồi"} →
+                    {isEn ? "View Recovery Timeline" : "Xem Lộ trình Phục hồi"}
                   </button>
 
                   <button 
                     onClick={() => { if (onNavigateToDashboard) onNavigateToDashboard(); }}
-                    className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 rounded-full py-3.5 text-base font-bold transition-all cursor-pointer"
+                    className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full py-3 text-base font-bold transition-all cursor-pointer"
                   >
                     {isEn ? "Back to Dashboard" : "Về Tổng quan"}
                   </button>
@@ -1472,15 +1520,15 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   <div className="flex gap-2.5 mt-1">
                     <button 
                       onClick={() => setStep(3)}
-                      className="flex-1 border border-slate-300 rounded-full py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                      className="flex-1 border border-slate-300 dark:border-slate-600 rounded-full py-2.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] transition-colors cursor-pointer text-center"
                     >
-                      {isEn ? "View Card" : "Xem thẻ"}
+                      {isEn ? "View Schedule Summary" : "Xem thẻ đề xuất"}
                     </button>
                     <button 
                       onClick={() => setStep(4)}
-                      className="flex-1 border border-slate-300 rounded-full py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 cursor-pointer"
+                      className="flex-1 border border-slate-300 dark:border-slate-600 rounded-full py-2.5 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] transition-colors cursor-pointer text-center"
                     >
-                      {isEn ? "Adjust Again" : "Chỉnh lại"}
+                      {isEn ? "Fine-Tune Hours" : "Tự chỉnh lại giờ"}
                     </button>
                   </div>
                 </div>
