@@ -77,11 +77,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       const todayStr = getTodayDateStr();
       const applied = localStorage.getItem('owlup_schedule_applied');
       const scheduleDate = localStorage.getItem('owlup_schedule_date');
-      return applied === 'true' && scheduleDate === todayStr;
+      return applied === 'true' && (scheduleDate === todayStr || !scheduleDate);
     } catch {
       return false;
     }
   })();
+
+  const [scheduleSaved, setScheduleSaved] = useState<boolean>(() => isScheduleAppliedToday);
+  const hasSavedSchedule = scheduleSaved || isScheduleAppliedToday;
 
   // ── Core Anchor: Latest Wake-Up Time Tomorrow Morning ───────────────────────
   // Default: 07:00 or user's stored preference
@@ -1198,42 +1201,61 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
               </button>
               <div className="flex items-center gap-4 sm:gap-6">
-                <button 
-                  onClick={() => {
-                    setCustomBedtime(recBedtime);
-                    setCustomWakeTime(recWake);
-                    setNapStart(recNapStart);
-                    setNapDuration(recNapDurationMins.toString());
-                    setHasAppliedOptimal(false);
-                    setStep(4);
-                  }} 
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-base sm:text-lg cursor-pointer transition-colors"
-                >
-                  {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
-                </button>
-                <button 
-                  onClick={() => {
-                    setCustomBedtime(recBedtime);
-                    setCustomWakeTime(recWake);
-                    setNapStart(recNapStart);
-                    setNapDuration(recNapDurationMins.toString());
-                    try {
-                      localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
-                      localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
-                      localStorage.setItem('owlup_latest_waketime', recWake);
-                      localStorage.setItem('owlup_waketime', recWake);
-                      localStorage.setItem('owlup_bedtime', recBedtime);
-                      localStorage.setItem('owlup_schedule_applied', 'true');
-                      localStorage.setItem('owlup_schedule_date', getTodayDateStr());
-                      onApplySchedule(recBedtime, recWake, recSleepDuration, recNapStart, recNapDurationMins.toString());
-                      setIsSavedBanner(true);
-                      setStep(5);
-                    } catch {}
-                  }}
-                  className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
-                >
-                  {isEn ? "Agree" : "Đồng ý"}
-                </button>
+                {hasSavedSchedule ? (
+                  <button 
+                    onClick={() => {
+                      setCustomBedtime(recBedtime);
+                      setCustomWakeTime(recWake);
+                      setNapStart(recNapStart);
+                      setNapDuration(recNapDurationMins.toString());
+                      setHasAppliedOptimal(false);
+                      setStep(4);
+                    }} 
+                    className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                  >
+                    {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
+                  </button>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setCustomBedtime(recBedtime);
+                        setCustomWakeTime(recWake);
+                        setNapStart(recNapStart);
+                        setNapDuration(recNapDurationMins.toString());
+                        setHasAppliedOptimal(false);
+                        setStep(4);
+                      }} 
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-base sm:text-lg cursor-pointer transition-colors"
+                    >
+                      {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setCustomBedtime(recBedtime);
+                        setCustomWakeTime(recWake);
+                        setNapStart(recNapStart);
+                        setNapDuration(recNapDurationMins.toString());
+                        try {
+                          localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
+                          localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
+                          localStorage.setItem('owlup_latest_waketime', recWake);
+                          localStorage.setItem('owlup_waketime', recWake);
+                          localStorage.setItem('owlup_bedtime', recBedtime);
+                          localStorage.setItem('owlup_schedule_applied', 'true');
+                          localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                          setScheduleSaved(true);
+                          onApplySchedule(recBedtime, recWake, recSleepDuration, recNapStart, recNapDurationMins.toString());
+                          setIsSavedBanner(true);
+                          setStep(5);
+                        } catch {}
+                      }}
+                      className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                    >
+                      {isEn ? "Agree" : "Đồng ý"}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1414,6 +1436,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                         localStorage.setItem('owlup_bedtime', customBedtime);
                         localStorage.setItem('owlup_schedule_applied', 'true');
                         localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                        setScheduleSaved(true);
                         onApplySchedule(customBedtime, customWakeTime, (liveDurationMins / 60).toFixed(1), napStart, napDuration);
                         setIsSavedBanner(true);
                         setStep(5);
