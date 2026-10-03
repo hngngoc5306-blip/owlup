@@ -1194,10 +1194,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               {selectedGoal && (
                 <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">
                   <span>
-                    {selectedGoal === 'healthy_balanced' && '🌱 Cân bằng lành mạnh'}
-                    {selectedGoal === 'max_productivity' && '🚀 Năng suất tối đa'}
-                    {selectedGoal === 'catch_up' && '⚡ Ngủ bù & Phục hồi'}
-                    {selectedGoal === 'night_owl' && '🦉 Cú đêm / Ca muộn'}
+                    {selectedGoal === 'healthy_balanced' && (isEn ? '🌱 Healthy Balanced' : '🌱 Cân bằng lành mạnh')}
+                    {selectedGoal === 'max_productivity' && (isEn ? '🚀 Max Productivity' : '🚀 Năng suất tối đa')}
+                    {selectedGoal === 'catch_up' && (isEn ? '⚡ Catch Up & Sleep' : '⚡ Ngủ bù & Phục hồi')}
+                    {selectedGoal === 'night_owl' && (isEn ? '🦉 Night Owl / Shift' : '🦉 Cú đêm / Ca muộn')}
                   </span>
                   <button 
                     onClick={() => setStep(2)}
@@ -1442,7 +1442,13 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       {isEn ? "Change Recovery Goal" : "Đổi mục tiêu phục hồi"}
                     </div>
                     <div className="text-xs text-slate-500">
-                      {selectedGoal === 'max_productivity' ? 'Năng suất tối đa' : selectedGoal === 'catch_up' ? 'Ngủ bù & Phục hồi' : selectedGoal === 'night_owl' ? 'Cú đêm / Ca muộn' : 'Cân bằng lành mạnh'}
+                      {selectedGoal === 'max_productivity' 
+                        ? (isEn ? 'Max Productivity' : 'Năng suất tối đa') 
+                        : selectedGoal === 'catch_up' 
+                        ? (isEn ? 'Catch Up & Sleep' : 'Ngủ bù & Phục hồi') 
+                        : selectedGoal === 'night_owl' 
+                        ? (isEn ? 'Night Owl / Shift' : 'Cú đêm / Ca muộn') 
+                        : (isEn ? 'Healthy Balanced' : 'Cân bằng lành mạnh')}
                     </div>
                   </div>
                 </div>
