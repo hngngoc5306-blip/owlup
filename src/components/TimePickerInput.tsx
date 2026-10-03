@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Clock, X, ChevronUp, ChevronDown } from 'lucide-react';
-
+import { normalizeTimeString } from '../utils/timeFormat';
 export interface TimePickerInputProps {
   value: string; // Stored as 24h "HH:mm", e.g. "18:00", "09:30"
   onChange: (value: string) => void;
@@ -34,71 +34,6 @@ const digitsFrom24 = (val24: string, isEn: boolean = false): string => {
   return `${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`;
 };
 
-/**
- * Normalise any user-typed format → "HH:mm" (24h) or null.
- * NEVER uses Date objects.
- */
-const normalizeTimeString = (raw: string): string | null => {
-  if (!raw) return null;
-  const s = raw.trim().toLowerCase();
-
-  // 1. AM/PM: "6pm", "6:30pm", "6:30 pm", "12am"
-  const ampmMatch = s.match(/^(\d{1,2})(?::(\d{1,2}))?\s*([ap]m)$/);
-  if (ampmMatch) {
-    let h = parseInt(ampmMatch[1], 10);
-    const m = ampmMatch[2] ? parseInt(ampmMatch[2], 10) : 0;
-    const isPM = ampmMatch[3] === 'pm';
-    if (isPM && h < 12) h += 12;
-    if (!isPM && h === 12) h = 0;
-    if (h >= 0 && h <= 23 && m >= 0 && m <= 59)
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    return null;
-  }
-
-  // 2. Vietnamese "h": "18h" → "18:00", "18h30" → "18:30"
-  const hMatch = s.match(/^(\d{1,2})\s*h\s*(\d{0,2})$/);
-  if (hMatch) {
-    const h = parseInt(hMatch[1], 10);
-    const mRaw = hMatch[2];
-    const m = mRaw ? (mRaw.length === 1 ? parseInt(mRaw + '0', 10) : parseInt(mRaw, 10)) : 0;
-    if (h >= 0 && h <= 23 && m >= 0 && m <= 59)
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    return null;
-  }
-
-  // 3. Colon notation: "18:00", "9:05", "18:"
-  if (s.includes(':')) {
-    const [hStr, mStr = '00'] = s.split(':');
-    const h = parseInt(hStr, 10);
-    const m = mStr ? parseInt(mStr, 10) : 0;
-    if (!isNaN(h) && h >= 0 && h <= 23 && !isNaN(m) && m >= 0 && m <= 59)
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    return null;
-  }
-
-  // 4. Raw digits: 1–4 digits
-  const digits = s.replace(/\D/g, '');
-  if (digits.length === 1 || digits.length === 2) {
-    const h = parseInt(digits, 10);
-    if (h >= 0 && h <= 23) return `${String(h).padStart(2, '0')}:00`;
-    return null;
-  }
-  if (digits.length === 3) {
-    const h = parseInt(digits.slice(0, 1), 10);
-    const m = parseInt(digits.slice(1), 10);
-    if (h >= 0 && h <= 23 && m >= 0 && m <= 59)
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    return null;
-  }
-  if (digits.length === 4) {
-    const h = parseInt(digits.slice(0, 2), 10);
-    const m = parseInt(digits.slice(2, 4), 10);
-    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    }
-  }
-  return null;
-};
 
 /** Detect range strings like "11h - 18h", "11:00 - 18:00", "11 đến 18" */
 const parseTimeRangeString = (raw: string): { start: string; end: string } | null => {
@@ -316,49 +251,22 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       return;
     }
 
-    // 1-2 digits on blur: e.g. "18" -> "18:00"
-    if (d.length === 1 || d.length === 2) {
-      let h = parseInt(d, 10);
-      const maxH = isEn ? 12 : 23;
-      if (!isNaN(h) && h >= 0 && h <= maxH) {
-        let v24 = `${String(h).padStart(2, '0')}:00`;
-        if (isEn) {
+    const norm = normalizeTimeString(d);
+    if (norm) {
+      let v24 = norm;
+      if (isEn) {
+        const [hStr, mStr] = norm.split(':');
+        let h = parseInt(hStr, 10);
+        const maxH = 12;
+        if (h <= maxH) {
           if (period === 'PM' && h < 12) h += 12;
           if (period === 'AM' && h === 12) h = 0;
-          v24 = `${String(h).padStart(2, '0')}:00`;
+          v24 = `${String(h).padStart(2, '0')}:${mStr}`;
         }
-        applyTime(v24);
-        emit(v24);
-        return;
       }
-    }
-
-    // 3 digits on blur: e.g. "183" -> "18:30"
-    if (d.length === 3) {
-      let h = parseInt(d.slice(0, 2), 10);
-      let mTens = parseInt(d.slice(2), 10);
-      let m = mTens <= 5 ? mTens * 10 : mTens;
-      const maxH = isEn ? 12 : 23;
-      if (!isNaN(h) && h >= 0 && h <= maxH && !isNaN(m) && m >= 0 && m <= 59) {
-        let v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        if (isEn) {
-          if (period === 'PM' && h < 12) h += 12;
-          if (period === 'AM' && h === 12) h = 0;
-          v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        }
-        applyTime(v24);
-        emit(v24);
-        return;
-      }
-    }
-
-    // 4 digits on blur: if valid, already emitted; if invalid, revert to external value prop
-    if (d.length === 4) {
-      const v24 = to24(d, period);
-      if (v24) {
-        emit(v24);
-        return;
-      }
+      applyTime(v24);
+      emit(v24);
+      return;
     }
 
     // Revert invalid entry on blur to external prop value
@@ -495,9 +403,9 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       }
     }
 
-    // 2. Full time string pasted
+    // 2. Full time string pasted / autofilled
     const norm = normalizeTimeString(raw);
-    if (norm && norm.includes(':') && (raw.includes('h') || raw.includes('pm') || raw.includes('am') || raw.length > 5)) {
+    if (norm && (raw.includes('h') || raw.includes('pm') || raw.includes('am') || raw.includes(':') || raw.length > 5)) {
       applyTime(norm);
       emit(norm);
       return;
@@ -538,7 +446,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     }
 
     const norm = normalizeTimeString(pasted);
-    if (norm && norm.includes(':')) {
+    if (norm) {
       e.preventDefault();
       applyTime(norm);
       emit(norm);
@@ -576,7 +484,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   const renderClockPicker = () => {
     if (!isClockOpen) return null;
     const curVal =
-      (rawDigitsRef.current.length >= 2 ? `${rawDigitsRef.current.slice(0, 2)}:${rawDigitsRef.current.slice(2, 4) || '00'}` : null) ||
+      normalizeTimeString(rawDigitsRef.current) ||
       normalizeTimeString(value) ||
       '12:00';
     const [curH, curM] = curVal.split(':');
