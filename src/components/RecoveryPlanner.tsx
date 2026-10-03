@@ -1171,7 +1171,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {/* Schedule Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-12">
               {/* 1. Afternoon Power Nap */}
-              <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 dark:bg-[#0F172A] shadow-sm overflow-hidden" style={{ backgroundColor: '#FFFFF8' }}>
+              <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-3xl p-5 sm:p-6 lg:p-8 bg-transparent dark:bg-transparent shadow-sm overflow-hidden">
                 <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">
                   {isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI TRƯA/CHIỀU"}
                 </div>
@@ -1387,7 +1387,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             {/* Manual Sliders */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 mb-8">
               {/* Power Nap */}
-              <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-5 sm:p-6 dark:bg-[#0F172A] shadow-sm overflow-hidden" style={{ backgroundColor: '#FFFFF8' }}>
+              <div className="border border-[#FDE047] dark:border-amber-400/30 rounded-2xl p-5 sm:p-6 bg-transparent dark:bg-transparent shadow-sm overflow-hidden">
                 <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] mb-4 uppercase">
                   {isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI TRƯA/CHIỀU"}
                 </div>

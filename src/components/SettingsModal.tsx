@@ -13,10 +13,6 @@ import {
   User, 
   LogOut, 
   Edit3,
-  Bell,
-  Volume2,
-  Vibrate,
-  VolumeX,
   Laptop,
   Languages,
   Globe
@@ -57,8 +53,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSignOut,
   onReturnToDashboard,
 }) => {
-  // Tabs: language | profile | notifications | appearance
-  const [activeTab, setActiveTab] = useState<'language' | 'profile' | 'notifications' | 'appearance'>('profile');
+  // Tabs: language | profile | appearance
+  const [activeTab, setActiveTab] = useState<'language' | 'profile' | 'appearance'>('profile');
 
   // Local draft states
   const [language, setLanguage] = useState<AppLanguage>(settings.language || 'en');
@@ -170,8 +166,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* 4 Main Tabs: Profile, Appearance, Language, Notifications */}
-        <div className="px-6 pt-3 border-b grid grid-cols-4 items-center gap-1 sm:gap-2" style={{ borderColor: isNight ? '#2D3748' : '#E5E7EB' }}>
+        {/* 3 Main Tabs: Profile, Appearance, Language */}
+        <div className="px-6 pt-3 border-b grid grid-cols-3 items-center gap-1 sm:gap-2" style={{ borderColor: isNight ? '#2D3748' : '#E5E7EB' }}>
           <button
             onClick={() => setActiveTab('profile')}
             className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 w-full ${
@@ -206,18 +202,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <Languages className="w-4 h-4 shrink-0" />
             <span className="truncate">{ts.tabLanguage}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`pb-2.5 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 w-full ${
-              activeTab === 'notifications'
-                ? 'border-[#4CB28E] dark:border-[#62D2FB] text-[#4CB28E] dark:text-[#62D2FB]'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
-          >
-            <Bell className="w-4 h-4 shrink-0" />
-            <span className="truncate">{ts.tabNotifications}</span>
           </button>
         </div>
 
@@ -511,120 +495,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* =========================================================================
-              TAB 2: NOTIFICATIONS
-          ========================================================================= */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-4">
-              <div className="space-y-3">
-                {/* 1. Recovery reminders */}
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.recoveryReminders}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.recoveryRemindersDesc}</div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.recoveryReminders}
-                      onChange={(e) => setNotifications({ ...notifications, recoveryReminders: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFF8] after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" style={{ backgroundColor: notifications.recoveryReminders ? (isNight ? '#62D2FB' : '#4CB28E') : undefined }}></div>
-                  </label>
-                </div>
 
-                {/* 2. Nap reminders */}
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.napReminders}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.napRemindersDesc}</div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.napReminders}
-                      onChange={(e) => setNotifications({ ...notifications, napReminders: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFF8] after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4CB28E] dark:peer-checked:bg-[#62D2FB]"></div>
-                  </label>
-                </div>
-
-                {/* 3. Caffeine reminders */}
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.caffeineReminders}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.caffeineRemindersDesc}</div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.caffeineReminders}
-                      onChange={(e) => setNotifications({ ...notifications, caffeineReminders: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFF8] after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4CB28E] dark:peer-checked:bg-[#62D2FB]"></div>
-                  </label>
-                </div>
-
-                {/* 4. Sleep reminders */}
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-slate-900 dark:text-white">{ts.sleepReminders}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ts.sleepRemindersDesc}</div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifications.sleepReminders}
-                      onChange={(e) => setNotifications({ ...notifications, sleepReminders: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#FFFFF8] after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" style={{ backgroundColor: notifications.sleepReminders ? (isNight ? '#62D2FB' : '#4CB28E') : undefined }}></div>
-                  </label>
-                </div>
-
-                {/* 5. Sound mode */}
-                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-[#2D3748]/60 bg-[#FFFFFF] dark:bg-[#233355]/40 space-y-2">
-                  <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <Volume2 className="w-3.5 h-3.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
-                    <span>{ts.soundTitle}:</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'sound', label: ts.soundMode, icon: Volume2 },
-                      { id: 'vibration', label: ts.vibrationMode, icon: Vibrate },
-                      { id: 'silent', label: ts.silentMode, icon: VolumeX },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      const isSelected = notifications.soundMode === item.id;
-                      return (
-                        <button
-             key={item.id}
-             type="button"
-             onClick={() => setNotifications({ ...notifications, soundMode: item.id as any })}
-                          className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                            isSelected
-                              ? 'text-slate-900 dark:text-white font-bold'
-                              : 'border-slate-200 dark:border-[#2D3748] bg-[#FFFFFF] dark:bg-[#233355]/60 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
-                          }`}
-                          style={isSelected ? {
-                            borderColor: '#4CB28E',
-                            backgroundColor: 'rgba(76, 178, 141, 0.2)',
-                          } : {}}
-                        >
-                          <Icon className="w-4 h-4" />
-                          <span className="text-xs">{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* =========================================================================
               TAB 3: APPEARANCE

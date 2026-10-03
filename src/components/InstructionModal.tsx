@@ -11,7 +11,8 @@ import {
   CheckCircle2, 
   ShieldCheck, 
   Zap, 
-  Moon
+  Moon,
+  Sun
 } from 'lucide-react';
 import { AppLanguage } from '../types';
 
@@ -170,16 +171,31 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
           {/* SLIDE 1: DASHBOARD */}
           {activeSlide === 1 && (
             <div className="space-y-4 animate-premium-in">
+              {/* Highlight Recommendation Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl flex items-start gap-4 border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">
+                <Sun className="w-6 h-6 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <h4 className="font-heading font-bold text-base sm:text-lg text-amber-900 dark:text-amber-200">
+                    {isEn ? '💡 Best Practice: Start Your Day with OwlUp' : '💡 Mẹo vàng: Mở OwlUp ngay khi bắt đầu ngày mới'}
+                  </h4>
+                  <p className="text-sm sm:text-[15px] text-amber-800/90 dark:text-amber-200/80 mt-1.5 leading-relaxed">
+                    {isEn
+                      ? 'The most effective time to use OwlUp is in the morning as you start your day. By setting your wake-up anchor for tomorrow and your busy hours early, OwlUp immediately reverse-calculates your ideal afternoon nap, caffeine curfew, and bedtime for an optimal 24h timeline!'
+                      : 'Thời điểm lý tưởng nhất để mở OwlUp là vào buổi sáng khi vừa thức dậy. Chỉ cần thiết lập mốc giờ thức dậy sáng mai và lịch bận, OwlUp sẽ tính toán lùi khoa học ngay từ sớm: giờ chợp mắt trưa, giờ ngắt caffeine và giờ đi ngủ tối nay để bạn có lộ trình 24h trọn vẹn nhất!'}
+                  </p>
+                </div>
+              </div>
+
               <div className="p-4 sm:p-5 rounded-2xl flex items-start gap-4" style={{ border: '1px solid rgba(76,178,141,0.3)', backgroundColor: 'rgba(76,178,141,0.10)' }}>
                 <Moon className="w-6 h-6 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                 <div>
                   <h4 className="font-heading font-bold text-base sm:text-lg dark:text-white">
-                    {isEn ? 'Start Your Day: The Dashboard' : 'Bắt đầu ngày mới với Trang tổng quan'}
+                    {isEn ? 'Dashboard: Core Health Hub' : 'Trang tổng quan: Trung tâm điều hướng nhanh'}
                   </h4>
                   <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
                     {isEn
-                      ? 'Check this screen first thing in the morning. It instantly tells you exactly when to sleep tonight and your strict cutoff time to stop drinking coffee today.'
-                      : 'Mỗi sáng thức dậy, hãy mở mục Tổng quan đầu tiên. Ở đây sẽ chỉ định rõ đêm nay bạn cần ngủ mấy giờ và mấy giờ chiều nay phải dừng nạp cà phê.'}
+                      ? 'Instantly view your 2 core biological anchors for the day: tonight’s sleep window and your strict afternoon caffeine cutoff time.'
+                      : 'Nắm bắt tức thì 2 thông số sinh học quan trọng nhất trong ngày: Giấc ngủ đêm nay (giờ ngủ → giờ dậy) và Giờ ngưng nạp caffeine an toàn.'}
                   </p>
                 </div>
               </div>
@@ -189,11 +205,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Follow the Sleep Plan:' : 'Lịch ngủ & Chợp mắt:'}
+                      {isEn ? 'Tonight’s Sleep & Power Nap:' : 'Giấc ngủ đêm & Chợp mắt trưa:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Target 5 full 90-minute sleep cycles (7.5 hours) for deep physical and cognitive rejuvenation.'
-                      : 'Thiết lập 5 chu kỳ (7.5 tiếng) để phục hồi tối đa thể chất và thần kinh.'}
+                      ? 'Shows tonight’s bedtime, wake target, and scheduled nap duration to keep your energy peaks stable.'
+                      : 'Hiển thị giờ lên giường, giờ thức dậy và thời lượng chợp mắt để duy trì mức năng lượng cao nhất.'}
                   </div>
                 </div>
 
@@ -201,11 +217,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Watch your Caffeine Cutoff:' : 'Lưu ý giờ ngắt Caffeine:'}
+                      {isEn ? 'Adjust Sleep Schedule Shortcut:' : 'Tùy chỉnh lịch ngủ tiện lợi:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Enforces stopping caffeine 8 hours before bed so half-life metabolism clears your bloodstream.'
-                      : 'Dừng nạp caffeine trước giờ ngủ 8 tiếng để cơ thể kịp đào thải sạch.'}
+                      ? 'Use the "Adjust Sleep Schedule" button anytime your day’s plans shift to re-optimize rest times.'
+                      : 'Nhấn nút "Tùy chỉnh lịch ngủ" bất kỳ lúc nào có kế hoạch mới để cập nhật lại lịch trình.'}
                   </div>
                 </div>
               </div>
@@ -219,12 +235,12 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                 <CalendarCheck className="w-6 h-6 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                 <div>
                   <h4 className="font-heading font-bold text-base sm:text-lg dark:text-white">
-                    {isEn ? 'Synchronize Sleep & Power Nap (Sleep Schedule)' : 'Đồng bộ Giấc ngủ & Chợp mắt (Lịch ngủ)'}
+                    {isEn ? 'Synchronize Sleep & Power Nap (Sleep Schedule)' : 'Thiết lập & Đồng bộ Lịch ngủ 4 bước'}
                   </h4>
                   <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
                     {isEn
-                      ? 'Synchronize your biological clock with your busy routine. Simply enter your busy commitments (work, study, shifts), and OwlUp will automatically optimize your night sleep and afternoon power nap.'
-                      : 'Đồng bộ hóa nhịp sinh học với lịch trình bận rộn. Bạn chỉ cần nhập khung giờ bận (học tập, làm việc, ca kíp), hệ thống sẽ tự động tính toán thời gian ngủ đêm và chợp mắt buổi trưa tối ưu nhất cho bạn.'}
+                      ? 'Reverse-engineers your optimal rest schedule around your actual commitments, detecting sleep debt and protecting deep recovery.'
+                      : 'Tự động tính toán ngược lịch nghỉ ngơi tối ưu theo lịch trình bận rộn, phát hiện nợ ngủ hôm qua và bảo vệ giấc ngủ sâu.'}
                   </p>
                 </div>
               </div>
@@ -234,11 +250,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 1: Your busy hours' : 'Bước 1: Khung giờ bận trong ngày'}
+                      {isEn ? 'Step 1 & 2: Busy Hours & Wake Anchor:' : 'Bước 1 & 2: Khung giờ bận & Giờ dậy sáng mai:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Enter classes, shifts, meetings, or workouts so the system finds optimal rest slots.'
-                      : 'Nhập lịch học, ca làm, họp hoặc tập luyện để hệ thống tìm khoảng trống rảnh rỗi trong ngày.'}
+                      ? 'Input classes, work shifts, and your required wake-up time, then choose 1 of 4 scientific recovery goals.'
+                      : 'Nhập lịch học, ca làm và mốc giờ dậy muộn nhất sáng mai, sau đó chọn 1 trong 4 mục tiêu phục hồi sinh học.'}
                   </div>
                 </div>
 
@@ -246,23 +262,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 2: Choose recovery goal' : 'Bước 2: Chọn mục tiêu phục hồi'}
+                      {isEn ? 'Step 3: Smart Sleep Debt & Nap Recommendation:' : 'Bước 3: Đề xuất lịch ngủ & Bù đắp nợ giấc:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Pick 1 of 4 recovery targets (Balanced, Peak Productivity, Sleep Debt Catch-up, or Night Owl Routine).'
-                      : 'Lựa chọn 1 trong 4 mục tiêu phục hồi (Cân bằng, Tối đa năng suất, Ngủ bù nợ giấc, hoặc Nhịp sống Cú đêm).'}
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-[#2D3748]/50 bg-slate-100 dark:bg-[#233355]/40 flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
-                  <div className="leading-relaxed">
-                    <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 3: Recommended sleep & caffeine curfew' : 'Bước 3: Lịch ngủ & Giờ ngắt caffeine'}
-                    </strong>{' '}
-                    {isEn
-                      ? 'Calculates sleep target score (90+), bedtime, power nap, and your recommended caffeine curfew (10h before bed).'
-                      : 'Tính điểm phục hồi (90+), giờ ngủ tối ưu, giấc chợp trưa và đề xuất giờ ngắt caffeine chuẩn xác (10 tiếng trước ngủ).'}
+                      ? 'Automatically adapts tonight’s sleep if you incurred sleep debt yesterday, scheduling a midday nap before 3:30 PM and 10h caffeine curfew.'
+                      : 'Tự động phát hiện nợ ngủ hôm qua để bù đắp tối nay; xếp lịch chợp mắt trưa (trước 15:30) và giờ ngắt caffeine chuẩn xác (10h trước khi ngủ).'}
                   </div>
                 </div>
 
@@ -270,11 +274,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 4: Flexible fine-tuning' : 'Bước 4: Tùy chỉnh linh hoạt & Đồng bộ'}
+                      {isEn ? 'Step 4: Custom Adjustment & Confirm:' : 'Bước 4: Tự sắp xếp lịch ngủ & Đồng ý:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Fine-tune sleep hours and nap duration to your liking, then agree to sync directly to your 24h Timeline.'
-                      : 'Chủ động điều chỉnh giờ ngủ và chợp mắt theo mong muốn, sau đó đồng ý để lưu vào Lộ trình 24h.'}
+                      ? 'Fine-tune sleep and nap times flexibly with strict input validation, then confirm to sync to your 24h Timeline.'
+                      : 'Chủ động điều chỉnh giờ ngủ và thời lượng chợp mắt theo mong muốn, sau đó nhấn "Đồng ý" để lưu vào Lộ trình 24h.'}
                   </div>
                 </div>
               </div>
@@ -288,12 +292,12 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                 <Coffee className="w-6 h-6 text-[#62D2FB] shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-heading font-bold text-base sm:text-lg dark:text-white">
-                    {isEn ? 'Log your Drinks (Caffeine)' : 'Ghi chú đồ uống (Caffeine)'}
+                    {isEn ? 'Caffeine Advisor: Smart Metabolism Tracking' : 'Tư vấn Caffeine: Quản lý năng lượng thông minh'}
                   </h4>
                   <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
                     {isEn
-                      ? "Just drank a cup of coffee? Go to this tab and log it immediately. We will track how much energy you have left."
-                      : 'Vừa uống xong một ly cà phê? Hãy vào tab này và chọn loại đồ uống tương ứng. Hệ thống sẽ tính xem bạn còn được uống thêm bao nhiêu nữa.'}
+                      ? 'Track your drinks in real time. OwlUp calculates caffeine half-life decay to safeguard your deep sleep quality.'
+                      : 'Ghi nhận đồ uống theo thời gian thực. OwlUp tính toán chu kỳ bán hủy (half-life) đào thải caffeine để bảo vệ giấc ngủ sâu.'}
                   </p>
                 </div>
               </div>
@@ -303,11 +307,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Track your Safe Limit:' : 'Theo dõi hạn mức an toàn:'}
+                      {isEn ? 'Diverse Drink Library & Custom Input:' : 'Thư viện đồ uống đa dạng & Nhập nhanh:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Protects your heart health and guarantees restful deep sleep phases.'
-                      : 'Bảo vệ tim mạch và bảo đảm giấc ngủ sâu không bị xáo trộn.'}
+                      ? 'Log espresso, drip coffee, green tea, matcha, energy drinks, and boba with accurate mg caffeine contents.'
+                      : 'Ghi nhận cà phê phin, espresso, trà, matcha, nước tăng lực, pre-workout... với hàm lượng caffeine chuẩn.'}
                   </div>
                 </div>
 
@@ -315,11 +319,11 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB] shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'See when it wears off:' : 'Biết khi nào hết tác dụng:'}
+                      {isEn ? 'Safe 400mg Limit & Bedtime Curfew:' : 'Hạn mức an toàn 400mg & Cảnh báo trước ngủ:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Every logged cup automatically synchronizes with the 24-hour recovery timeline.'
-                      : 'Mọi cốc đồ uống ghi nhận sẽ tự động đồng bộ sang lộ trình phục hồi 24 giờ.'}
+                      ? 'Prevents caffeine jitter and warns you when drinking too close to tonight’s scheduled bedtime.'
+                      : 'Bảo vệ tim mạch khỏi quá liều (tối đa 400mg/ngày) và cảnh báo khi nạp caffeine quá gần giờ đi ngủ.'}
                   </div>
                 </div>
               </div>
@@ -333,12 +337,12 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                 <Clock className="w-6 h-6 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                 <div>
                   <h4 className="font-heading font-bold text-base sm:text-lg dark:text-white">
-                    {isEn ? 'Follow your Daily Routine (Timeline)' : 'Bám sát nhịp độ trong ngày (Lộ trình)'}
+                    {isEn ? '24h Circadian Timeline: Your Daily Compass' : 'Lộ trình phục hồi 24h: Kim chỉ nam nhịp sinh học'}
                   </h4>
                   <p className="text-sm sm:text-[15px] text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
                     {isEn
-                      ? "Scroll through the timeline to see exactly what you should be doing right now. It's your step-by-step guide for the whole day."
-                      : 'Trượt dọc thanh Lộ trình để biết ngay lúc này bạn nên làm gì. Đó là lịch trình chi tiết từng bước cho cả ngày của bạn.'}
+                      ? 'Follow personalized biological milestones throughout the day to sustain high performance without burnout.'
+                      : 'Bám sát chuỗi mốc sinh học cá nhân hóa trong suốt 24 giờ để làm việc hiệu quả mà không bị kiệt sức.'}
                   </p>
                 </div>
               </div>
@@ -348,11 +352,23 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
                   <div className="leading-relaxed">
                     <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'What to do right now:' : 'Hành động ngay lúc này:'}
+                      {isEn ? '5 Core Daily Milestones:' : '5 Mốc sinh học cốt lõi:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Syncs with your biological chronotype without harsh alarm shocks.'
-                      : 'Đồng bộ nhịp điệu sinh học mà không gây căng thẳng hay phán xét.'}
+                      ? 'Sunlight exposure (cortisol boost), peak focus caffeine window, power nap, caffeine cutoff, and wind-down bedtime (melatonin release).'
+                      : 'Đón ánh sáng mặt trời (tăng cortisol), Khung giờ vàng caffeine, Chớp mắt xả mệt, Ngừng caffeine và Chuẩn bị ngủ (tiết melatonin).'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-[#2D3748]/50 bg-slate-100 dark:bg-[#233355]/40 flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-[#4CB28E] dark:text-[#62D2FB] shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <strong className="text-slate-900 dark:text-white font-bold">
+                      {isEn ? 'Live Status Indicators:' : 'Chỉ báo thời gian thực:'}
+                    </strong>{' '}
+                    {isEn
+                      ? 'Real-time markers let you know exactly what your body needs at any given moment.'
+                      : 'Đánh dấu trực quan mốc thời gian thực hiện tại để bạn luôn biết cơ thể cần làm gì ngay lúc này.'}
                   </div>
                 </div>
               </div>
