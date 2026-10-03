@@ -529,7 +529,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
             handleNext={handleNext} 
             isEn={isEn} 
             stepNum={3} 
-            title={isEn ? "What time did you wake up today?" : "Hôm nay bạn thức dậy lúc mấy giờ?"} 
+            title={isEn ? "3. What time did you wake up today?" : "3. Hôm nay bạn thức dậy lúc mấy giờ?"} 
             subtitle={isEn ? "Select the time you woke up today to personalize your circadian rhythm." : "Chọn khung giờ bạn thức dậy hôm nay để cá nhân hóa nhịp sinh học."}
             isNextValid={Boolean(isCustomWakeUpToday ? customWakeUpToday : wakeUpToday)}
           >
@@ -582,7 +582,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
             handleNext={handleNext} 
             isEn={isEn} 
             stepNum={4} 
-            title={isEn ? "3. When your energy runs low, what do you crave most?" : "3. Khi cạn kiệt năng lượng, bạn thèm gì nhất?"} 
+            title={isEn ? "4. When your energy runs low, what do you crave most?" : "4. Khi cạn kiệt năng lượng, bạn thèm gì nhất?"} 
             subtitle={isEn ? "You can select multiple options that apply to you." : "Bạn có thể chọn nhiều lựa chọn phù hợp."} 
             isNextValid={craves.length > 0}
           >
@@ -603,7 +603,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         )}
 
         {currentStep === 5 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={5} title={isEn ? "4. How often do you have caffeine?" : "4. Tần suất bạn dùng caffeine?"} isNextValid={caffeineFreq !== ''}>
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={5} title={isEn ? "5. How often do you have caffeine?" : "5. Tần suất bạn dùng caffeine?"} isNextValid={caffeineFreq !== ''}>
             <div className="space-y-4">
               {[
                 {id: 'never', l: isEn ? 'Never' : 'Không dùng caffeine'},
@@ -619,7 +619,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         )}
 
         {currentStep === 6 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={6} title={isEn ? "5. What's your chronotype?" : "5. Nhịp sinh học của bạn là gì?"} isNextValid={chronotype !== '' && !isAnalyzingChronotype}>
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={6} title={isEn ? "6. What's your chronotype?" : "6. Nhịp sinh học của bạn là gì?"} isNextValid={chronotype !== '' && !isAnalyzingChronotype}>
             {isAnalyzingChronotype ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-8">
                 <div className="w-12 h-12 border-4 border-slate-200 border-t-[#4CB28E] dark:border-t-[#62D2FB] rounded-full animate-spin"></div>
@@ -656,7 +656,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         )}
 
         {currentStep === 7 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={7} title={isEn ? "6. What should we call you?" : "6. Chúng tôi nên gọi bạn là gì?"} isNextValid={name.trim().length > 0}>
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={7} title={isEn ? "7. What should we call you?" : "7. Chúng tôi nên gọi bạn là gì?"} isNextValid={name.trim().length > 0}>
             <div className="relative w-full">
               <input
                 type="text"
@@ -675,7 +675,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
             handleNext={handleNext} 
             isEn={isEn} 
             stepNum={8} 
-            title={isEn ? "7. How old are you?" : "7. Bạn bao nhiêu tuổi?"} 
+            title={isEn ? "8. How old are you?" : "8. Bạn bao nhiêu tuổi?"} 
             buttonText={isGuestMode ? (isEn ? 'Complete & Start' : 'Hoàn tất & Bắt đầu') : undefined}
             isNextValid={age !== '' && age > 0}
           >
