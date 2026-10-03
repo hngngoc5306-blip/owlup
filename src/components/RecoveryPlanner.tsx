@@ -1588,28 +1588,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {onNavigateToCaffeine && (
-                    <button 
-                      onClick={onNavigateToCaffeine}
-                      className="w-full bg-[#EAB308] hover:bg-[#CA8A04] text-white rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                    >
-                      <span>☕</span>
-                      <span>{isEn ? "Go to Caffeine Advisor" : "Tư vấn & Ghi nhận Caffeine"}</span>
-                    </button>
-                  )}
-
                   <button 
                     onClick={() => { if (onNavigateToTimeline) onNavigateToTimeline(); }}
                     className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
                   >
                     {isEn ? "View Recovery Timeline" : "Xem Lộ trình Phục hồi"}
-                  </button>
-
-                  <button 
-                    onClick={() => { if (onNavigateToDashboard) onNavigateToDashboard(); }}
-                    className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all cursor-pointer"
-                  >
-                    {isEn ? "Back to Dashboard" : "Về Tổng quan"}
                   </button>
 
                   <button 
