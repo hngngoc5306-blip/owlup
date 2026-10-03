@@ -19,6 +19,14 @@ import { AppFeature, UserSettings, CaffeineItem, UserProfile, DayRecoveryGoal } 
 import { Logo } from './components/Logo';
 import { formatDisplayTime } from './utils/timeFormat';
 import { GoogleUserData } from './utils/googleAuth';
+import {
+  getTodayWakeInfo,
+  getTomorrowWakeInfo,
+  recordTomorrowWakePlan,
+  handleDateRolloverWakeState,
+  saveWakeRecord,
+  getLocalDateStr,
+} from './utils/wakeTimeService';
 export const getCaffeineLimitsByFrequency = (frequency?: string): { dailyLimitMg: number; thresholdMg: number } => {
   switch (frequency) {
     case 'never':
@@ -81,6 +89,8 @@ interface StoredAccount {
   wakeTime?: string;
   wakeUpToday?: string;
   wakeUpTodayDate?: string;
+  tomorrowWakeTime?: string;
+  tomorrowWakeTimeDate?: string;
   totalSleepHours?: string;
   caffeineLog?: CaffeineItem[];
   commitments?: any[];
@@ -406,10 +416,13 @@ export default function App() {
     const todayStr = getTodayDateStr();
 
     if (finalizedProfile.wakeUpToday) {
+      const wakeDate = finalizedProfile.wakeUpTodayDate || todayStr;
       localStorage.setItem('owlup_wakeup_today', finalizedProfile.wakeUpToday);
-      localStorage.setItem('owlup_wakeup_today_date', finalizedProfile.wakeUpTodayDate || todayStr);
+      localStorage.setItem('owlup_wakeup_today_date', wakeDate);
       localStorage.setItem('owlup_waketime', finalizedProfile.wakeUpToday);
+      saveWakeRecord(wakeDate, finalizedProfile.wakeUpToday);
       setWakeTime(finalizedProfile.wakeUpToday);
+      setTodayWakeTime(finalizedProfile.wakeUpToday);
     }
 
     if (email && finalizedProfile.authProvider === 'google') {
@@ -485,6 +498,20 @@ export default function App() {
             setWakeTime(existingAccount.wakeTime);
             localStorage.setItem('owlup_waketime', existingAccount.wakeTime);
           }
+          const accWakeToday = existingAccount.wakeUpTodayDate === todayStr ? existingAccount.wakeUpToday : null;
+          if (accWakeToday) {
+            setTodayWakeTime(accWakeToday);
+            setWakeTime(accWakeToday);
+            saveWakeRecord(todayStr, accWakeToday);
+          } else {
+            const todayInfo = getTodayWakeInfo(new Date(), existingAccount.profile, (settings?.language || 'en') === 'en');
+            if (todayInfo.time) {
+              setTodayWakeTime(todayInfo.time);
+              setWakeTime(todayInfo.time);
+            }
+          }
+          const tomorrowInfo = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
+          setTomorrowWakeTime(tomorrowInfo.time);
           if (existingAccount.totalSleepHours) {
             setTotalSleepHours(existingAccount.totalSleepHours);
             localStorage.setItem('owlup_total_sleep_hours', existingAccount.totalSleepHours);
@@ -732,13 +759,26 @@ export default function App() {
       if (storedWakeUp && storedWakeUpDate === todayStr) {
         localStorage.setItem('owlup_wakeup_today', storedWakeUp);
         localStorage.setItem('owlup_wakeup_today_date', storedWakeUpDate);
+        setTodayWakeTime(storedWakeUp);
+        setWakeTime(storedWakeUp);
+        saveWakeRecord(todayStr, storedWakeUp);
+      } else {
+        const todayInfo = getTodayWakeInfo(new Date(), account.profile, (settings?.language || 'en') === 'en');
+        if (todayInfo.time) {
+          setTodayWakeTime(todayInfo.time);
+          setWakeTime(todayInfo.time);
+        }
       }
+      const tomorrowInfo = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
+      setTomorrowWakeTime(tomorrowInfo.time);
       if (account.bedtime) {
         setBedtime(account.bedtime);
         localStorage.setItem('owlup_bedtime', account.bedtime);
       }
       if (account.wakeTime) {
-        setWakeTime(account.wakeTime);
+        if (!storedWakeUp) {
+          setWakeTime(account.wakeTime);
+        }
         localStorage.setItem('owlup_waketime', account.wakeTime);
       }
       if (account.totalSleepHours) {
@@ -871,6 +911,24 @@ export default function App() {
     } catch {}
     return '06:30';
   });
+  const [todayWakeTime, setTodayWakeTime] = useState<string | null>(() => {
+    try {
+      const info = getTodayWakeInfo(new Date(), userProfile, (settings?.language || 'en') === 'en');
+      if (info.time) return info.time;
+      const stored = localStorage.getItem('owlup_wakeup_today') || localStorage.getItem('owlup_waketime');
+      return stored || null;
+    } catch {
+      return null;
+    }
+  });
+  const [tomorrowWakeTime, setTomorrowWakeTime] = useState<string | null>(() => {
+    try {
+      const info = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
+      return info.time;
+    } catch {
+      return null;
+    }
+  });
   const [totalSleepHours, setTotalSleepHours] = useState<string>(() => {
     try {
       const stored = localStorage.getItem('owlup_total_sleep_hours');
@@ -993,14 +1051,14 @@ export default function App() {
 
   const handleApplySchedule = (newBedtime: string, newWakeTime: string, newHours: string, napStart?: string, napDuration?: string) => {
     setBedtime(newBedtime);
-    setWakeTime(newWakeTime);
+    setTomorrowWakeTime(newWakeTime);
+    recordTomorrowWakePlan(newWakeTime);
     setTotalSleepHours(newHours);
     try {
       localStorage.setItem('owlup_bedtime', newBedtime);
-      localStorage.setItem('owlup_waketime', newWakeTime);
       localStorage.setItem('owlup_total_sleep_hours', newHours);
       localStorage.setItem('owlup_schedule_applied', 'true');
-      const todayDateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+      const todayDateStr = getLocalDateStr();
       localStorage.setItem('owlup_schedule_date', todayDateStr);
       const dur = parseInt(napDuration || '0');
       if (napStart && dur > 0) {
@@ -1026,7 +1084,7 @@ export default function App() {
         const commitments = commitmentsRaw ? JSON.parse(commitmentsRaw) : [];
         saveAccountData(activeEmail, {
           bedtime: newBedtime,
-          wakeTime: newWakeTime,
+          tomorrowWakeTime: newWakeTime,
           totalSleepHours: newHours,
           commitments,
         });
@@ -1106,6 +1164,14 @@ export default function App() {
     localStorage.removeItem('owlup_caffeine_log');
     localStorage.setItem('owlup_last_active_date', todayStr);
     setCaffeineLog([]);
+
+    // Rollover wake-up time: promote yesterday's planned wake time for today into today's wake reference
+    const wakeRollover = handleDateRolloverWakeState(todayStr, userProfile);
+    if (wakeRollover.todayWake) {
+      setTodayWakeTime(wakeRollover.todayWake);
+      setWakeTime(wakeRollover.todayWake);
+    }
+    setTomorrowWakeTime(null);
 
     const activeEmail = localStorage.getItem('owlup_active_email');
     if (activeEmail && activeEmail !== 'guest') {
@@ -1279,7 +1345,8 @@ export default function App() {
               userProfile={userProfile}
               settings={settings}
               bedtime={bedtime}
-              wakeTime={wakeTime}
+              wakeTime={todayWakeTime || wakeTime}
+              tomorrowWakeTime={tomorrowWakeTime || undefined}
               totalSleepHours={totalSleepHours}
               plannedNap={plannedNap}
               caffeineLog={caffeineLog}
@@ -1300,7 +1367,7 @@ export default function App() {
               language={settings.language || 'en'}
               userProfile={userProfile}
               bedtime={bedtime}
-              wakeTime={wakeTime}
+              wakeTime={todayWakeTime || wakeTime}
               totalSleepHours={totalSleepHours}
               plannedNap={plannedNap}
               commitments={commitments}
@@ -1318,7 +1385,7 @@ export default function App() {
               isNight={isNight}
               language={settings.language || 'en'}
               targetBedtime={bedtime}
-              wakeTime={wakeTime}
+              wakeTime={todayWakeTime || wakeTime}
               dailyLimitMg={settings.dailyCaffeineLimitMg || 400}
               bedtimeThresholdMg={settings.caffeineThresholdMg || 25}
               loggedItems={caffeineLog}
@@ -1339,7 +1406,10 @@ export default function App() {
               isNight={isNight}
               language={settings.language || 'en'}
               bedtime={bedtime}
-              wakeTime={wakeTime}
+              wakeTime={todayWakeTime || wakeTime}
+              todayWakeTime={todayWakeTime || undefined}
+              tomorrowWakeTime={tomorrowWakeTime || undefined}
+              currentTime={currentTime}
               totalSleepHours={totalSleepHours}
               commitments={commitments}
               caffeineLog={caffeineLog}

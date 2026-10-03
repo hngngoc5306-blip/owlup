@@ -23,6 +23,7 @@ import { TimePickerInput } from './TimePickerInput';
 import { AppLanguage, UserProfile, DayRecoveryGoal } from '../types';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { validateSleepSchedule } from '../utils/sleepValidation';
+import { recordTomorrowWakePlan } from '../utils/wakeTimeService';
 
 export interface RecoveryPlannerProps {
   isNight: boolean;
@@ -106,9 +107,9 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       if (isApplied) {
         return {
           bedtime: localStorage.getItem('owlup_bedtime') || '',
-          wakeTime: localStorage.getItem('owlup_waketime') || '',
+          wakeTime: localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '',
           goal: localStorage.getItem('owlup_recovery_goal') || '',
-          latestWake: localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '',
+          latestWake: localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '',
           commitmentsStr: localStorage.getItem('owlup_commitments') || '[]',
         };
       }
@@ -126,7 +127,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const [latestWakeUpTime, setLatestWakeUpTime] = useState<string>(() => {
     try {
       if (isScheduleAppliedToday) {
-        return localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '';
+        return localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_latest_waketime') || localStorage.getItem('owlup_waketime') || '';
       }
       return '';
     } catch {
@@ -1404,7 +1405,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                           localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
                           localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                           localStorage.setItem('owlup_latest_waketime', recWake);
-                          localStorage.setItem('owlup_waketime', recWake);
+                          recordTomorrowWakePlan(recWake);
                           localStorage.setItem('owlup_bedtime', recBedtime);
                           localStorage.setItem('owlup_schedule_applied', 'true');
                           localStorage.setItem('owlup_schedule_date', getTodayDateStr());
@@ -1659,7 +1660,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                         localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
                         localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                         localStorage.setItem('owlup_latest_waketime', customWakeTime);
-                        localStorage.setItem('owlup_waketime', customWakeTime);
+                        recordTomorrowWakePlan(customWakeTime);
                         localStorage.setItem('owlup_bedtime', customBedtime);
                         localStorage.setItem('owlup_schedule_applied', 'true');
                         localStorage.setItem('owlup_schedule_date', getTodayDateStr());

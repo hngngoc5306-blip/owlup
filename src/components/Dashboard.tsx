@@ -17,6 +17,7 @@ interface DashboardProps {
   settings?: UserSettings;
   bedtime?: string;
   wakeTime?: string;
+  tomorrowWakeTime?: string;
   totalSleepHours?: string;
   plannedNap?: { start: string; end: string; duration: number };
   caffeineLog?: CaffeineItem[];
@@ -35,6 +36,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   userProfile,
   bedtime = '22:30',
   wakeTime = '06:30',
+  tomorrowWakeTime,
   totalSleepHours = '8.0',
   plannedNap: plannedNapProp,
   caffeineLog = [],
@@ -401,7 +403,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <span className={`text-left whitespace-nowrap ${
                         !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
                       }`}>
-                        {formatDisplayTime(wakeTime, isEn)}
+                        {formatDisplayTime(tomorrowWakeTime || wakeTime, isEn)}
                       </span>
                     </div>
                   </div>
