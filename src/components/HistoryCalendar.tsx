@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Moon, Coffee, CalendarDays } from 'lucide-react';
 
 interface HistoryCalendarProps {
   language: 'en' | 'vi';
+  currentTime?: Date;
 }
 
 interface DayData {
@@ -56,12 +57,26 @@ const getRealHistoryData = (): Record<string, DayData> => {
   return data;
 };
 
-export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) => {
+export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language, currentTime }) => {
   const isEn = language === 'en';
+  const getNow = () => currentTime || new Date();
+
   const [currentDate, setCurrentDate] = useState<Date>(() => {
-    const now = new Date();
+    const now = getNow();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  // Ensure calendar automatically syncs with real-time month whenever component mounts or time updates
+  useEffect(() => {
+    const now = getNow();
+    setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  }, [currentTime?.getFullYear(), currentTime?.getMonth()]);
+
+  const realData = getRealHistoryData();
+  const today = getNow();
+  const isViewingCurrentMonth =
+    currentDate.getFullYear() === today.getFullYear() &&
+    currentDate.getMonth() === today.getMonth();
 
   const daysOfWeekEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const daysOfWeekVi = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -98,10 +113,8 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) =>
     const actualDate = new Date(year, month, dayNumber);
     const dateStr = `${actualDate.getFullYear()}-${String(actualDate.getMonth() + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
     
-    const realData = getRealHistoryData();
     const data = isCurrentMonth ? realData[dateStr] : null;
 
-    const today = new Date();
     const isToday = isCurrentMonth &&
       today.getFullYear() === actualDate.getFullYear() &&
       today.getMonth() === actualDate.getMonth() &&
@@ -178,14 +191,25 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) =>
           </h2>
         </div>
         
-        <div className="flex items-center gap-2 sm:gap-4 self-center sm:self-auto">
-          <button onClick={handlePrevMonth} className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 cursor-pointer">
+        <div className="flex items-center gap-2 sm:gap-3 self-center sm:self-auto">
+          {!isViewingCurrentMonth && (
+            <button
+              onClick={() => {
+                const now = getNow();
+                setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
+              }}
+              className="text-[11px] sm:text-xs px-2.5 py-1 rounded-full border border-[#4CB28E]/40 dark:border-[#62D2FB]/40 text-[#4CB28E] dark:text-[#62D2FB] hover:bg-[#4CB28E]/10 dark:hover:bg-[#62D2FB]/10 transition-colors font-medium cursor-pointer"
+            >
+              {isEn ? 'This Month' : 'Tháng này'}
+            </button>
+          )}
+          <button onClick={handlePrevMonth} className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 cursor-pointer" aria-label="Previous Month">
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <span className="text-xs sm:text-sm font-bold tracking-wide uppercase text-[#4CB28E] dark:text-[#62D2FB] min-w-[100px] sm:min-w-[120px] text-center">
             {isEn ? monthNamesEn[currentDate.getMonth()] : monthNamesVi[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <button onClick={handleNextMonth} className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 cursor-pointer">
+          <button onClick={handleNextMonth} className="p-1.5 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-500 cursor-pointer" aria-label="Next Month">
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>

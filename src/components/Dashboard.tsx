@@ -611,7 +611,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </section>
       
       <div className="w-full max-w-[1100px] w-[90%] mx-auto pb-8">
-        <HistoryCalendar language={language} />
+        <HistoryCalendar language={language} currentTime={currentTime} />
       </div>
 
     </div>
