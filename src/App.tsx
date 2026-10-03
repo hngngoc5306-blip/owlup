@@ -941,13 +941,16 @@ export default function App() {
       try {
         const rawHist = localStorage.getItem('owlup_history');
         const hist = rawHist ? JSON.parse(rawHist) : {};
-        if (!hist[lastActive] && bedtime && wakeTime) {
-          const [bh, bm] = bedtime.split(':').map(Number);
-          const [wh, wm] = wakeTime.split(':').map(Number);
+        const storedBed = localStorage.getItem('owlup_bedtime') || bedtime;
+        const storedWake = localStorage.getItem('owlup_waketime') || wakeTime;
+        if (!hist[lastActive] && storedBed && storedWake) {
+          const [bh, bm] = storedBed.split(':').map(Number);
+          const [wh, wm] = storedWake.split(':').map(Number);
           let diff = (wh * 60 + wm) - (bh * 60 + bm);
           if (diff <= 0) diff += 24 * 60;
           const dur = Number((diff / 60).toFixed(1));
-          const currentCaff = caffeineLog || [];
+          const rawCaff = localStorage.getItem('owlup_caffeine_log');
+          const currentCaff = rawCaff ? JSON.parse(rawCaff) : (caffeineLog || []);
           const totalCaff = currentCaff.reduce((sum: number, it: any) => sum + (it.caffeineMg || 0), 0);
           hist[lastActive] = {
             date: lastActive,
@@ -958,96 +961,30 @@ export default function App() {
             status: dur >= 7.0 ? 'optimal' : 'deficit'
           };
           localStorage.setItem('owlup_history', JSON.stringify(hist));
+          const activeEmail = localStorage.getItem('owlup_active_email');
+          if (activeEmail && activeEmail !== 'guest') {
+            saveAccountData(activeEmail, { history: hist });
+          }
         }
       } catch {}
     }
 
-    // Check if user had scheduled a plan for tomorrow
-    const savedTomorrow = localStorage.getItem('owlup_tomorrow_schedule');
-    const savedTomorrowGoal = localStorage.getItem('owlup_tomorrow_recovery_goal');
-
-    if (savedTomorrow) {
-      try {
-        const parsedTomorrow = JSON.parse(savedTomorrow);
-        // Prioritize exact bedtime from tomorrow's plan preview
-        const newBed = parsedTomorrow.bedtimeTonight || parsedTomorrow.expectedBedtimeTomorrow || '22:30';
-        const newWake = parsedTomorrow.wakeTimeTomorrow || '06:30';
-        const [bh, bm] = newBed.split(':').map(Number);
-        const [wh, wm] = newWake.split(':').map(Number);
-        let diff = (wh * 60 + wm) - (bh * 60 + bm);
-        if (diff <= 0) diff += 24 * 60;
-        const durHours = (diff / 60).toFixed(1);
-
-        setBedtime(newBed);
-        setWakeTime(newWake);
-        setTotalSleepHours(durHours);
-        localStorage.setItem('owlup_bedtime', newBed);
-        localStorage.setItem('owlup_waketime', newWake);
-        localStorage.setItem('owlup_total_sleep_hours', durHours);
-        localStorage.setItem('owlup_schedule_applied', 'true');
-        localStorage.setItem('owlup_schedule_date', todayStr);
-        localStorage.setItem('owlup_schedule_rolled_from_tomorrow', 'true');
-
-        // Transfer commitments if tomorrow had any
-        if (Array.isArray(parsedTomorrow.commitments) && parsedTomorrow.commitments.length > 0) {
-          localStorage.setItem('owlup_commitments', JSON.stringify(parsedTomorrow.commitments));
-          setCommitments(parsedTomorrow.commitments);
-        } else {
-          localStorage.removeItem('owlup_commitments');
-          setCommitments([]);
-        }
-
-        // Power nap from preview
-        if (parsedTomorrow.napTomorrowDuration && parsedTomorrow.napTomorrowDuration > 0 && parsedTomorrow.napTomorrowStart) {
-          const [nh, nm] = parsedTomorrow.napTomorrowStart.split(':').map(Number);
-          const endMins = (nh * 60 + nm + parsedTomorrow.napTomorrowDuration) % 1440;
-          const endH = Math.floor(endMins / 60);
-          const endM = endMins % 60;
-          const napObj = {
-            start: parsedTomorrow.napTomorrowStart,
-            end: `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`,
-            duration: parsedTomorrow.napTomorrowDuration
-          };
-          localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
-          setPlannedNap(napObj);
-        } else {
-          localStorage.removeItem('owlup_planned_nap');
-          setPlannedNap(null);
-        }
-
-        // Recovery Goal
-        if (savedTomorrowGoal) {
-          localStorage.setItem('owlup_recovery_goal', savedTomorrowGoal);
-        }
-
-        // Clean up tomorrow keys now that they are rolled into today
-        localStorage.removeItem('owlup_tomorrow_schedule');
-        localStorage.removeItem('owlup_tomorrow_commitments');
-        localStorage.removeItem('owlup_tomorrow_recovery_goal');
-      } catch {
-        // Fallback if parsing fails
-        localStorage.removeItem('owlup_schedule_applied');
-        localStorage.removeItem('owlup_schedule_date');
-        localStorage.removeItem('owlup_planned_nap');
-        localStorage.removeItem('owlup_commitments');
-        localStorage.removeItem('owlup_schedule_rolled_from_tomorrow');
-        setPlannedNap(null);
-        setCommitments([]);
-      }
-    } else {
-      localStorage.removeItem('owlup_schedule_applied');
-      localStorage.removeItem('owlup_schedule_date');
-      localStorage.removeItem('owlup_planned_nap');
-      localStorage.removeItem('owlup_commitments');
-      localStorage.removeItem('owlup_schedule_rolled_from_tomorrow');
-      setPlannedNap(null);
-      setCommitments([]);
-    }
-
-    // Tomorrow commitments are strictly cleared from data for the new day
+    // Every day past 00:00: Sleep schedule and Caffeine advisor are fully refreshed for the new day
+    localStorage.removeItem('owlup_schedule_applied');
+    localStorage.removeItem('owlup_schedule_date');
+    localStorage.removeItem('owlup_planned_nap');
+    localStorage.removeItem('owlup_commitments');
+    localStorage.removeItem('owlup_is_free_all_day');
+    localStorage.removeItem('owlup_latest_waketime');
+    localStorage.removeItem('owlup_recovery_goal');
+    localStorage.removeItem('owlup_tomorrow_schedule');
     localStorage.removeItem('owlup_tomorrow_commitments');
+    localStorage.removeItem('owlup_tomorrow_recovery_goal');
+    localStorage.removeItem('owlup_schedule_rolled_from_tomorrow');
+    setPlannedNap(null);
+    setCommitments([]);
 
-    // Caffeine log is cleared every day at 00:00 rollover
+    // Caffeine advisor is completely refreshed (caffeine log cleared to 0mg)
     localStorage.removeItem('owlup_caffeine_log');
     localStorage.setItem('owlup_last_active_date', todayStr);
     setCaffeineLog([]);

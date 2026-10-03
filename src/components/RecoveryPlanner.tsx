@@ -145,6 +145,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
   // Step state machine:
   // 1: Busy commitments (Context-aware form)
+  // Step state machine:
+  // 1: Busy commitments (Context-aware form)
   // 2: Circadian Wake-Up Anchor & Recovery Goal
   // 3: Recommended recovery routine & caffeine curfew
   // 4: Flexible customization hub
@@ -152,21 +154,33 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
     try {
       if (isScheduleAppliedToday) return 3;
-      const savedComms = localStorage.getItem('owlup_commitments');
-      if (savedComms && JSON.parse(savedComms).length > 0) return 2;
     } catch {}
     return 1;
   });
 
   const [isSavedBanner, setIsSavedBanner] = useState(false);
 
-  // Commitments State
+  // Commitments & Free Day State
   const [isAdding, setIsAdding] = useState(false);
+  const [isFreeAllDay, setIsFreeAllDay] = useState<boolean>(() => {
+    try {
+      const todayStr = getTodayDateStr();
+      const scheduleDate = localStorage.getItem('owlup_schedule_date');
+      if (scheduleDate === todayStr) {
+        return localStorage.getItem('owlup_is_free_all_day') === 'true';
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
   const [commitments, setCommitments] = useState<{ title: string; start: string; end: string }[]>(() => {
     try {
+      const todayStr = getTodayDateStr();
+      const scheduleDate = localStorage.getItem('owlup_schedule_date');
       const saved = localStorage.getItem('owlup_commitments');
-      if (saved) return JSON.parse(saved);
-      if (commitmentsProp && commitmentsProp.length > 0) return commitmentsProp;
+      if (saved && (scheduleDate === todayStr || !scheduleDate)) return JSON.parse(saved);
+      if (commitmentsProp && commitmentsProp.length > 0 && scheduleDate === todayStr) return commitmentsProp;
       return [];
     } catch {
       return [];
@@ -692,9 +706,11 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
     list.sort((a, b) => parseMins(a.start) - parseMins(b.start));
     setCommitments(list);
+    setIsFreeAllDay(false);
     setHasUserModified(true);
     try {
       localStorage.setItem('owlup_commitments', JSON.stringify(list));
+      localStorage.removeItem('owlup_is_free_all_day');
       localStorage.setItem('owlup_schedule_date', getTodayDateStr());
       if (onUpdateCommitments) onUpdateCommitments(list);
     } catch {}
@@ -708,6 +724,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     const updated = commitments.filter((_, i) => i !== index);
     setCommitments(updated);
     setHasUserModified(true);
+    if (updated.length === 0) {
+      setIsFreeAllDay(false);
+      try {
+        localStorage.removeItem('owlup_is_free_all_day');
+      } catch {}
+    }
     try {
       localStorage.setItem('owlup_commitments', JSON.stringify(updated));
       localStorage.setItem('owlup_schedule_date', getTodayDateStr());
@@ -927,38 +949,67 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               {commitments.length === 0 && !isAdding && (
                 <div className="flex flex-col sm:flex-row gap-6">
                   <button 
+                    type="button"
                     onClick={handleStartAdd}
                     className="flex-[1] py-4 px-6 border-2 border-dashed border-[#4CB28E] dark:border-[#62D2FB] bg-white dark:bg-[#0f172a] rounded-2xl hover:bg-[#E6F8F0] dark:bg-[#62D2FB]/10 transition-colors flex items-center justify-center gap-3 text-[#4CB28E] dark:text-[#62D2FB] font-bold text-lg cursor-pointer"
                   >
                     <Plus className="w-5 h-5" /> {isEn ? "Add busy time" : "Thêm lịch bận"}
                   </button>
                   <button 
-                    onClick={() => setStep(2)}
-                    className="flex-[1] py-4 px-6 border-2 border-dashed border-slate-300 bg-white dark:bg-[#0f172a] rounded-2xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-3 text-slate-500 font-bold text-lg cursor-pointer"
+                    type="button"
+                    onClick={() => {
+                      setIsFreeAllDay(true);
+                      setCommitments([]);
+                      setHasUserModified(true);
+                      try {
+                        localStorage.setItem('owlup_is_free_all_day', 'true');
+                        localStorage.removeItem('owlup_commitments');
+                        if (onUpdateCommitments) onUpdateCommitments([]);
+                      } catch {}
+                    }}
+                    className={`flex-[1] py-4 px-6 border-2 border-dashed rounded-2xl transition-all flex items-center justify-center gap-3 font-bold text-lg cursor-pointer ${
+                      isFreeAllDay
+                        ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/10 text-[#007b4d] dark:text-[#62D2FB] ring-2 ring-[#4CB28E]/30 shadow-sm'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-[#0f172a] hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400'
+                    }`}
                   >
-                    <span className="text-xl">✨</span> {isEn ? "Free all day" : "Rảnh cả ngày"}
+                    <span className="text-xl">{isFreeAllDay ? '✓' : '✨'}</span> 
+                    {isEn 
+                      ? (isFreeAllDay ? "Free all day (Selected)" : "Free all day") 
+                      : (isFreeAllDay ? "Rảnh cả ngày (Đã chọn)" : "Rảnh cả ngày")}
                   </button>
                 </div>
               )}
             </div>
             
-            {!isAdding && (
-              <div className="flex items-center justify-between mt-12 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button 
-                  type="button"
-                  onClick={handleBackFromStep1}
-                  className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer py-2"
-                >
-                  <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
-                </button>
-                <button 
-                  onClick={() => setStep(2)}
-                  className="rounded-full px-8 sm:px-12 py-3.5 text-base sm:text-lg font-bold bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white shadow-md cursor-pointer hover:-translate-y-1 transition-all"
-                >
-                  {isEn ? "Next" : "Tiếp theo"} →
-                </button>
-              </div>
-            )}
+            {!isAdding && (() => {
+              const isStep1Answered = commitments.length > 0 || isFreeAllDay;
+              return (
+                <div className="flex items-center justify-between mt-12 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button 
+                    type="button"
+                    onClick={handleBackFromStep1}
+                    className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer py-2"
+                  >
+                    <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
+                  </button>
+                  <button 
+                    type="button"
+                    disabled={!isStep1Answered}
+                    onClick={() => {
+                      if (isStep1Answered) setStep(2);
+                    }}
+                    className={`rounded-full px-8 sm:px-12 py-3.5 text-base sm:text-lg font-bold shadow-md transition-all ${
+                      isStep1Answered
+                        ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1'
+                        : 'bg-slate-200 dark:bg-slate-700/80 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
+                    }`}
+                  >
+                    {isEn ? "Next" : "Tiếp theo"} →
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         )}
 
