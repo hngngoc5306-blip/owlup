@@ -60,6 +60,8 @@ export interface UserProfile {
   authProvider?: 'google' | 'guest';
   nickname?: string;
   googleName?: string;
+  wakeUpToday?: string; // Stored wake-up time for the current onboarding day
+  wakeUpTodayDate?: string; // Associated date (YYYY-MM-DD)
   onboardingCompleted?: boolean;
   createdAt?: string;
 }

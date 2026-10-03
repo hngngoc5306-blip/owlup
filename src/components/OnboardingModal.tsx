@@ -101,7 +101,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   const DRAFT_KEY = 'owlup_registration_draft';
 
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = isGuestMode ? 7 : 8;
+  const totalSteps = isGuestMode ? 8 : 9;
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // States
@@ -109,6 +109,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   const [bedtime, setBedtime] = useState('');
   const [isCustomBedtime, setIsCustomBedtime] = useState(false);
   const [customBedtime, setCustomBedtime] = useState('');
+  const [wakeUpToday, setWakeUpToday] = useState('');
+  const [isCustomWakeUpToday, setIsCustomWakeUpToday] = useState(false);
+  const [customWakeUpToday, setCustomWakeUpToday] = useState('');
   const [craves, setCraves] = useState<string[]>([]);
   const [caffeineFreq, setCaffeineFreq] = useState('');
   const [chronotype, setChronotype] = useState('');
@@ -119,6 +122,11 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   const [emailError, setEmailError] = useState('');
   const [isAnalyzingChronotype, setIsAnalyzingChronotype] = useState(false);
 
+  const getTodayDateStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   // Restore draft answers when modal opens
   React.useEffect(() => {
     if (!isOpen) return;
@@ -126,13 +134,16 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       const raw = localStorage.getItem(DRAFT_KEY);
       if (raw) {
         const draft = JSON.parse(raw);
-        if (draft.step && draft.step >= 1 && draft.step <= (isGuestMode ? 7 : 8)) {
+        if (draft.step && draft.step >= 1 && draft.step <= (isGuestMode ? 8 : 9)) {
           setCurrentStep(draft.step);
         }
         if (draft.language) setLanguage(draft.language);
         if (draft.bedtime) setBedtime(draft.bedtime);
         if (draft.isCustomBedtime !== undefined) setIsCustomBedtime(draft.isCustomBedtime);
         if (draft.customBedtime) setCustomBedtime(draft.customBedtime);
+        if (draft.wakeUpToday) setWakeUpToday(draft.wakeUpToday);
+        if (draft.isCustomWakeUpToday !== undefined) setIsCustomWakeUpToday(draft.isCustomWakeUpToday);
+        if (draft.customWakeUpToday) setCustomWakeUpToday(draft.customWakeUpToday);
         if (Array.isArray(draft.craves)) setCraves(draft.craves);
         if (draft.caffeineFreq) setCaffeineFreq(draft.caffeineFreq);
         if (draft.chronotype) setChronotype(draft.chronotype);
@@ -144,7 +155,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   }, [isOpen, isGuestMode]);
 
   // Synchronize prefilled Google User email (e.g. from Flow B redirect)
-  // NOTE: Question 6 ("What should we call you?") must NEVER be prefilled with Google account name
+  // NOTE: Nickname must NEVER be prefilled with Google account name
   React.useEffect(() => {
     if (prefilledGoogleUser) {
       if (prefilledGoogleUser.email && !email) {
@@ -163,6 +174,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         bedtime,
         isCustomBedtime,
         customBedtime,
+        wakeUpToday,
+        isCustomWakeUpToday,
+        customWakeUpToday,
         craves,
         caffeineFreq,
         chronotype,
@@ -172,17 +186,17 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     } catch {}
-  }, [isOpen, currentStep, language, bedtime, isCustomBedtime, customBedtime, craves, caffeineFreq, chronotype, goals, age, name]);
+  }, [isOpen, currentStep, language, bedtime, isCustomBedtime, customBedtime, wakeUpToday, isCustomWakeUpToday, customWakeUpToday, craves, caffeineFreq, chronotype, goals, age, name]);
 
   const isEn = language === 'en';
 
   if (!isOpen) return null;
 
   const handleNext = () => {
-    if (currentStep === 4) {
-      // Transitioning to Step 5 (Chronotype). Trigger analysis.
+    if (currentStep === 5) {
+      // Transitioning to Step 6 (Chronotype). Trigger analysis.
       setIsAnalyzingChronotype(true);
-      setCurrentStep(5);
+      setCurrentStep(6);
       
       // Auto-detect based on bedtime (parse bedtime)
       setTimeout(() => {
@@ -202,8 +216,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       return;
     }
 
-    if (currentStep === 7 && isGuestMode) {
-      // Guest mode finishes right after answering question 7!
+    if (currentStep === 8 && isGuestMode) {
+      // Guest mode finishes right after answering question 8 (Age)!
       handleComplete('guest');
       return;
     }
@@ -226,6 +240,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       chosenEmail = trimmed;
     }
 
+    const finalWakeUpToday = isCustomWakeUpToday ? customWakeUpToday : wakeUpToday;
+
     setIsSigningIn(true);
     setTimeout(() => {
       try {
@@ -237,6 +253,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         nickname: name.trim() || (isEn ? 'Guest' : 'Khách'),
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
+        wakeUpToday: finalWakeUpToday || undefined,
+        wakeUpTodayDate: finalWakeUpToday ? getTodayDateStr() : undefined,
         craves,
         energyCrave: craves,
         energyCraves: craves,
@@ -260,6 +278,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     setEmailError('');
     // Prioritize the nickname the user explicitly entered in Question 6
     const nicknameFromQ6 = name.trim() || prefilledGoogleUser.name || (isEn ? 'Guest' : 'Khách');
+    const finalWakeUpToday = isCustomWakeUpToday ? customWakeUpToday : wakeUpToday;
     setTimeout(() => {
       try {
         localStorage.removeItem(DRAFT_KEY);
@@ -271,6 +290,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         googleName: prefilledGoogleUser.name,
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
+        wakeUpToday: finalWakeUpToday || undefined,
+        wakeUpTodayDate: finalWakeUpToday ? getTodayDateStr() : undefined,
         craves,
         energyCrave: craves,
         energyCraves: craves,
@@ -295,6 +316,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       const gUser = await signInWithGooglePopup();
       // Prioritize nickname from Question 6
       const nicknameFromQ6 = name.trim() || gUser.name || (isEn ? 'Guest' : 'Khách');
+      const finalWakeUpToday = isCustomWakeUpToday ? customWakeUpToday : wakeUpToday;
 
       // Flow C: If account already exists, redirect into existing account and update nickname
       if (onCheckExistingAccount && onCheckExistingAccount(gUser.email)) {
@@ -324,6 +346,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         googleName: gUser.name,
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
+        wakeUpToday: finalWakeUpToday || undefined,
+        wakeUpTodayDate: finalWakeUpToday ? getTodayDateStr() : undefined,
         craves,
         energyCrave: craves,
         energyCraves: craves,
@@ -361,24 +385,24 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     <div 
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto"
       style={{ 
-        background: currentStep === 8
+        background: currentStep === (isGuestMode ? 8 : 9)
           ? (isNight ? 'linear-gradient(90deg, #0A1020 0%, #1A2540 35%, #1A2540 65%, #0A1020 100%)' : 'linear-gradient(90deg, #E6F8F0 0%, #FFFFFF 35%, #FFFFFF 65%, #E6F8F0 100%)')
           : (isNight ? '#1A2540' : '#fffff8')
       }}
     >
-      {/* Progress Bar Top Edge (Only steps 1-7) */}
-      {currentStep < 8 && (
+      {/* Progress Bar Top Edge (Only question steps before final) */}
+      {currentStep < (isGuestMode ? 8 : 9) && (
         <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 absolute top-0 left-0 z-50">
           <div 
             className="h-full bg-[#4CB28E] dark:bg-[#62D2FB] transition-all duration-500"
-            style={{ width: `${(currentStep / 7) * 100}%` }}
+            style={{ width: `${(currentStep / 8) * 100}%` }}
           />
         </div>
       )}
 
       {/* Absolute Top Nav */}
       <div className="fixed top-6 left-6 z-50 flex items-center gap-4">
-        {currentStep === 8 ? (
+        {currentStep === (isGuestMode ? 8 : 9) && !isGuestMode ? (
           <div className="animate-fade-in pl-2">
             <Logo size="md" isNight={isNight} />
           </div>
@@ -505,6 +529,59 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
             handleNext={handleNext} 
             isEn={isEn} 
             stepNum={3} 
+            title={isEn ? "What time did you wake up today?" : "Hôm nay bạn thức dậy lúc mấy giờ?"} 
+            subtitle={isEn ? "Select the time you woke up today to personalize your circadian rhythm." : "Chọn khung giờ bạn thức dậy hôm nay để cá nhân hóa nhịp sinh học."}
+            isNextValid={Boolean(isCustomWakeUpToday ? customWakeUpToday : wakeUpToday)}
+          >
+            <div className="grid grid-cols-2 gap-3.5">
+              {['06:00', '06:30', '07:00', '07:30', '08:00', '08:30'].map(time => (
+                <OptionCard 
+                  key={time} 
+                  label={formatDisplayTime(time, isEn)} 
+                  selected={!isCustomWakeUpToday && wakeUpToday === time} 
+                  onClick={() => { setIsCustomWakeUpToday(false); setWakeUpToday(time); }} 
+                />
+              ))}
+              
+              {/* Giờ tùy chỉnh có độ lớn bằng 2 cột cộng lại */}
+              <div 
+                onClick={() => setIsCustomWakeUpToday(true)}
+                className={`col-span-2 w-full text-left px-5 py-4 rounded-full transition-all flex items-center justify-between cursor-pointer ${
+                  isCustomWakeUpToday 
+                    ? 'border-2 border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E]/10 dark:bg-[#62D2FB]/10' 
+                    : 'border-2 border-slate-200 hover:border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`font-sans font-medium ${
+                    isCustomWakeUpToday ? 'text-[#1F2937] dark:text-white' : 'text-slate-700 dark:text-slate-200'
+                  }`}>
+                    {isEn ? 'Custom time:' : 'Giờ tùy chỉnh:'}
+                  </span>
+                  <div onClick={(e) => { e.stopPropagation(); setIsCustomWakeUpToday(true); }}>
+                    <TimePickerInput 
+                      value={customWakeUpToday} 
+                      onChange={val => { setIsCustomWakeUpToday(true); setCustomWakeUpToday(val); }}
+                      isEn={isEn}
+                      variant="compact"
+                    />
+                  </div>
+                </div>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                  isCustomWakeUpToday ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E] dark:bg-[#62D2FB]' : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {isCustomWakeUpToday && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
+                </div>
+              </div>
+            </div>
+          </StepLayout>
+        )}
+
+        {currentStep === 4 && (
+          <StepLayout 
+            handleNext={handleNext} 
+            isEn={isEn} 
+            stepNum={4} 
             title={isEn ? "3. When your energy runs low, what do you crave most?" : "3. Khi cạn kiệt năng lượng, bạn thèm gì nhất?"} 
             subtitle={isEn ? "You can select multiple options that apply to you." : "Bạn có thể chọn nhiều lựa chọn phù hợp."} 
             isNextValid={craves.length > 0}
@@ -525,8 +602,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
           </StepLayout>
         )}
 
-        {currentStep === 4 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={4} title={isEn ? "4. How often do you have caffeine?" : "4. Tần suất bạn dùng caffeine?"} isNextValid={caffeineFreq !== ''}>
+        {currentStep === 5 && (
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={5} title={isEn ? "4. How often do you have caffeine?" : "4. Tần suất bạn dùng caffeine?"} isNextValid={caffeineFreq !== ''}>
             <div className="space-y-4">
               {[
                 {id: 'never', l: isEn ? 'Never' : 'Không dùng caffeine'},
@@ -541,8 +618,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
           </StepLayout>
         )}
 
-        {currentStep === 5 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={5} title={isEn ? "5. What's your chronotype?" : "5. Nhịp sinh học của bạn là gì?"} isNextValid={chronotype !== '' && !isAnalyzingChronotype}>
+        {currentStep === 6 && (
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={6} title={isEn ? "5. What's your chronotype?" : "5. Nhịp sinh học của bạn là gì?"} isNextValid={chronotype !== '' && !isAnalyzingChronotype}>
             {isAnalyzingChronotype ? (
               <div className="flex flex-col items-center justify-center space-y-4 py-8">
                 <div className="w-12 h-12 border-4 border-slate-200 border-t-[#4CB28E] dark:border-t-[#62D2FB] rounded-full animate-spin"></div>
@@ -578,8 +655,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
           </StepLayout>
         )}
 
-        {currentStep === 6 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={6} title={isEn ? "6. What should we call you?" : "6. Chúng tôi nên gọi bạn là gì?"} isNextValid={name.trim().length > 0}>
+        {currentStep === 7 && (
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={7} title={isEn ? "6. What should we call you?" : "6. Chúng tôi nên gọi bạn là gì?"} isNextValid={name.trim().length > 0}>
             <div className="relative w-full">
               <input
                 type="text"
@@ -593,11 +670,11 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
           </StepLayout>
         )}
 
-        {currentStep === 7 && (
+        {currentStep === 8 && (
           <StepLayout 
             handleNext={handleNext} 
             isEn={isEn} 
-            stepNum={7} 
+            stepNum={8} 
             title={isEn ? "7. How old are you?" : "7. Bạn bao nhiêu tuổi?"} 
             buttonText={isGuestMode ? (isEn ? 'Complete & Start' : 'Hoàn tất & Bắt đầu') : undefined}
             isNextValid={age !== '' && age > 0}
@@ -614,7 +691,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
           </StepLayout>
         )}
 
-        {currentStep === 8 && (
+        {currentStep === 9 && (
           <div className="flex flex-col items-center justify-center w-full max-w-[840px] w-[94%] sm:w-[90%] mx-auto px-2 sm:px-6 animate-fade-in text-center h-full min-h-[70vh] pb-10">
             <h1 className="font-heading font-normal text-2xl sm:text-3xl md:text-[42px] lg:text-[50px] text-[#1F2937] dark:text-[#F8FAFC] leading-[1.2] mb-6 sm:mb-8">
               {isEn ? (

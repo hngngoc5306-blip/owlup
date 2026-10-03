@@ -79,6 +79,8 @@ interface StoredAccount {
   settings?: UserSettings;
   bedtime?: string;
   wakeTime?: string;
+  wakeUpToday?: string;
+  wakeUpTodayDate?: string;
   totalSleepHours?: string;
   caffeineLog?: CaffeineItem[];
   commitments?: any[];
@@ -403,6 +405,13 @@ export default function App() {
     let isNewRegistration = true;
     const todayStr = getTodayDateStr();
 
+    if (finalizedProfile.wakeUpToday) {
+      localStorage.setItem('owlup_wakeup_today', finalizedProfile.wakeUpToday);
+      localStorage.setItem('owlup_wakeup_today_date', finalizedProfile.wakeUpTodayDate || todayStr);
+      localStorage.setItem('owlup_waketime', finalizedProfile.wakeUpToday);
+      setWakeTime(finalizedProfile.wakeUpToday);
+    }
+
     if (email && finalizedProfile.authProvider === 'google') {
       localStorage.setItem('owlup_active_email', email);
       
@@ -418,6 +427,10 @@ export default function App() {
           nickname: finalizedProfile.nickname || finalizedProfile.name || existingAccount.profile.nickname || existingAccount.profile.name,
           onboardingCompleted: true,
         };
+        if (finalizedProfile.wakeUpToday) {
+          existingAccount.wakeUpToday = finalizedProfile.wakeUpToday;
+          existingAccount.wakeUpTodayDate = finalizedProfile.wakeUpTodayDate || todayStr;
+        }
         existingAccount.onboardingCompleted = true;
         saveAccountData(email, existingAccount);
         setUserProfile(existingAccount.profile);
@@ -495,7 +508,7 @@ export default function App() {
       } else {
         // Brand new account for this email: start completely fresh!
         const initialBedtime = finalizedProfile.usualBedtime || '22:30';
-        const initialWakeTime = calculateDefaultWakeTime(initialBedtime, 8);
+        const initialWakeTime = finalizedProfile.wakeUpToday || calculateDefaultWakeTime(initialBedtime, 8);
         setBedtime(initialBedtime);
         setWakeTime(initialWakeTime);
         setTotalSleepHours('8.0');
@@ -520,12 +533,18 @@ export default function App() {
         localStorage.setItem('owlup_bedtime', initialBedtime);
         localStorage.setItem('owlup_waketime', initialWakeTime);
         localStorage.setItem('owlup_total_sleep_hours', '8.0');
+        if (finalizedProfile.wakeUpToday) {
+          localStorage.setItem('owlup_wakeup_today', finalizedProfile.wakeUpToday);
+          localStorage.setItem('owlup_wakeup_today_date', finalizedProfile.wakeUpTodayDate || todayStr);
+        }
 
         saveAccountData(email, {
           profile: finalizedProfile,
           settings,
           bedtime: initialBedtime,
           wakeTime: initialWakeTime,
+          wakeUpToday: finalizedProfile.wakeUpToday,
+          wakeUpTodayDate: finalizedProfile.wakeUpTodayDate || todayStr,
           totalSleepHours: '8.0',
           caffeineLog: [],
           commitments: [],
@@ -555,13 +574,17 @@ export default function App() {
       localStorage.removeItem('owlup_recovery_goal');
       localStorage.setItem('owlup_last_active_date', todayStr);
       const initialBedtime = finalizedProfile.usualBedtime || '22:30';
-      const initialWakeTime = calculateDefaultWakeTime(initialBedtime, 8);
+      const initialWakeTime = finalizedProfile.wakeUpToday || calculateDefaultWakeTime(initialBedtime, 8);
       setBedtime(initialBedtime);
       setWakeTime(initialWakeTime);
       setTotalSleepHours('8.0');
       localStorage.setItem('owlup_bedtime', initialBedtime);
       localStorage.setItem('owlup_waketime', initialWakeTime);
       localStorage.setItem('owlup_total_sleep_hours', '8.0');
+      if (finalizedProfile.wakeUpToday) {
+        localStorage.setItem('owlup_wakeup_today', finalizedProfile.wakeUpToday);
+        localStorage.setItem('owlup_wakeup_today_date', finalizedProfile.wakeUpTodayDate || todayStr);
+      }
     }
 
     try {
@@ -704,6 +727,12 @@ export default function App() {
     } else {
       // Same day login: restore active data
       localStorage.setItem('owlup_last_active_date', todayStr);
+      const storedWakeUp = account.wakeUpToday || account.profile?.wakeUpToday;
+      const storedWakeUpDate = account.wakeUpTodayDate || account.profile?.wakeUpTodayDate;
+      if (storedWakeUp && storedWakeUpDate === todayStr) {
+        localStorage.setItem('owlup_wakeup_today', storedWakeUp);
+        localStorage.setItem('owlup_wakeup_today_date', storedWakeUpDate);
+      }
       if (account.bedtime) {
         setBedtime(account.bedtime);
         localStorage.setItem('owlup_bedtime', account.bedtime);
