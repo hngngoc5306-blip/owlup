@@ -18,6 +18,7 @@ import { EditProfileModal } from './components/EditProfileModal';
 import { AppFeature, UserSettings, CaffeineItem, UserProfile, DayRecoveryGoal } from './types';
 import { Logo } from './components/Logo';
 import { formatDisplayTime } from './utils/timeFormat';
+import { GoogleUserData } from './utils/googleAuth';
 export const getCaffeineLimitsByFrequency = (frequency?: string): { dailyLimitMg: number; thresholdMg: number } => {
   switch (frequency) {
     case 'never':
@@ -83,6 +84,7 @@ interface StoredAccount {
   commitments?: any[];
   history?: Record<string, any>;
   lastActiveDate?: string;
+  onboardingCompleted?: boolean;
 }
 
 const createDemoStudentAccount = (): StoredAccount => {
@@ -100,6 +102,7 @@ const createDemoStudentAccount = (): StoredAccount => {
       caffeineFrequency: 'once_a_day',
       email: DEMO_STUDENT_EMAIL,
       authProvider: 'google',
+      onboardingCompleted: true,
       createdAt: new Date().toISOString(),
     },
     settings: {
@@ -113,6 +116,7 @@ const createDemoStudentAccount = (): StoredAccount => {
     caffeineLog: [],
     commitments: [],
     lastActiveDate: yesterday,
+    onboardingCompleted: true,
     history: {
       [day3]: {
         date: day3,
@@ -148,6 +152,16 @@ const getStoredAccounts = (): Record<string, StoredAccount> => {
     const accounts = raw ? JSON.parse(raw) : {};
     let modified = false;
     for (const key of Object.keys(accounts)) {
+      if (accounts[key]?.profile) {
+        if (accounts[key].profile.onboardingCompleted === undefined) {
+          accounts[key].profile.onboardingCompleted = true;
+          modified = true;
+        }
+      }
+      if (accounts[key]?.onboardingCompleted === undefined) {
+        accounts[key].onboardingCompleted = true;
+        modified = true;
+      }
       if (accounts[key]?.profile?.caffeineFrequency) {
         const { dailyLimitMg, thresholdMg } = getCaffeineLimitsByFrequency(accounts[key].profile.caffeineFrequency);
         if (accounts[key].settings) {
@@ -192,15 +206,53 @@ const saveAccountData = (email: string, data: Partial<StoredAccount>) => {
         caffeineFrequency: 'once_a_day',
         email,
         authProvider: 'google',
-      }
+        onboardingCompleted: true,
+      },
+      onboardingCompleted: true,
     };
     accounts[email] = {
       ...existing,
       ...data,
       profile: data.profile || existing.profile,
+      onboardingCompleted: data.onboardingCompleted ?? existing.onboardingCompleted ?? true,
     };
     localStorage.setItem('owlup_accounts', JSON.stringify(accounts));
   } catch {}
+};
+
+/**
+ * Checks whether the current user session is authorized to access the Dashboard.
+ * Access is granted ONLY if:
+ * 1. User has completed onboarding (owlup_onboarding_completed === 'true').
+ * 2. Active email is set.
+ * 3. If registered user (not guest), a corresponding registered account exists in the accounts database with onboarding complete.
+ */
+export const checkIsSessionAuthorized = (): boolean => {
+  try {
+    const activeEmail = localStorage.getItem('owlup_active_email');
+    const onboardingCompleted = localStorage.getItem('owlup_onboarding_completed') === 'true';
+    if (!activeEmail || !onboardingCompleted) return false;
+    if (activeEmail === 'guest') return true;
+    const accounts = getStoredAccounts();
+    const account = accounts[activeEmail.toLowerCase().trim()];
+    return !!(account && account.profile && account.profile.onboardingCompleted !== false);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Checks whether an account with the given email is registered and has completed onboarding in OwlUp.
+ */
+export const checkAccountRegistered = (email: string): boolean => {
+  if (!email || email === 'guest') return false;
+  try {
+    const accounts = getStoredAccounts();
+    const account = accounts[email.toLowerCase().trim()];
+    return !!(account && account.profile && account.profile.onboardingCompleted !== false);
+  } catch {
+    return false;
+  }
 };
 
 const calculateDefaultWakeTime = (bedtimeStr: string, sleepHours = 8) => {
@@ -248,13 +300,18 @@ export default function App() {
 
   // Dedicated Landing Screen: displayed when user has not yet authenticated / logged in
   const [showLandingScreen, setShowLandingScreen] = useState<boolean>(() => {
-    try {
-      const stored = localStorage.getItem('owlup_user_profile');
-      return !stored;
-    } catch {
-      return true;
-    }
+    return !checkIsSessionAuthorized();
   });
+
+  const [prefilledGoogleUser, setPrefilledGoogleUser] = useState<GoogleUserData | null>(null);
+  const [registrationNotice, setRegistrationNotice] = useState<string>('');
+
+  // Security route guard: verify session authorization on mount / refresh
+  useEffect(() => {
+    if (!checkIsSessionAuthorized()) {
+      setShowLandingScreen(true);
+    }
+  }, []);
 
   const [featureGuideFocus, setFeatureGuideFocus] = useState<FeatureGuideType>('all');
 
@@ -326,27 +383,34 @@ export default function App() {
   };
 
   const handleCompleteProfile = (profile: UserProfile) => {
-    setUserProfile(profile);
-    const email = profile.email ? profile.email.toLowerCase().trim() : null;
+    const finalizedProfile: UserProfile = {
+      ...profile,
+      onboardingCompleted: true,
+    };
+    setUserProfile(finalizedProfile);
+    const email = finalizedProfile.email ? finalizedProfile.email.toLowerCase().trim() : null;
     let isNewRegistration = true;
     const todayStr = getTodayDateStr();
 
-    if (email && profile.authProvider === 'google') {
+    if (email && finalizedProfile.authProvider === 'google') {
       localStorage.setItem('owlup_active_email', email);
       
       const accounts = getStoredAccounts();
       const existingAccount = accounts[email];
       if (existingAccount) {
         isNewRegistration = false;
-        // Update account profile with newly submitted nickname & settings
+        // FLOW C: Existing account - preserve existing profile and user data
         existingAccount.profile = {
           ...existingAccount.profile,
-          ...profile,
-          name: profile.name || existingAccount.profile.name,
+          ...finalizedProfile,
+          name: finalizedProfile.name || existingAccount.profile.name,
+          onboardingCompleted: true,
         };
+        existingAccount.onboardingCompleted = true;
         saveAccountData(email, existingAccount);
         setUserProfile(existingAccount.profile);
         localStorage.setItem('owlup_user_profile', JSON.stringify(existingAccount.profile));
+        localStorage.setItem('owlup_onboarding_completed', 'true');
 
         // Load existing account data
         if (existingAccount.settings) {
@@ -418,7 +482,7 @@ export default function App() {
         }
       } else {
         // Brand new account for this email: start completely fresh!
-        const initialBedtime = profile.usualBedtime || '22:30';
+        const initialBedtime = finalizedProfile.usualBedtime || '22:30';
         const initialWakeTime = calculateDefaultWakeTime(initialBedtime, 8);
         setBedtime(initialBedtime);
         setWakeTime(initialWakeTime);
@@ -446,7 +510,7 @@ export default function App() {
         localStorage.setItem('owlup_total_sleep_hours', '8.0');
 
         saveAccountData(email, {
-          profile,
+          profile: finalizedProfile,
           settings,
           bedtime: initialBedtime,
           wakeTime: initialWakeTime,
@@ -454,6 +518,7 @@ export default function App() {
           caffeineLog: [],
           commitments: [],
           lastActiveDate: todayStr,
+          onboardingCompleted: true,
         });
       }
     } else {
@@ -477,7 +542,7 @@ export default function App() {
       localStorage.removeItem('owlup_tomorrow_recovery_goal');
       localStorage.removeItem('owlup_recovery_goal');
       localStorage.setItem('owlup_last_active_date', todayStr);
-      const initialBedtime = profile.usualBedtime || '22:30';
+      const initialBedtime = finalizedProfile.usualBedtime || '22:30';
       const initialWakeTime = calculateDefaultWakeTime(initialBedtime, 8);
       setBedtime(initialBedtime);
       setWakeTime(initialWakeTime);
@@ -488,14 +553,17 @@ export default function App() {
     }
 
     try {
-      localStorage.setItem('owlup_user_profile', JSON.stringify(profile));
+      localStorage.setItem('owlup_user_profile', JSON.stringify(finalizedProfile));
       localStorage.setItem('owlup_onboarding_completed', 'true');
+      localStorage.removeItem('owlup_registration_draft');
     } catch {}
 
     // Adjust caffeine limits based on frequency (strictly capped at FDA 400mg safe ceiling)
-    const { dailyLimitMg, thresholdMg } = getCaffeineLimitsByFrequency(profile.caffeineFrequency);
+    const { dailyLimitMg, thresholdMg } = getCaffeineLimitsByFrequency(finalizedProfile.caffeineFrequency);
     handleUpdateSettings({ caffeineThresholdMg: thresholdMg, dailyCaffeineLimitMg: dailyLimitMg });
 
+    setPrefilledGoogleUser(null);
+    setRegistrationNotice('');
     setShowLandingScreen(false);
     setIsOnboardingOpen(false);
     setActiveFeature('dashboard');
@@ -509,53 +577,45 @@ export default function App() {
     }
   };
 
-  const handleLoginWithGoogle = (googleUser: { email: string; name: string; picture?: string }) => {
+  const handleLoginWithGoogle = (googleUser: GoogleUserData) => {
     const email = googleUser.email.trim().toLowerCase();
-    const accounts = getStoredAccounts();
-    const account = accounts[email];
-    if (account) {
+    const isRegistered = checkAccountRegistered(email);
+
+    if (isRegistered) {
+      // FLOW A: Existing Registered User
       handleLoginWithEmail(email);
+      setRegistrationNotice('');
+      setPrefilledGoogleUser(null);
       setShowLandingScreen(false);
-      return;
+      return { success: true, isRegistered: true };
     }
 
-    // Auto-create account for new Google user
-    const newProfile: UserProfile = {
-      name: googleUser.name || 'OwlUp User',
-      age: 22,
-      usualBedtime: '23:00',
-      targetBedtime: '23:00',
-      chronotype: 'night_owl',
-      energyCrave: 'balanced',
-      energyCraves: ['balanced'],
-      caffeineFrequency: 'once_a_day',
-      email,
-      authProvider: 'google',
-      photoUrl: googleUser.picture,
-      createdAt: new Date().toISOString(),
-    };
+    // FLOW B: New User Attempts to Sign In with Google
+    // DO NOT auto-create account!
+    // DO NOT grant Dashboard access!
+    const isEn = (settings.language || 'en') === 'en';
+    const message = isEn
+      ? 'This Google account is not registered with OwlUp yet. Please complete the registration process to create your account.'
+      : 'Tài khoản Google này chưa được đăng ký với OwlUp. Vui lòng hoàn thành quy trình đăng ký để tạo tài khoản.';
 
-    saveAccountData(email, {
-      profile: newProfile,
-      lastActiveDate: getTodayDateStr(),
-    });
-
-    setUserProfile(newProfile);
-    localStorage.setItem('owlup_active_email', email);
-    localStorage.setItem('owlup_user_profile', JSON.stringify(newProfile));
-    setShowLandingScreen(false);
-    setIsOnboardingOpen(false);
+    setPrefilledGoogleUser(googleUser);
+    setRegistrationNotice(message);
+    setIsGuestOnboarding(false);
+    setIsOnboardingOpen(true);
+    setShowLandingScreen(true);
+    return { success: false, isRegistered: false, message };
   };
 
   const handleLoginWithEmail = (emailInput: string): boolean => {
     const email = emailInput.trim().toLowerCase();
     const accounts = getStoredAccounts();
     const account = accounts[email];
-    if (!account) return false;
+    if (!account || !account.profile || account.profile.onboardingCompleted === false) return false;
 
     setUserProfile(account.profile);
     localStorage.setItem('owlup_active_email', email);
     localStorage.setItem('owlup_user_profile', JSON.stringify(account.profile));
+    localStorage.setItem('owlup_onboarding_completed', 'true');
 
     const todayStr = getTodayDateStr();
     const lastActive = account.lastActiveDate;
@@ -698,7 +758,11 @@ export default function App() {
     try {
       localStorage.removeItem('owlup_user_profile');
       localStorage.removeItem('owlup_active_email');
+      localStorage.removeItem('owlup_onboarding_completed');
+      localStorage.removeItem('owlup_registration_draft');
     } catch {}
+    setPrefilledGoogleUser(null);
+    setRegistrationNotice('');
     setIsSettingsOpen(false);
     setShowLandingScreen(true);
   };
@@ -1072,6 +1136,7 @@ export default function App() {
           onLoginWithGoogle={handleLoginWithGoogle}
           onStartProfileSetup={() => setIsOnboardingOpen(true)}
           onContinueAsGuest={handleContinueAsGuest}
+          registrationNotice={registrationNotice}
           defaultEmail="k63.2412550051@ftu.edu.vn"
         />
 
@@ -1086,6 +1151,13 @@ export default function App() {
           onLanguageChange={(lang) => handleUpdateSettings({ language: lang })}
           defaultEmail="k63.2412550051@ftu.edu.vn"
           isGuestMode={isGuestOnboarding}
+          prefilledGoogleUser={prefilledGoogleUser}
+          registrationNotice={registrationNotice}
+          onCheckExistingAccount={checkAccountRegistered}
+          onExistingAccountLogin={(email) => {
+            handleLoginWithEmail(email);
+            setIsOnboardingOpen(false);
+          }}
         />
       </div>
     );
@@ -1235,7 +1307,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Onboarding & Profile Setup with 6-question flow + Google Sign In */}
+      {/* Onboarding & Profile Setup with 8-step flow + Google Sign In */}
       <OnboardingModal
         isOpen={isOnboardingOpen}
         onClose={handleCloseOnboarding}
@@ -1245,6 +1317,14 @@ export default function App() {
         onCompleteProfile={handleCompleteProfile}
         onLanguageChange={(lang) => handleUpdateSettings({ language: lang })}
         defaultEmail="k63.2412550051@ftu.edu.vn"
+        isGuestMode={isGuestOnboarding}
+        prefilledGoogleUser={prefilledGoogleUser}
+        registrationNotice={registrationNotice}
+        onCheckExistingAccount={checkAccountRegistered}
+        onExistingAccountLogin={(email) => {
+          handleLoginWithEmail(email);
+          setIsOnboardingOpen(false);
+        }}
       />
 
       {/* Progressive Contextual Feature Guide or Full Guide Popup */}

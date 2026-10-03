@@ -7,7 +7,8 @@ interface LandingScreenProps {
   onStartProfileSetup: () => void;
   onContinueAsGuest: () => void;
   onLoginWithEmail?: (email: string) => boolean;
-  onLoginWithGoogle?: (user: GoogleUserData) => void;
+  onLoginWithGoogle?: (user: GoogleUserData) => { success: boolean; isRegistered: boolean; message?: string } | void;
+  registrationNotice?: string;
   defaultEmail?: string;
   isNight?: boolean;
   hasCompletedProfile?: boolean;
@@ -29,6 +30,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   onContinueAsGuest,
   onLoginWithEmail,
   onLoginWithGoogle,
+  registrationNotice = '',
   isNight = false,
   hasCompletedProfile = false,
   language: initialLang
@@ -37,6 +39,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   const [signInEmail, setSignInEmail] = useState('');
   const [signInError, setSignInError] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [localNotice, setLocalNotice] = useState('');
 
   // Auto-detect browser/device language if not explicitly provided
   const detectedLang: 'en' | 'vi' = initialLang || (() => {
@@ -50,15 +53,27 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
   const isEn = detectedLang === 'en';
 
+  const activeNotice = localNotice || registrationNotice;
+
   const handleGoogleSignInClick = async () => {
     setIsGoogleLoading(true);
     setSignInError('');
+    setLocalNotice('');
     try {
       const user = await signInWithGooglePopup();
       if (onLoginWithGoogle) {
-        onLoginWithGoogle(user);
+        const res = onLoginWithGoogle(user);
+        if (res && !res.isRegistered) {
+          setLocalNotice(res.message || '');
+        }
       } else if (onLoginWithEmail) {
-        onLoginWithEmail(user.email);
+        const ok = onLoginWithEmail(user.email);
+        if (!ok) {
+          const msg = isEn
+            ? 'This Google account is not registered with OwlUp yet. Please complete the registration process to create your account.'
+            : 'Tài khoản Google này chưa được đăng ký với OwlUp. Vui lòng hoàn thành quy trình đăng ký để tạo tài khoản.';
+          setLocalNotice(msg);
+        }
       }
       setShowSignInModal(false);
     } catch (err: any) {
@@ -126,6 +141,27 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
             </>
           )}
         </h1>
+
+        {activeNotice && (
+          <div className="mb-8 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-medium flex items-start gap-3 shadow-sm text-left max-w-lg mx-auto animate-fade-in">
+            <span className="text-base sm:text-lg shrink-0">⚠️</span>
+            <div className="flex-1">
+              <p className="leading-relaxed">{activeNotice}</p>
+              <button
+                onClick={onStartProfileSetup}
+                className="mt-2.5 inline-flex items-center gap-1 text-xs font-bold text-[#007b4d] dark:text-[#62D2FB] hover:underline cursor-pointer"
+              >
+                {isEn ? 'Complete registration to create account →' : 'Hoàn thành đăng ký để tạo tài khoản →'}
+              </button>
+            </div>
+            <button
+              onClick={() => setLocalNotice('')}
+              className="text-amber-700 dark:text-amber-400 hover:opacity-75 p-0.5 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         <button
           onClick={onStartProfileSetup}

@@ -3,7 +3,7 @@ import { ArrowLeft, X, Moon, Sun, Activity, Search, Shield, Zap, User } from 'lu
 import { Logo } from './Logo';
 import { TimePickerInput } from './TimePickerInput';
 import { formatDisplayTime } from '../utils/timeFormat';
-import { signInWithGooglePopup } from '../utils/googleAuth';
+import { signInWithGooglePopup, GoogleUserData } from '../utils/googleAuth';
 
 interface OnboardingProps {
   isOpen: boolean;
@@ -15,6 +15,10 @@ interface OnboardingProps {
   onLanguageChange?: (lang: 'en' | 'vi') => void;
   defaultEmail?: string;
   isGuestMode?: boolean;
+  prefilledGoogleUser?: GoogleUserData | null;
+  registrationNotice?: string;
+  onCheckExistingAccount?: (email: string) => boolean;
+  onExistingAccountLogin?: (email: string) => void;
 }
 
 const GoogleIcon = ({ className = "" }: { className?: string }) => (
@@ -88,8 +92,14 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   isNight = false, 
   language: initialLang, 
   onLanguageChange,
-  isGuestMode = false
+  isGuestMode = false,
+  prefilledGoogleUser = null,
+  registrationNotice = '',
+  onCheckExistingAccount,
+  onExistingAccountLogin
 }) => {
+  const DRAFT_KEY = 'owlup_registration_draft';
+
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = isGuestMode ? 7 : 8;
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -108,6 +118,63 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isAnalyzingChronotype, setIsAnalyzingChronotype] = useState(false);
+
+  // Restore draft answers when modal opens
+  React.useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.step && draft.step >= 1 && draft.step <= (isGuestMode ? 7 : 8)) {
+          setCurrentStep(draft.step);
+        }
+        if (draft.language) setLanguage(draft.language);
+        if (draft.bedtime) setBedtime(draft.bedtime);
+        if (draft.isCustomBedtime !== undefined) setIsCustomBedtime(draft.isCustomBedtime);
+        if (draft.customBedtime) setCustomBedtime(draft.customBedtime);
+        if (Array.isArray(draft.craves)) setCraves(draft.craves);
+        if (draft.caffeineFreq) setCaffeineFreq(draft.caffeineFreq);
+        if (draft.chronotype) setChronotype(draft.chronotype);
+        if (Array.isArray(draft.goals)) setGoals(draft.goals);
+        if (draft.age !== undefined && draft.age !== '') setAge(draft.age);
+        if (draft.name) setName(draft.name);
+      }
+    } catch {}
+  }, [isOpen, isGuestMode]);
+
+  // Synchronize prefilled Google User (e.g. from Flow B redirect)
+  React.useEffect(() => {
+    if (prefilledGoogleUser) {
+      if (prefilledGoogleUser.name && !name) {
+        setName(prefilledGoogleUser.name);
+      }
+      if (prefilledGoogleUser.email && !email) {
+        setEmail(prefilledGoogleUser.email);
+      }
+    }
+  }, [prefilledGoogleUser]);
+
+  // Auto-save draft registration progress as user fills answers
+  React.useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const draft = {
+        step: currentStep,
+        language,
+        bedtime,
+        isCustomBedtime,
+        customBedtime,
+        craves,
+        caffeineFreq,
+        chronotype,
+        goals,
+        age,
+        name,
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {}
+  }, [isOpen, currentStep, language, bedtime, isCustomBedtime, customBedtime, craves, caffeineFreq, chronotype, goals, age, name]);
 
   const isEn = language === 'en';
 
@@ -163,6 +230,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
 
     setIsSigningIn(true);
     setTimeout(() => {
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {}
       onCompleteProfile({
         language: language || 'en',
         name: name.trim() || (isEn ? 'Guest' : 'Khách'),
@@ -178,10 +248,42 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         authProvider: provider,
         email: chosenEmail,
         photoUrl: chosenEmail ? `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(chosenEmail)}` : undefined,
+        onboardingCompleted: true,
         createdAt: new Date().toISOString()
       });
       setIsSigningIn(false);
     }, 1000);
+  };
+
+  const handleCompleteWithPrefilledGoogle = () => {
+    if (!prefilledGoogleUser) return;
+    setIsSigningIn(true);
+    setEmailError('');
+    const customName = name.trim() || prefilledGoogleUser.name || (isEn ? 'Guest' : 'Khách');
+    setTimeout(() => {
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {}
+      onCompleteProfile({
+        language: language || 'en',
+        name: customName,
+        usualBedtime: isCustomBedtime ? customBedtime : bedtime,
+        targetBedtime: isCustomBedtime ? customBedtime : bedtime,
+        craves,
+        energyCrave: craves,
+        energyCraves: craves,
+        caffeineFrequency: caffeineFreq || 'once_a_day',
+        chronotype: (chronotype as any) || 'night_owl',
+        goals,
+        age: age === '' ? 25 : age,
+        authProvider: 'google',
+        email: prefilledGoogleUser.email,
+        photoUrl: prefilledGoogleUser.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(prefilledGoogleUser.email)}`,
+        onboardingCompleted: true,
+        createdAt: new Date().toISOString()
+      });
+      setIsSigningIn(false);
+    }, 400);
   };
 
   const handleGoogleSignUp = async () => {
@@ -189,7 +291,28 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     setEmailError('');
     try {
       const gUser = await signInWithGooglePopup();
+      // Flow C: If account already exists, redirect into existing account without creating duplicate
+      if (onCheckExistingAccount && onCheckExistingAccount(gUser.email)) {
+        setEmailError(
+          isEn
+            ? 'This Google account already has an OwlUp account. Redirecting you to your existing account...'
+            : 'Tài khoản Google này đã được đăng ký OwlUp. Đang chuyển bạn đến tài khoản đã có...'
+        );
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {}
+        setTimeout(() => {
+          if (onExistingAccountLogin) {
+            onExistingAccountLogin(gUser.email);
+          }
+        }, 800);
+        return;
+      }
+
       const customName = name.trim() || gUser.name || (isEn ? 'Guest' : 'Khách');
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {}
       onCompleteProfile({
         language: language || 'en',
         name: customName,
@@ -205,6 +328,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         authProvider: 'google',
         email: gUser.email,
         photoUrl: gUser.picture || `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(gUser.email)}`,
+        onboardingCompleted: true,
         createdAt: new Date().toISOString()
       });
     } catch (err: any) {
@@ -266,6 +390,20 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       </div>
 
       <div className="flex-1 w-full relative h-full flex flex-col">
+        {registrationNotice && (
+          <div className="mx-auto w-[94%] sm:w-[90%] md:w-[85%] max-w-[900px] mt-20 sm:mt-24 -mb-12 sm:-mb-14 p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm font-medium flex items-center justify-between gap-3 shadow-sm animate-fade-in z-30 relative">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base sm:text-lg shrink-0">⚠️</span>
+              <span>{registrationNotice}</span>
+            </div>
+            {prefilledGoogleUser?.email && (
+              <span className="text-xs px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 font-mono hidden sm:inline-block shrink-0">
+                {prefilledGoogleUser.email}
+              </span>
+            )}
+          </div>
+        )}
+
         {currentStep === 1 && (
           <StepLayout 
             handleNext={handleNext} 
@@ -481,14 +619,64 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
             </h1>
 
             <div className="w-full max-w-md mx-auto space-y-4 text-center">
-              <button
-                onClick={handleGoogleSignUp}
-                disabled={isSigningIn}
-                className="w-full py-4 rounded-full border border-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white dark:border-slate-700 flex items-center justify-center gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.16)] hover:-translate-y-1 transition-all duration-300 ease-in-out cursor-pointer active:scale-95"
-              >
-                <GoogleIcon className="w-6 h-6" />
-                <span className="font-sans font-bold text-lg">{isEn ? 'Sign up with Google' : 'Đăng ký bằng Google'}</span>
-              </button>
+              {prefilledGoogleUser ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-[#4CB28E]/40 dark:border-[#62D2FB]/40 flex items-center gap-3.5 text-left shadow-sm">
+                    {prefilledGoogleUser.picture ? (
+                      <img
+                        src={prefilledGoogleUser.picture}
+                        alt=""
+                        className="w-12 h-12 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#4CB28E]/20 dark:bg-[#62D2FB]/20 flex items-center justify-center font-bold text-[#4CB28E] dark:text-[#62D2FB] shrink-0 text-lg">
+                        {prefilledGoogleUser.name?.[0]?.toUpperCase() || 'G'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-sans font-semibold text-sm sm:text-base text-slate-800 dark:text-white truncate">
+                          {name.trim() || prefilledGoogleUser.name}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#4CB28E]/15 dark:bg-[#62D2FB]/15 text-[#007b4d] dark:text-[#62D2FB] shrink-0">
+                          ✓ Google Verified
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                        {prefilledGoogleUser.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleCompleteWithPrefilledGoogle}
+                    disabled={isSigningIn}
+                    className="w-full py-4 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] font-sans font-bold text-lg shadow-[0_8px_30px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_40px_rgba(82,183,136,0.35)] hover:-translate-y-1 transition-all duration-300 ease-in-out cursor-pointer active:scale-95"
+                  >
+                    {isEn ? 'Complete Registration with Google' : 'Hoàn tất đăng ký bằng Google'}
+                  </button>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignUp}
+                      disabled={isSigningIn}
+                      className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline cursor-pointer"
+                    >
+                      {isEn ? 'Use a different Google account' : 'Sử dụng tài khoản Google khác'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGoogleSignUp}
+                  disabled={isSigningIn}
+                  className="w-full py-4 rounded-full border border-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-white dark:border-slate-700 flex items-center justify-center gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.16)] hover:-translate-y-1 transition-all duration-300 ease-in-out cursor-pointer active:scale-95"
+                >
+                  <GoogleIcon className="w-6 h-6" />
+                  <span className="font-sans font-bold text-lg">{isEn ? 'Sign up with Google' : 'Đăng ký bằng Google'}</span>
+                </button>
+              )}
 
               {emailError && (
                 <p className="text-red-500 text-xs font-medium px-4">{emailError}</p>

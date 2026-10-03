@@ -58,6 +58,7 @@ export interface UserProfile {
   email?: string;
   photoUrl?: string;
   authProvider?: 'google' | 'guest';
+  onboardingCompleted?: boolean;
   createdAt?: string;
 }
 
