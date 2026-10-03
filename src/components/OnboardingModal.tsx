@@ -96,9 +96,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
 
   // States
   const [language, setLanguage] = useState<'en'|'vi'|null>(null);
-  const [bedtime, setBedtime] = useState('22:30');
+  const [bedtime, setBedtime] = useState('');
   const [isCustomBedtime, setIsCustomBedtime] = useState(false);
-  const [customBedtime, setCustomBedtime] = useState('22:30');
+  const [customBedtime, setCustomBedtime] = useState('');
   const [craves, setCraves] = useState<string[]>([]);
   const [caffeineFreq, setCaffeineFreq] = useState('');
   const [chronotype, setChronotype] = useState('');
@@ -107,7 +107,6 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [isAnalyzingChronotype, setIsAnalyzingChronotype] = useState(false);
 
   const isEn = language === 'en';
 
@@ -115,26 +114,8 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
 
   const handleNext = () => {
     if (currentStep === 4) {
-      // Transitioning to Step 5 (Chronotype). Trigger analysis.
-      setIsAnalyzingChronotype(true);
+      // Transition to Step 5 (Chronotype) without auto-preselecting
       setCurrentStep(5);
-      
-      // Auto-detect based on bedtime (parse bedtime)
-      setTimeout(() => {
-        let b = isCustomBedtime ? customBedtime : bedtime;
-        let [h, m] = b.split(':').map(Number);
-        if (h >= 4 && h < 20) {
-           // Weird times, let's just say intermediate
-           setChronotype('intermediate');
-        } else if (h >= 20 && h <= 22) {
-           setChronotype('early_bird');
-        } else if (h === 23) {
-           setChronotype('intermediate');
-        } else {
-           setChronotype('night_owl');
-        }
-        setIsAnalyzingChronotype(false);
-      }, 1500);
       return;
     }
 
@@ -316,7 +297,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
             stepNum={2} 
             title={isEn ? "2. When do you usually sleep?" : "2. Bạn thường ngủ lúc mấy giờ?"} 
             subtitle={isEn ? "Choose the time you usually go to bed each night to personalize your circadian rhythm." : "Chọn khung giờ bạn thường bắt đầu lên giường đi ngủ mỗi đêm để tối ưu nhịp sinh học."}
-            isNextValid={true}
+            isNextValid={Boolean(isCustomBedtime ? customBedtime : bedtime)}
           >
             <div className="grid grid-cols-2 gap-3.5">
               {['21:30', '22:00', '22:30', '23:00', '23:30', '00:00'].map(time => (
@@ -399,39 +380,32 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
         )}
 
         {currentStep === 5 && (
-          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={5} title={isEn ? "5. What's your chronotype?" : "5. Nhịp sinh học của bạn là gì?"} isNextValid={chronotype !== '' && !isAnalyzingChronotype}>
-            {isAnalyzingChronotype ? (
-              <div className="flex flex-col items-center justify-center space-y-4 py-8">
-                <div className="w-12 h-12 border-4 border-slate-200 border-t-[#4CB28E] dark:border-t-[#62D2FB] rounded-full animate-spin"></div>
-                <div className="text-slate-500 font-medium">{isEn ? "Analyzing your sleep habits..." : "Đang phân tích thói quen ngủ của bạn..."}</div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <OptionCard label={isEn ? "Early bird" : "Người dậy sớm (Chim sớm)"} icon="🌅" selected={chronotype === 'early_bird'} onClick={() => setChronotype('early_bird')} />
-                <OptionCard label={isEn ? "Night owl" : "Người thức khuya (Cú đêm)"} icon="🌙" selected={chronotype === 'night_owl'} onClick={() => setChronotype('night_owl')} />
-                <OptionCard label={isEn ? "Flexible sleeper" : "Người có lịch ngủ linh hoạt"} icon="✨" selected={chronotype === 'intermediate'} onClick={() => setChronotype('intermediate')} />
+          <StepLayout handleNext={handleNext} isEn={isEn} stepNum={5} title={isEn ? "5. What's your chronotype?" : "5. Nhịp sinh học của bạn là gì?"} isNextValid={chronotype !== ''}>
+            <div className="space-y-4">
+              <OptionCard label={isEn ? "Early bird" : "Người dậy sớm (Chim sớm)"} icon="🌅" selected={chronotype === 'early_bird'} onClick={() => setChronotype('early_bird')} />
+              <OptionCard label={isEn ? "Night owl" : "Người thức khuya (Cú đêm)"} icon="🌙" selected={chronotype === 'night_owl'} onClick={() => setChronotype('night_owl')} />
+              <OptionCard label={isEn ? "Flexible sleeper" : "Người có lịch ngủ linh hoạt"} icon="✨" selected={chronotype === 'intermediate'} onClick={() => setChronotype('intermediate')} />
+              
+              {(() => {
+                let b = isCustomBedtime ? customBedtime : bedtime;
+                if (!b) return null;
+                let [h] = b.split(':').map(Number);
+                let expected = (h >= 20 && h <= 22) ? 'early_bird' : (h >= 0 && h < 4) || h === 23 ? 'night_owl' : 'intermediate';
+                let hasConflict = false;
+                if (expected === 'early_bird' && chronotype === 'night_owl') hasConflict = true;
+                if (expected === 'night_owl' && chronotype === 'early_bird') hasConflict = true;
                 
-                {(() => {
-                  let b = isCustomBedtime ? customBedtime : bedtime;
-                  let [h] = b.split(':').map(Number);
-                  let expected = (h >= 20 && h <= 22) ? 'early_bird' : (h >= 0 && h < 4) || h === 23 ? 'night_owl' : 'intermediate';
-                  // if they chose something very conflicting
-                  let hasConflict = false;
-                  if (expected === 'early_bird' && chronotype === 'night_owl') hasConflict = true;
-                  if (expected === 'night_owl' && chronotype === 'early_bird') hasConflict = true;
-                  
-                  if (hasConflict) {
-                    return (
-                      <div className="mt-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 flex gap-3 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
-                        <span className="text-lg">⚠️</span>
-                        <span>{isEn ? "Warning: Your selected chronotype doesn't biologically match your bedtime. This may cause sleep inertia." : "Cảnh báo: Nhịp sinh học bạn chọn đang xung đột sinh học với giờ ngủ của bạn. Điều này có thể gây quán tính giấc ngủ."}</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-            )}
+                if (hasConflict) {
+                  return (
+                    <div className="mt-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 flex gap-3 text-red-600 dark:text-red-400 text-sm font-medium animate-fade-in">
+                      <span className="text-lg">⚠️</span>
+                      <span>{isEn ? "Warning: Your selected chronotype doesn't biologically match your bedtime. This may cause sleep inertia." : "Cảnh báo: Nhịp sinh học bạn chọn đang xung đột sinh học với giờ ngủ của bạn. Điều này có thể gây quán tính giấc ngủ."}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           </StepLayout>
         )}
 
