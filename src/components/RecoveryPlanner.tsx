@@ -873,16 +873,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   </div>
                   <div>
                     <div className="text-xs sm:text-sm text-[#007b4d] dark:text-[#62D2FB]/80 mb-2 font-medium">
-                      {isEn ? "Title (e.g. Work, Meeting, Workout)" : "Tên hoạt động (VD: Họp, Học bài, Tập gym)"}
+                      {isEn ? "Activity title" : "Tên hoạt động"}
                     </div>
                     <input 
                       type="text" 
                       placeholder={
-                        isMorningWindow 
-                          ? (isEn ? "Morning Lecture" : "VD: Học buổi sáng")
-                          : isAfternoonWindow
-                          ? (isEn ? "Afternoon Meeting" : "VD: Họp chiều, tập gym...")
-                          : (isEn ? "Overtime, studying..." : "VD: Tăng ca, ôn thi...")
+                        isEn ? "e.g. Meeting, Study, Gym..." : "VD: Họp, Học bài, Tập gym..."
                       }
                       value={newTitle}
                       onChange={(e) => setNewTitle(e.target.value)}
