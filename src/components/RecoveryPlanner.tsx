@@ -22,6 +22,7 @@ import {
 import { TimePickerInput } from './TimePickerInput';
 import { AppLanguage, UserProfile, DayRecoveryGoal } from '../types';
 import { formatDisplayTime } from '../utils/timeFormat';
+import { validateSleepSchedule } from '../utils/sleepValidation';
 
 export interface RecoveryPlannerProps {
   isNight: boolean;
@@ -65,8 +66,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   // 1. Sáng & Trưa (< 14:00): Full day planning (Daytime commitments + Nap + Night sleep)
   // 2. Chiều (14:00 - 18:00): Afternoon & evening planning (< 15:30 quick nap; >= 15:30 no nap + tip)
   // 3. Tối (>= 18:00): Evening commitments + Night sleep focus (No nap)
-  const currentHour = new Date().getHours();
-  const currentMinutes = currentHour * 60 + new Date().getMinutes();
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentHour = currentTime.getHours();
+  const currentMinutes = currentHour * 60 + currentTime.getMinutes();
   const isMorningWindow = currentHour < 14;
   const isAfternoonWindow = currentHour >= 14 && currentHour < 18;
   const isEveningWindow = currentHour >= 18;
@@ -263,53 +270,37 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     ? parseMins('22:30')
     : rawBaseBedMins;
 
+  const customSleepValidation = validateSleepSchedule(
+    customBedtime,
+    customWakeTime,
+    currentTime,
+    napStart,
+    napDuration
+  );
+
+  const isStep3Valid = customSleepValidation.isValid;
+  const validationError = !customSleepValidation.isValid
+    ? (isEn ? customSleepValidation.messageEn : customSleepValidation.messageVi)
+    : null;
+
   const liveBedtimeMins = parseMins(customBedtime);
   const liveWakeMins = parseMins(customWakeTime);
-  
-  let liveDurationMins = liveWakeMins - liveBedtimeMins;
-  if (liveDurationMins < 0) liveDurationMins += 24 * 60;
+  const liveDurationMins = isStep3Valid ? customSleepValidation.sleepDurationMins : 0;
   
   const parsedNap = parseInt(napDuration) || 0;
-  const totalSleepMins = liveDurationMins + parsedNap;
+  const totalSleepMins = isStep3Valid ? (liveDurationMins + parsedNap) : 0;
   const liveCircadianShiftMins = getShiftMins(liveBedtimeMins, baseBedtimeMins);
   
   // Calculate Scores (Duration max 55 pts, Circadian max 45 pts)
-  let scoreDuration = 55 - Math.max(0, (7.5 * 60 - totalSleepMins) / 60) * 12;
+  let scoreDuration = isStep3Valid ? (55 - Math.max(0, (7.5 * 60 - totalSleepMins) / 60) * 12) : 0;
   if (scoreDuration < 0) scoreDuration = 0;
   if (scoreDuration > 55) scoreDuration = 55;
   scoreDuration = Math.round(scoreDuration);
 
-  let scoreCircadian = 45 - Math.floor(liveCircadianShiftMins / 30) * 5;
+  let scoreCircadian = isStep3Valid ? (45 - Math.floor(liveCircadianShiftMins / 30) * 5) : 0;
   if (scoreCircadian < 0) scoreCircadian = 0;
   if (scoreCircadian > 45) scoreCircadian = 45;
   scoreCircadian = Math.round(scoreCircadian);
-
-  const isTimeFormatValid = (t: string) => {
-    if (!t || t === '--:--' || !t.includes(':')) return false;
-    const [h, m] = t.split(':').map(Number);
-    return !isNaN(h) && !isNaN(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59;
-  };
-
-  const napStartMinsVal = parseMins(napStart);
-  const isNapInCircadianWindow = isTimeFormatValid(napStart) && napStartMinsVal >= 11 * 60 && napStartMinsVal <= 16 * 60 + 30;
-  const hasValidNightSleep = isTimeFormatValid(customBedtime) && isTimeFormatValid(customWakeTime) && liveDurationMins >= 4 * 60;
-
-  const isNapFarFromBedtime = (() => {
-    if (!isTimeFormatValid(napStart) || !isTimeFormatValid(customBedtime)) return false;
-    const napDur = parseInt(napDuration) || 0;
-    const napEnd = napStartMinsVal + napDur;
-    let diffToBed = liveBedtimeMins - napEnd;
-    if (diffToBed < 0 && liveBedtimeMins < 12 * 60) diffToBed += 24 * 60;
-    return diffToBed >= 3 * 60;
-  })();
-
-  const parsedNapVal = parseInt(napDuration) || 0;
-  const isStep3Valid = Boolean(
-    isTimeFormatValid(customBedtime) &&
-    isTimeFormatValid(customWakeTime) &&
-    hasValidNightSleep &&
-    (parsedNapVal === 0 || (isTimeFormatValid(napStart) && isNapInCircadianWindow && isNapFarFromBedtime))
-  );
 
   const liveScore = !isStep3Valid ? 0 : (scoreDuration + scoreCircadian);
   const isQualified = isStep3Valid && (liveScore >= 90 || hasAppliedOptimal);
@@ -414,6 +405,15 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     chosenBedContMins = earliestBedAfterCommMins;
   }
 
+  // Ensure Bedtime Tonight is never in the past relative to currentMinutes!
+  let curContMins = currentMinutes;
+  if (curContMins >= 12 * 60 && chosenBedContMins < 12 * 60) {
+    chosenBedContMins += 24 * 60;
+  }
+  if (chosenBedContMins <= curContMins) {
+    chosenBedContMins = Math.ceil((curContMins + 15) / 5) * 5;
+  }
+
   // Continuous wake deadline (next morning):
   let contDeadlineWake = deadlineWakeMins;
   while (contDeadlineWake <= chosenBedContMins) contDeadlineWake += 24 * 60;
@@ -427,6 +427,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     if (earliestBedAfterCommMins > 0 && shiftedBedMins < earliestBedAfterCommMins) {
       shiftedBedMins = earliestBedAfterCommMins;
     }
+    // Bedtime cannot be shifted to the past:
+    if (shiftedBedMins < curContMins) {
+      shiftedBedMins = Math.ceil((curContMins + 15) / 5) * 5;
+    }
     chosenBedContMins = shiftedBedMins;
   }
 
@@ -436,18 +440,39 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     finalWakeContMins = contDeadlineWake;
   }
 
-  let finalBedtimeMins = chosenBedContMins % (24 * 60);
-  let finalWakeMins = finalWakeContMins % (24 * 60);
+  // Ensure minimum biological sleep duration (at least 4.0 hours):
+  if (finalWakeContMins - chosenBedContMins < 4 * 60) {
+    finalWakeContMins = chosenBedContMins + 4 * 60;
+  }
 
-  // Biological Clamp: Keep night bedtime between 21:00 and 01:30
-  if (finalBedtimeMins > 1 * 60 + 30 && finalBedtimeMins < 20 * 60) {
+  let finalBedtimeMins = chosenBedContMins % (24 * 60);
+
+  // Biological Clamp: Keep night bedtime between 20:00 and 02:00
+  if (finalBedtimeMins > 2 * 60 && finalBedtimeMins < 20 * 60) {
     finalBedtimeMins = selectedGoal === 'night_owl' ? 0 * 60 + 30 : 22 * 60 + 30;
   }
 
-  finalBedtimeMins = Math.round(finalBedtimeMins / 5) * 5 % (24 * 60);
-  finalWakeMins = Math.round(finalWakeMins / 5) * 5 % (24 * 60);
+  // Double check that finalBedtimeMins is still strictly in the future after clamp:
+  let checkFinalCont = finalBedtimeMins;
+  if (curContMins >= 12 * 60 && finalBedtimeMins < 12 * 60) {
+    checkFinalCont += 24 * 60;
+  }
+  if (checkFinalCont <= curContMins) {
+    checkFinalCont = Math.ceil((curContMins + 15) / 5) * 5;
+    finalBedtimeMins = checkFinalCont % (24 * 60);
+  }
 
-  let actualRecDurationMins = finalWakeContMins - chosenBedContMins;
+  while (finalWakeContMins <= checkFinalCont) {
+    finalWakeContMins += 24 * 60;
+  }
+  if (finalWakeContMins - checkFinalCont < 4 * 60) {
+    finalWakeContMins = checkFinalCont + 4 * 60;
+  }
+
+  finalBedtimeMins = Math.round(finalBedtimeMins / 5) * 5 % (24 * 60);
+  let finalWakeMins = Math.round(finalWakeContMins / 5) * 5 % (24 * 60);
+
+  let actualRecDurationMins = finalWakeContMins - checkFinalCont;
   if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
   const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
 
@@ -525,6 +550,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   const recNapEnd = formatMins(napStartMins + calcNapDuration);
   const recNapDurationMins = calcNapDuration;
 
+  const recSleepValidation = validateSleepSchedule(
+    recBedtime,
+    recWake,
+    currentTime,
+    recNapStart,
+    recNapDurationMins.toString()
+  );
+
   // Caffeine Curfew: 10h before bedtime
   let cutoffMins = finalBedtimeMins - 10 * 60;
   while (cutoffMins < 0) cutoffMins += 24 * 60;
@@ -581,8 +614,17 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       while (chosenBed < 0) chosenBed += 24 * 60;
     }
 
-    chosenBed = Math.round(chosenBed / 5) * 5 % (24 * 60);
-    return formatMins(chosenBed);
+    // Ensure bedtime is not in the past relative to currentMinutes
+    let bedCont = chosenBed;
+    if (currentMinutes >= 12 * 60 && chosenBed < 12 * 60) {
+      bedCont = chosenBed + 24 * 60;
+    }
+    if (bedCont <= currentMinutes) {
+      bedCont = Math.ceil((currentMinutes + 15) / 5) * 5;
+    }
+
+    const finalBed = bedCont % (24 * 60);
+    return formatMins(Math.round(finalBed / 5) * 5 % (24 * 60));
   };
 
   // Free Recovery Windows Calculation
@@ -1314,8 +1356,21 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               </div>
             </div>
 
+            {/* Step 3 Validation Notice */}
+            {!recSleepValidation.isValid && (
+              <div className="mt-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 text-sm font-medium flex items-start gap-3 animate-shake">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+                <div className="leading-relaxed">
+                  <strong className="block mb-0.5 font-bold">
+                    {isEn ? "Schedule Notice:" : "Cảnh báo lịch trình:"}
+                  </strong>
+                  <p>{isEn ? recSleepValidation.messageEn : recSleepValidation.messageVi}</p>
+                </div>
+              </div>
+            )}
+
             {/* Bottom action bar */}
-            <div className="flex justify-between items-center mt-4">
+            <div className="flex justify-between items-center mt-6">
               <button 
                 onClick={() => setStep(2)} 
                 className="text-slate-400 hover:text-[#007b4d] dark:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer"
@@ -1340,6 +1395,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     </button>
                     <button 
                       onClick={() => {
+                        if (!recSleepValidation.isValid) return;
                         setCustomBedtime(recBedtime);
                         setCustomWakeTime(recWake);
                         setNapStart(recNapStart);
@@ -1366,7 +1422,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                           setStep(5);
                         } catch {}
                       }}
-                      className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                      disabled={!recSleepValidation.isValid}
+                      className={`rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md ${
+                        recSleepValidation.isValid
+                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] cursor-pointer hover:-translate-y-1'
+                          : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
+                      }`}
                     >
                       {isEn ? "Agree" : "Đồng ý"}
                     </button>
@@ -1492,9 +1553,20 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               </div>
 
               {/* Night Sleep */}
-              <div className="border border-[#007b4d] dark:border-[#62D2FB] rounded-2xl p-5 sm:p-6 bg-[#E6F8F0] dark:bg-[#62D2FB]/10 shadow-sm overflow-hidden">
-                <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] mb-4 uppercase">
-                  {isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}
+              <div className={`border rounded-2xl p-5 sm:p-6 shadow-sm overflow-hidden transition-all ${
+                validationError 
+                  ? 'border-red-300 dark:border-red-500/50 bg-red-50/40 dark:bg-red-950/20' 
+                  : 'border-[#007b4d] dark:border-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/10'
+              }`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm font-bold text-[#007b4d] dark:text-[#62D2FB] uppercase">
+                    {isEn ? "MAIN NIGHT SLEEP" : "GIẤC NGỦ ĐÊM NAY"}
+                  </div>
+                  {validationError && (
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                      {isEn ? "Invalid Time" : "Chưa hợp lệ"}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 sm:gap-4 mb-2">
                   <div className="flex-1 min-w-0 flex flex-col">
@@ -1514,6 +1586,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     </div>
                   </div>
                 </div>
+                {validationError && (
+                  <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-800/60 flex items-start gap-2 text-xs sm:text-sm text-red-700 dark:text-red-300 leading-snug">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400" />
+                    <span>{validationError}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1551,6 +1629,19 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               </div>
             </div>
 
+            {/* Validation Notice Banner above action buttons */}
+            {validationError && (
+              <div className="mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 text-sm font-medium flex items-start gap-3 animate-shake">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+                <div className="leading-relaxed">
+                  <strong className="block mb-0.5 font-bold">
+                    {isEn ? "Schedule adjustment required:" : "Cần điều chỉnh lại khung giờ:"}
+                  </strong>
+                  <p>{validationError}</p>
+                </div>
+              </div>
+            )}
+
             {/* Bottom buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <button 
@@ -1560,7 +1651,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
               </button>
 
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col items-stretch sm:items-end gap-1.5">
                 <button 
                   onClick={() => {
                     if (isStep3Valid) {
@@ -1588,14 +1679,21 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     }
                   }} 
                   disabled={!isStep3Valid}
-                  className={`font-bold text-sm sm:text-base md:text-lg px-6 sm:px-8 py-3 rounded-full text-center transition-all ${
+                  className={`font-bold text-sm sm:text-base md:text-lg px-8 sm:px-14 py-3.5 sm:py-4 rounded-full text-center transition-all ${
                     isStep3Valid
-                      ? 'bg-[#4CB28E] hover:bg-[#007b4d] text-white cursor-pointer shadow-md'
-                      : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50'
+                      ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] cursor-pointer shadow-md hover:-translate-y-1'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
                   }`}
                 >
-                  {isEn ? "Save Custom Schedule" : "Lưu lịch tùy chỉnh"}
+                  {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
                 </button>
+                {!isStep3Valid && (
+                  <p className="text-xs text-red-500 dark:text-red-400 font-medium text-center sm:text-right">
+                    {isEn 
+                      ? "Button disabled: please adjust time period to continue" 
+                      : "Nút bị vô hiệu hóa: vui lòng điều chỉnh lại giờ"}
+                  </p>
+                )}
               </div>
             </div>
           </div>
