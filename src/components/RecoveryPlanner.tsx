@@ -917,12 +917,18 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     </div>
                   </div>
 
-                  {timeError && (
-                    <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-[#FEF5F5] dark:bg-[#7F1D1D]/20 border border-[#C10007]/30 text-[#C10007] dark:text-[#FCA5A5] text-sm font-medium animate-fade-in">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{timeError}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const hasBothTimes = Boolean(newStart && newEnd && newStart.includes(':') && newEnd.includes(':') && !newStart.includes('--') && !newEnd.includes('--'));
+                    const currentValidation = hasBothTimes ? validateTimes(newStart, newEnd) : null;
+                    const activeTimeError = timeError || (hasBothTimes && currentValidation && !currentValidation.valid ? currentValidation.error : null);
+
+                    return activeTimeError ? (
+                      <div className="flex items-center gap-2.5 p-3.5 rounded-xl bg-[#FEF5F5] dark:bg-[#7F1D1D]/20 border border-[#C10007]/30 text-[#C10007] dark:text-[#FCA5A5] text-sm font-medium animate-fade-in">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{activeTimeError}</span>
+                      </div>
+                    ) : null;
+                  })()}
 
                   <div className="flex justify-end items-center gap-4 sm:gap-8 pt-4">
                     <button 
