@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Clock, X, ChevronUp, ChevronDown } from 'lucide-react';
 
 export interface TimePickerInputProps {
@@ -169,6 +169,26 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
 
   // Tracks whether the user just focused the field (for clean replacement on first digit)
   const isFreshFocusRef = useRef<boolean>(false);
+  const nextCursorRef = useRef<number | null>(null);
+  const isComposingRef = useRef<boolean>(false);
+
+  // Synchronously set cursor selection immediately after React renders
+  useLayoutEffect(() => {
+    if (inputRef.current && nextCursorRef.current !== null) {
+      const pos = nextCursorRef.current;
+      inputRef.current.setSelectionRange(pos, pos);
+      nextCursorRef.current = null;
+    }
+  });
+
+  const handleCompositionStart = () => {
+    isComposingRef.current = true;
+  };
+
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    isComposingRef.current = false;
+    processInput(e.currentTarget.value);
+  };
 
   // Sync display from external `value` prop when NOT focused
   useEffect(() => {
@@ -226,6 +246,13 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     });
   };
 
+  const handleClick = () => {
+    // If clicking inside an already focused input, don't trigger fresh replacement
+    if (!isFreshFocusRef.current) {
+      isFreshFocusRef.current = false;
+    }
+  };
+
   // Blur: validate and finalize partial or full input
   const handleBlur = () => {
     setIsFocused(false);
@@ -258,14 +285,9 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       h = parseInt(digits, 10);
       m = 0;
     } else if (digits.length === 3) {
-      if (parseInt(digits.slice(1), 10) <= 59) {
-        h = parseInt(digits.slice(0, 1), 10);
-        m = parseInt(digits.slice(1), 10);
-      } else {
-        h = parseInt(digits.slice(0, 2), 10);
-        const mTens = parseInt(digits.slice(2), 10);
-        m = mTens <= 5 ? mTens * 10 : mTens;
-      }
+      h = parseInt(digits.slice(0, 2), 10);
+      m = parseInt(digits.slice(2), 10) * 10;
+      if (m > 59) m = 59;
     } else {
       h = parseInt(digits.slice(0, 2), 10);
       m = parseInt(digits.slice(2, 4), 10);
@@ -310,17 +332,19 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       if (start === 0 && end === display.length && display.length > 0) {
         e.preventDefault();
         setDisplay('');
+        nextCursorRef.current = 0;
         onChange('');
         isFreshFocusRef.current = false;
         return;
       }
 
-      // If display ends with ':' (e.g. "18:") and cursor is right after colon (index 3)
-      if (start === end && start === display.length && display.endsWith(':')) {
+      // If display ends with ':' (e.g. "11:") and cursor is at or after colon
+      if (start === end && start >= display.length - 1 && display.endsWith(':')) {
         e.preventDefault();
-        // Remove both colon and preceding digit (e.g. "18:" -> "1")
+        // Remove both colon and preceding digit (e.g. "11:" -> "1")
         const next = display.slice(0, -2);
         setDisplay(next);
+        nextCursorRef.current = next.length;
         isFreshFocusRef.current = false;
         return;
       }
@@ -334,6 +358,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       if (start === 0 && end === display.length && display.length > 0) {
         e.preventDefault();
         setDisplay('');
+        nextCursorRef.current = 0;
         onChange('');
         isFreshFocusRef.current = false;
         return;
@@ -342,55 +367,47 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
 
     // Vietnamese shorthand "18h"
     if (e.key === 'h' || e.key === 'H') {
-      e.preventDefault();
       const digits = display.replace(/\D/g, '');
       if (digits.length >= 1 && digits.length <= 2) {
+        e.preventDefault();
         const h = parseInt(digits, 10);
         if (h >= 0 && h <= 23) {
           const v24 = `${String(h).padStart(2, '0')}:00`;
-          setDisplay(isEn ? formatDisplayString(v24, true) : v24);
+          const disp = isEn ? formatDisplayString(v24, true) : v24;
+          setDisplay(disp);
+          nextCursorRef.current = disp.length;
           onChange(v24);
           isFreshFocusRef.current = false;
+          return;
         }
       }
-      return;
     }
-
-    // Fresh focus replacement: if user presses a digit key immediately after focusing,
-    // start typing fresh with that digit instead of appending
-    if (isFreshFocusRef.current && /^[0-9]$/.test(e.key)) {
-      isFreshFocusRef.current = false;
-      e.preventDefault();
-      setDisplay(e.key);
-      return;
-    }
-
-    isFreshFocusRef.current = false;
   };
 
-  // Main input handler: sequential digit typing, range detection, paste handling
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value;
-
-    // Range detection: e.g. "11 - 18", "11:00 - 18:00", "11h - 18h"
+  // Core input processor: pure digit stream, robust against colon displacement and IME composition
+  const processInput = (raw: string) => {
+    // 1. Range detection: e.g. "11 - 18", "11:00 - 18:00", "11h - 18h"
     if (onRangeDetected) {
       const range = parseTimeRangeString(raw);
       if (range) {
         onRangeDetected(range.start, range.end);
-        setDisplay(isEn ? formatDisplayString(range.start, true) : range.start);
+        const disp = isEn ? formatDisplayString(range.start, true) : range.start;
+        setDisplay(disp);
+        nextCursorRef.current = disp.length;
         onChange(range.start);
         return;
       }
     }
 
-    // Empty input
+    // 2. Empty input
     if (!raw || raw.trim() === '') {
       setDisplay('');
+      nextCursorRef.current = 0;
       onChange('');
       return;
     }
 
-    // Shorthand "18h", "18:h", or "18h30"
+    // 3. Shorthand "18h", "18:h", or "18h30"
     const hMatch = raw.trim().toLowerCase().match(/^(\d{1,2}):?\s*h\s*(\d{0,2})$/);
     if (hMatch) {
       const h = parseInt(hMatch[1], 10);
@@ -398,76 +415,128 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       const m = mRaw ? (mRaw.length === 1 ? parseInt(mRaw + '0', 10) : parseInt(mRaw, 10)) : 0;
       if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
         const v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        setDisplay(isEn ? formatDisplayString(v24, true) : v24);
+        const disp = isEn ? formatDisplayString(v24, true) : v24;
+        setDisplay(disp);
+        nextCursorRef.current = disp.length;
         onChange(v24);
         return;
       }
     }
 
-    // English AM/PM typing
+    // 4. English AM/PM typing
     if (isEn && /[ap]m/i.test(raw)) {
       const norm = normalizeTimeString(raw);
       if (norm) {
-        setDisplay(formatDisplayString(norm, true));
+        const disp = formatDisplayString(norm, true);
+        setDisplay(disp);
+        nextCursorRef.current = disp.length;
         onChange(norm);
         return;
       }
     }
 
-    // Standard sequential digit typing
+    // 5. Explicit single-digit hour with colon: e.g. "9:" -> "09:"
     const clean = raw.replace(/[^0-9:]/g, '');
-
-    // Case 1: Colon present (user typed colon or mid-entry after colon insertion)
     if (clean.includes(':')) {
       const parts = clean.split(':');
-      let hStr = parts[0];
-      let mStr = parts.slice(1).join('');
+      let hPart = parts[0];
+      const mPart = parts.slice(1).join('').replace(/\D/g, '');
 
-      // Auto-pad single digit hour if colon was explicitly typed: "1:" -> "01:"
-      if (hStr.length === 1 && raw.endsWith(':') && !display.endsWith(':')) {
-        hStr = '0' + hStr;
-      }
-
-      hStr = hStr.slice(0, 2);
-      mStr = mStr.slice(0, 2);
-      const newDisp = `${hStr}:${mStr}`;
-      setDisplay(newDisp);
-
-      if (hStr.length === 2 && mStr.length === 2) {
-        const h = parseInt(hStr, 10);
-        const m = parseInt(mStr, 10);
-        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-          onChange(`${hStr}:${mStr}`);
+      if (hPart.length === 1 && (raw.endsWith(':') || raw.includes(':'))) {
+        hPart = '0' + hPart;
+        const d = (hPart + mPart).slice(0, 4);
+        let disp = '';
+        let cursor = 3;
+        if (d.length === 2) {
+          disp = `${d}:`;
+          cursor = 3;
+        } else if (d.length === 3) {
+          disp = `${d.slice(0, 2)}:${d.slice(2)}`;
+          cursor = 4;
+        } else if (d.length === 4) {
+          disp = `${d.slice(0, 2)}:${d.slice(2, 4)}`;
+          cursor = 5;
         }
+        setDisplay(disp);
+        nextCursorRef.current = cursor;
+        if (d.length === 4) {
+          const h = parseInt(d.slice(0, 2), 10);
+          const m = parseInt(d.slice(2, 4), 10);
+          if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            const v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            if (isEn) {
+              const enDisp = formatDisplayString(v24, true);
+              setDisplay(enDisp);
+              nextCursorRef.current = enDisp.length;
+            }
+            onChange(v24);
+          }
+        }
+        return;
       }
+    }
+
+    // 6. Sequential digit stream (pure digits, immune to colon displacement)
+    const digits = clean.replace(/\D/g, '').slice(0, 4);
+    if (digits.length === 0) {
+      setDisplay('');
+      nextCursorRef.current = 0;
+      return;
+    }
+    if (digits.length === 1) {
+      setDisplay(digits);
+      nextCursorRef.current = 1;
+      return;
+    }
+    if (digits.length === 2) {
+      const disp = `${digits}:`;
+      setDisplay(disp);
+      nextCursorRef.current = 3;
+      return;
+    }
+    if (digits.length === 3) {
+      const disp = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+      setDisplay(disp);
+      nextCursorRef.current = 4;
+      return;
+    }
+    if (digits.length === 4) {
+      const h = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      const formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
+      let disp = formatted;
+      let v24: string | null = null;
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        v24 = formatted;
+        if (isEn) disp = formatDisplayString(formatted, true);
+      }
+      setDisplay(disp);
+      nextCursorRef.current = disp.length;
+      if (v24) onChange(v24);
+      return;
+    }
+  };
+
+  // Main input handler: sequential digit typing, range detection, paste handling
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value;
+
+    if (isComposingRef.current) {
+      setDisplay(raw);
       return;
     }
 
-    // Case 2: Pure digits without colon
-    const digits = clean.slice(0, 4);
-    if (digits.length === 0) {
-      setDisplay('');
-    } else if (digits.length === 1) {
-      setDisplay(digits);
-    } else if (digits.length === 2) {
-      const newDisp = `${digits}:`;
-      setDisplay(newDisp);
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.setSelectionRange(3, 3);
-        }
-      });
-    } else if (digits.length === 3) {
-      setDisplay(`${digits.slice(0, 2)}:${digits.slice(2)}`);
-    } else if (digits.length === 4) {
-      const formatted = `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
-      setDisplay(formatted);
-      const h = parseInt(digits.slice(0, 2), 10);
-      const m = parseInt(digits.slice(2, 4), 10);
-      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-        onChange(formatted);
+    // Fresh focus replacement: if field has an existing 4+ char value (e.g. "07:00")
+    // and user types a single digit immediately after focusing, start fresh with that digit.
+    if (isFreshFocusRef.current) {
+      isFreshFocusRef.current = false;
+      const lastChar = raw.slice(-1);
+      if (/^[0-9]$/.test(lastChar) && display.length >= 4) {
+        raw = lastChar;
       }
     }
+
+    processInput(raw);
   };
 
   // Paste handler
@@ -646,8 +715,11 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     value: display,
     onChange: handleChange,
     onFocus: handleFocus,
+    onClick: handleClick,
     onBlur: handleBlur,
     onKeyDown: handleKeyDown,
+    onCompositionStart: handleCompositionStart,
+    onCompositionEnd: handleCompositionEnd,
     onCut: handleCut,
     onPaste: handlePaste,
     placeholder,
