@@ -371,9 +371,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       }`}>
                         →
                       </span>
-                      <span className={`text-left whitespace-nowrap ${
-                        isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
-                      }`}>
+                      <span className="text-[#1F2937] dark:text-white text-left whitespace-nowrap">
                         {formatDisplayTime(plannedNap.end, isEn)}
                       </span>
                     </div>
@@ -400,9 +398,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       }`}>
                         →
                       </span>
-                      <span className={`text-left whitespace-nowrap ${
-                        !isNapUpcomingOrActive ? 'text-[#007b4d] dark:text-[#62D2FB]' : 'text-[#1F2937] dark:text-white'
-                      }`}>
+                      <span className="text-[#1F2937] dark:text-white text-left whitespace-nowrap">
                         {formatDisplayTime(tomorrowWakeTime || wakeTime, isEn)}
                       </span>
                     </div>

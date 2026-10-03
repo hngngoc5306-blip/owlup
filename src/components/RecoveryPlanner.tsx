@@ -24,6 +24,7 @@ import { AppLanguage, UserProfile, DayRecoveryGoal } from '../types';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { validateSleepSchedule } from '../utils/sleepValidation';
 import { recordTomorrowWakePlan } from '../utils/wakeTimeService';
+import { validateIntervalEventInWakingPeriod } from '../utils/wakingPeriodValidation';
 
 export interface RecoveryPlannerProps {
   isNight: boolean;
@@ -708,6 +709,29 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     }
   };
 
+  const effectiveWake = wakeTime || (() => {
+    try {
+      return localStorage.getItem('owlup_wakeup_today') ||
+        localStorage.getItem('owlup_waketime') ||
+        userProfile?.wakeUpToday ||
+        userProfile?.usualWakeTime ||
+        '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const effectiveBedtime = bedtime || (() => {
+    try {
+      return localStorage.getItem('owlup_bedtime') ||
+        userProfile?.bedtime ||
+        userProfile?.usualBedtime ||
+        '';
+    } catch {
+      return '';
+    }
+  })();
+
   const validateTimes = (start: string, end: string): { valid: boolean; error: string | null } => {
     if (!start || !end || start === '--:--' || end === '--:--' || !start.includes(':') || !end.includes(':')) {
       return {
@@ -731,8 +755,39 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
           : "Thời gian bắt đầu phải sớm hơn thời gian kết thúc (VD: 09:00 → 10:00)."
       };
     }
+
+    const wakingVal = validateIntervalEventInWakingPeriod({
+      start,
+      end,
+      wakeTime: effectiveWake,
+      bedtime: effectiveBedtime,
+      userProfile,
+      isEn,
+    });
+    if (!wakingVal.isValid) {
+      return {
+        valid: false,
+        error: wakingVal.message,
+      };
+    }
+
     return { valid: true, error: null };
   };
+
+  const commitmentsValidation = commitments.map((c, idx) => ({
+    index: idx,
+    commitment: c,
+    validation: validateIntervalEventInWakingPeriod({
+      start: c.start,
+      end: c.end,
+      wakeTime: effectiveWake,
+      bedtime: effectiveBedtime,
+      userProfile,
+      isEn,
+    }),
+  }));
+
+  const hasInvalidCommitments = commitmentsValidation.some(item => !item.validation.isValid);
 
   const handleSaveCommitment = () => {
     const validation = validateTimes(newStart, newEnd);
@@ -862,28 +917,55 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             <div className="mb-12">
               {commitments.length > 0 && !isAdding && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-fade-in">
-                  {commitments.map((c, i) => (
-                    <div key={i} className="flex flex-col p-6 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700 rounded-2xl relative shadow-sm">
-                      <div className="font-bold text-[#1F2937] dark:text-white text-lg mb-2 pr-24 truncate">{c.title}</div>
-                      <div className="font-heading text-[#007b4d] dark:text-[#62D2FB] text-lg">{formatDisplayTime(`${c.start} - ${c.end}`, isEn)}</div>
-                      <div className="absolute top-1/2 -translate-y-1/2 right-4 sm:right-6 flex items-center gap-1 sm:gap-1.5">
-                        <button 
-                          onClick={() => handleStartEdit(i)} 
-                          title={isEn ? "Edit" : "Chỉnh sửa"}
-                          className="text-slate-400 hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                        >
-                          <Edit2 className="w-5 h-5" />
-                        </button>
-                        <button 
-                          onClick={() => removeCommitment(i)} 
-                          title={isEn ? "Delete" : "Xóa"}
-                          className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                  {commitments.map((c, i) => {
+                    const cVal = commitmentsValidation[i]?.validation;
+                    const isInvalid = Boolean(cVal && !cVal.isValid);
+
+                    return (
+                      <div 
+                        key={i} 
+                        className={`flex flex-col p-6 bg-white dark:bg-[#0f172a] border rounded-2xl relative shadow-sm transition-all ${
+                          isInvalid
+                            ? 'border-red-400 dark:border-red-500/80 bg-red-50/30 dark:bg-red-950/20 ring-1 ring-red-400/50'
+                            : 'border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2 pr-20">
+                          <div className="font-bold text-[#1F2937] dark:text-white text-lg truncate">{c.title}</div>
+                          {isInvalid && (
+                            <span className="text-xs font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 px-2.5 py-0.5 rounded-full border border-red-200 dark:border-red-800">
+                              {isEn ? "Outside waking hours" : "Ngoài giờ thức"}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`font-heading text-lg ${isInvalid ? 'text-red-600 dark:text-red-400' : 'text-[#007b4d] dark:text-[#62D2FB]'}`}>
+                          {formatDisplayTime(`${c.start} - ${c.end}`, isEn)}
+                        </div>
+                        {isInvalid && cVal && (
+                          <div className="text-xs sm:text-sm text-red-600 dark:text-red-400 mt-2 leading-relaxed font-medium flex items-start gap-1.5 pt-2 border-t border-red-200/60 dark:border-red-800/40">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{cVal.message}</span>
+                          </div>
+                        )}
+                        <div className="absolute top-6 right-4 sm:right-6 flex items-center gap-1 sm:gap-1.5">
+                          <button 
+                            onClick={() => handleStartEdit(i)} 
+                            title={isEn ? "Edit" : "Chỉnh sửa"}
+                            className="text-slate-400 hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => removeCommitment(i)} 
+                            title={isEn ? "Delete" : "Xóa"}
+                            className="text-slate-400 hover:text-red-500 p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <button 
                     onClick={handleStartAdd}
@@ -1029,29 +1111,42 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             
             {!isAdding && (() => {
               const isStep1Answered = commitments.length > 0 || isFreeAllDay;
+              const isCtaDisabled = !isStep1Answered || hasInvalidCommitments;
               return (
-                <div className="flex items-center justify-between mt-12 pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <button 
-                    type="button"
-                    onClick={handleBackFromStep1}
-                    className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer py-2"
-                  >
-                    <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
-                  </button>
-                  <button 
-                    type="button"
-                    disabled={!isStep1Answered}
-                    onClick={() => {
-                      if (isStep1Answered) setStep(2);
-                    }}
-                    className={`rounded-full px-8 sm:px-12 py-3.5 text-base sm:text-lg font-bold shadow-md transition-all ${
-                      isStep1Answered
-                        ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1'
-                        : 'bg-slate-200 dark:bg-slate-700/80 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
-                    }`}
-                  >
-                    {isEn ? "Next" : "Tiếp theo"} →
-                  </button>
+                <div className="flex flex-col gap-3 mt-12 pt-4 border-t border-slate-100 dark:border-slate-800">
+                  {hasInvalidCommitments && (
+                    <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FEF5F5] dark:bg-[#7F1D1D]/20 border border-[#FCA5A5]/80 dark:border-[#991B1B]/40 text-[#C10007] dark:text-[#F87171] text-xs sm:text-sm font-semibold animate-shake">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>
+                        {isEn
+                          ? "Please adjust or delete invalid commitments scheduled outside waking hours to continue."
+                          : "Vui lòng điều chỉnh hoặc xóa các lịch bận ngoài khung giờ thức để tiếp tục."}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <button 
+                      type="button"
+                      onClick={handleBackFromStep1}
+                      className="text-slate-500 hover:text-[#007b4d] dark:hover:text-[#62D2FB] font-bold text-base sm:text-lg flex items-center gap-2 transition-colors cursor-pointer py-2"
+                    >
+                      <ArrowLeft className="w-5 h-5" /> {isEn ? "Back" : "Quay lại"}
+                    </button>
+                    <button 
+                      type="button"
+                      disabled={isCtaDisabled}
+                      onClick={() => {
+                        if (!isCtaDisabled) setStep(2);
+                      }}
+                      className={`rounded-full px-8 sm:px-12 py-3.5 text-base sm:text-lg font-bold shadow-md transition-all ${
+                        !isCtaDisabled
+                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1'
+                          : 'bg-slate-200 dark:bg-slate-700/80 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
+                      }`}
+                    >
+                      {isEn ? "Next" : "Tiếp theo"} →
+                    </button>
+                  </div>
                 </div>
               );
             })()}

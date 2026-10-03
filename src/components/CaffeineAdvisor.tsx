@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Coffee, Plus, Trash2, Zap, Search } from 'lucide-react';
+import { Coffee, Plus, Trash2, Zap, Search, AlertCircle, Edit2 } from 'lucide-react';
 import { CaffeineItem, UserSettings, AppLanguage } from '../types';
 import { TimePickerInput } from './TimePickerInput';
 import { formatDisplayTime } from '../utils/timeFormat';
+import { validateInstantEventInWakingPeriod, getEventDateForTime, getWakingPeriodForDate } from '../utils/wakingPeriodValidation';
 
 interface CaffeineAdvisorProps {
   isNight: boolean;
@@ -189,6 +190,64 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
   const [customMg, setCustomMg] = useState('');
   const [isMgManualEdit, setIsMgManualEdit] = useState(false);
   const [isDismissedWarning, setIsDismissedWarning] = useState(false);
+  const [editingDrink, setEditingDrink] = useState<CaffeineItem | null>(null);
+  const [editDrinkTime, setEditDrinkTime] = useState<string>('');
+
+  const drinkWakingValidation = validateInstantEventInWakingPeriod({
+    time: drinkTime,
+    wakeTime: effectiveWake,
+    bedtime: targetBedtime,
+    isEn,
+  });
+  const isDrinkWakingInvalid = Boolean(drinkTime && drinkTime.includes(':') && !drinkWakingValidation.isValid);
+
+  const loggedItemsValidation = loggedItems.map((log) => ({
+    id: log.id,
+    validation: validateInstantEventInWakingPeriod({
+      timestamp: log.timestamp,
+      wakeTime: effectiveWake,
+      bedtime: targetBedtime,
+      isEn,
+    }),
+  }));
+
+  const hasInvalidLoggedDrinks = loggedItemsValidation.some(item => !item.validation.isValid);
+
+  const handleStartEditDrink = (log: CaffeineItem) => {
+    setEditingDrink(log);
+    try {
+      const d = log.timestamp instanceof Date ? log.timestamp : new Date(log.timestamp);
+      const hStr = d.getHours().toString().padStart(2, '0');
+      const mStr = d.getMinutes().toString().padStart(2, '0');
+      setEditDrinkTime(`${hStr}:${mStr}`);
+    } catch {
+      setEditDrinkTime('');
+    }
+  };
+
+  const handleSaveEditDrink = () => {
+    if (!editingDrink || !editDrinkTime) return;
+    try {
+      const baseD = editingDrink.timestamp instanceof Date ? new Date(editingDrink.timestamp.getTime()) : new Date(editingDrink.timestamp);
+      const [h, m] = editDrinkTime.split(':').map(Number);
+      let updatedDate = new Date(baseD.getFullYear(), baseD.getMonth(), baseD.getDate(), h || 0, m || 0, 0, 0);
+      const wakingPeriod = getWakingPeriodForDate(baseD, effectiveWake, targetBedtime, undefined, isEn);
+      if (wakingPeriod) {
+        const [wH, wM] = wakingPeriod.wakeTime.split(':').map(Number);
+        const [bH, bM] = wakingPeriod.bedtime.split(':').map(Number);
+        const wMins = (wH || 0) * 60 + (wM || 0);
+        const bMins = (bH || 0) * 60 + (bM || 0);
+        const curMins = (h || 0) * 60 + (m || 0);
+        updatedDate = getEventDateForTime(curMins, baseD, wMins, bMins, wakingPeriod.isOvernight);
+      }
+      const updated = loggedItems.map(item => item.id === editingDrink.id ? { ...item, timestamp: updatedDate } : item);
+      onUpdateLoggedItems(updated);
+      try {
+        localStorage.setItem('owlup_caffeine_log', JSON.stringify(updated));
+      } catch {}
+      setEditingDrink(null);
+    } catch {}
+  };
 
   // Automatically recalculate estimated caffeine when name or volume changes, unless manually overridden
   useEffect(() => {
@@ -236,7 +295,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
   // Too late / close to bedtime: past cutoff time or during night before wake up
   let isTooEarly = false;
   let isTooLate = false;
-  if (isTimeEntered) {
+  if (isTimeEntered && !isDrinkWakingInvalid) {
     if (drinkMins >= wakeMins && drinkMins < startMins) {
       isTooEarly = true;
     } else if (cutoffMins >= wakeMins) {
@@ -249,7 +308,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
       }
     }
   }
-  const isOutsideGoldenWindow = isTimeEntered && (isTooEarly || isTooLate);
+  const isOutsideGoldenWindow = isTimeEntered && !isDrinkWakingInvalid && (isTooEarly || isTooLate);
 
   // Calculate delayed sleep hours for the warning message (Image 2)
   const delayedHours = (() => {
@@ -299,6 +358,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
   };
 
   const handleLogDrink = () => {
+    if (isDrinkWakingInvalid) return;
     let finalName = '';
     let finalMg = 0;
     
@@ -337,7 +397,16 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
     }
 
     // We must pass a Date object, because App.tsx expects log.timestamp.getTime()
-    const logDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    let logDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+    if (drinkWakingValidation.wakingPeriod) {
+      const { wakeTime: wT, bedtime: bT, isOvernight } = drinkWakingValidation.wakingPeriod;
+      const [wH, wM] = wT.split(':').map(Number);
+      const [bH, bM] = bT.split(':').map(Number);
+      const wMins = (wH || 0) * 60 + (wM || 0);
+      const bMins = (bH || 0) * 60 + (bM || 0);
+      const curMins = h * 60 + m;
+      logDate = getEventDateForTime(curMins, now, wMins, bMins, isOvernight);
+    }
     
     const drinkIcon = isCustom
       ? getDrinkIcon(customName)
@@ -708,6 +777,13 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
           </div>
         </div>
 
+        {isDrinkWakingInvalid && (
+          <div className="mb-5 p-4 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 flex items-center gap-3 text-sm font-semibold animate-shake">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span>{drinkWakingValidation.message}</span>
+          </div>
+        )}
+
         {shouldShowWarning && (
           <div className="mb-5 p-5 rounded-2xl bg-[#FEF5F5] dark:bg-[#7F1D1D]/20 border border-[#FCA5A5]/80 dark:border-[#991B1B]/40 flex flex-col gap-3.5 animate-shake">
             <div className="flex items-start gap-3.5">
@@ -741,6 +817,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                         setIsDismissedWarning(false);
                       }}
                       disabled={
+                        isDrinkWakingInvalid ||
                         !drinkTime || 
                         (isCustom ? (!customName.trim() || !customMg || (parseInt(customMg) || 0) <= 0) : (selectedDrink === null || selectedSize === null))
                       }
@@ -765,6 +842,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
         {!shouldShowWarning && (
           <button 
             onClick={() => {
+              if (isDrinkWakingInvalid) return;
               if (isOutsideGoldenWindow && isDismissedWarning) {
                 // If warning was previously dismissed and user still clicks log, log the drink
                 handleLogDrink();
@@ -776,10 +854,11 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
               }
             }}
             disabled={
+              isDrinkWakingInvalid ||
               !drinkTime || 
               (isCustom ? (!customName.trim() || !customMg || (parseInt(customMg) || 0) <= 0) : (selectedDrink === null || selectedSize === null))
             }
-            className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none rounded-2xl py-4 text-lg font-bold transition-all duration-300 mb-3.5 shadow-md cursor-pointer"
+            className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none rounded-2xl py-4 text-lg font-bold transition-all duration-300 mb-3.5 shadow-md cursor-pointer"
           >
             {isEn ? "Log this Drink" : "Ghi nhận ly này"}
           </button>
@@ -813,34 +892,112 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
               {isEn ? "No drinks logged yet today." : "Chưa có đồ uống nào được ghi nhận hôm nay."}
             </p>
           ) : (
-            loggedItems.map(log => (
-              <div key={log.id} className="flex items-center justify-between p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#233355]">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-[#F8FAFC] dark:bg-[#1E293B] flex items-center justify-center text-2xl shrink-0">
-                    {log.icon || getDrinkIcon(log.name)}
-                  </div>
-                  <div>
-                    <div className="text-base sm:text-lg font-bold text-[#1F2937] dark:text-white flex items-center gap-2">
-                      {log.name} <span className="text-slate-400 font-normal text-sm sm:text-base">{formatLogTime(log.timestamp)}</span>
-                    </div>
-                    <div className="text-base sm:text-lg font-semibold text-[#4CB28E] dark:text-[#62D2FB]">{log.caffeineMg}mg</div>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => handleRemoveDrink(log.id)}
-                  className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all transform hover:scale-110 cursor-pointer"
+            loggedItems.map(log => {
+              const logVal = loggedItemsValidation.find(v => v.id === log.id)?.validation;
+              const isInvalid = Boolean(logVal && !logVal.isValid);
+              const isEditingThis = editingDrink?.id === log.id;
+
+              return (
+                <div 
+                  key={log.id} 
+                  className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                    isInvalid 
+                      ? 'border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/20' 
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-[#233355]'
+                  }`}
                 >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            ))
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-[#F8FAFC] dark:bg-[#1E293B] flex items-center justify-center text-2xl shrink-0">
+                        {log.icon || getDrinkIcon(log.name)}
+                      </div>
+                      <div>
+                        <div className="text-base sm:text-lg font-bold text-[#1F2937] dark:text-white flex items-center gap-2">
+                          {log.name} <span className="text-slate-400 font-normal text-sm sm:text-base">{formatLogTime(log.timestamp)}</span>
+                        </div>
+                        <div className="text-base sm:text-lg font-semibold text-[#4CB28E] dark:text-[#62D2FB]">{log.caffeineMg}mg</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <button 
+                        onClick={() => handleStartEditDrink(log)}
+                        title={isEn ? "Edit time" : "Chỉnh sửa thời gian"}
+                        className="p-2.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-all transform hover:scale-110 cursor-pointer"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleRemoveDrink(log.id)}
+                        title={isEn ? "Delete drink" : "Xóa đồ uống"}
+                        className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all transform hover:scale-110 cursor-pointer"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {isInvalid && (
+                    <div className="mt-2.5 pt-2 border-t border-red-200 dark:border-red-800/60 flex items-center gap-2 text-xs sm:text-sm text-red-600 dark:text-red-400 font-medium">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{logVal?.message}</span>
+                    </div>
+                  )}
+
+                  {isEditingThis && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-2.5 animate-fade-in">
+                      <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+                        {isEn ? "New time:" : "Giờ mới:"}
+                      </span>
+                      <div className="w-36">
+                        <TimePickerInput
+                          value={editDrinkTime}
+                          onChange={setEditDrinkTime}
+                          isEn={isEn}
+                          placeholder="--:--"
+                        />
+                      </div>
+                      <button
+                        onClick={handleSaveEditDrink}
+                        disabled={!editDrinkTime}
+                        className="px-3.5 py-2 rounded-xl bg-[#4CB28E] dark:bg-[#62D2FB] text-white dark:text-slate-900 font-bold text-xs sm:text-sm hover:opacity-90 disabled:opacity-50 cursor-pointer transition-all"
+                      >
+                        {isEn ? "Save" : "Lưu"}
+                      </button>
+                      <button
+                        onClick={() => setEditingDrink(null)}
+                        className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs sm:text-sm hover:opacity-90 cursor-pointer transition-all"
+                      >
+                        {isEn ? "Cancel" : "Hủy"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
         
-        <div className="flex justify-end pt-2">
+        <div className="flex flex-col items-end gap-2.5 pt-2">
+          {hasInvalidLoggedDrinks && (
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 px-4 py-2 rounded-xl">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>
+                {isEn 
+                  ? "Please adjust or delete drinks outside your waking hours to continue." 
+                  : "Vui lòng điều chỉnh hoặc xóa các ly ngoài giờ thức để tiếp tục."}
+              </span>
+            </div>
+          )}
           <button 
-            onClick={onNavigateToTimeline}
-            className="px-7 py-3 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] font-bold text-base flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer"
+            onClick={(e) => {
+              if (hasInvalidLoggedDrinks) {
+                e.preventDefault();
+                return;
+              }
+              onNavigateToTimeline && onNavigateToTimeline();
+            }}
+            disabled={hasInvalidLoggedDrinks}
+            className="px-7 py-3 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] font-bold text-base flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             <span>{isEn ? "Open Full Timeline" : "Mở Lộ trình chi tiết"}</span>
             <span className="font-normal text-lg leading-none">→</span>
