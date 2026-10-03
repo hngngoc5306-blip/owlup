@@ -1,13 +1,12 @@
 /**
- * Format a time, time string, Date, or time range for display.
- * - Vietnamese (isEn = false): Pure 24-hour clock (00:00 - 23:59), absolutely NO AM/PM.
- * - English (isEn = true): 12-hour clock with AM/PM (e.g., 11:00 PM, 07:00 AM, 12:30 PM).
+ * Format a time, time string, Date, or time range for display in 24-hour clock format (HH:mm).
+ * - Both English and Vietnamese use the strict 24-hour format (00:00 - 23:59), absolutely NO AM/PM.
  *
  * Internal storage must always be standard 24h ("HH:mm").
  */
 export const formatDisplayTime = (
   timeInput: string | Date | number | undefined | null,
-  isEn: boolean
+  _isEn?: boolean
 ): string => {
   if (timeInput === undefined || timeInput === null || timeInput === '') {
     return '';
@@ -19,12 +18,7 @@ export const formatDisplayTime = (
     const h = timeInput.getHours();
     const m = timeInput.getMinutes();
     const mStr = String(m).padStart(2, '0');
-    if (!isEn) {
-      return `${String(h).padStart(2, '0')}:${mStr}`;
-    }
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(h12).padStart(2, '0')}:${mStr}\u00A0${period}`;
+    return `${String(h).padStart(2, '0')}:${mStr}`;
   }
 
   // If input is numeric minutes (0 - 1440)
@@ -33,12 +27,7 @@ export const formatDisplayTime = (
     const h = Math.floor(totalMins / 60) % 24;
     const m = totalMins % 60;
     const mStr = String(m).padStart(2, '0');
-    if (!isEn) {
-      return `${String(h).padStart(2, '0')}:${mStr}`;
-    }
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(h12).padStart(2, '0')}:${mStr}\u00A0${period}`;
+    return `${String(h).padStart(2, '0')}:${mStr}`;
   }
 
   const str = String(timeInput).trim();
@@ -46,7 +35,7 @@ export const formatDisplayTime = (
 
   // Regex to match "HH:mm" or "H:mm" optionally followed by AM/PM
   // Matches e.g. "07:30", "7:30", "11:00 PM", "11:00PM", "07:30 am", "14:20"
-  return str.replace(/(\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?/g, (_match, hStr, mStr, ampm) => {
+  return str.replace(/(\d{1,2}):(\d{1,2})(?:\s*([AaPp][Mm]))?/g, (_match, hStr, mStr, ampm) => {
     let h = parseInt(hStr, 10);
     const m = parseInt(mStr, 10);
 
@@ -60,15 +49,8 @@ export const formatDisplayTime = (
     h = Math.max(0, Math.min(23, h));
     const padM = String(isNaN(m) ? 0 : Math.max(0, Math.min(59, m))).padStart(2, '0');
 
-    if (!isEn) {
-      // Vietnamese: STRICT 24-hour clock (no AM, no PM, strictly 00:00 - 23:59)
-      return `${String(h).padStart(2, '0')}:${padM}`;
-    }
-
-    // English: 12-hour clock with AM/PM (e.g. 03:45 PM, 07:30 AM)
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${String(h12).padStart(2, '0')}:${padM}\u00A0${period}`;
+    // Strict 24-hour clock (no AM, no PM, strictly 00:00 - 23:59)
+    return `${String(h).padStart(2, '0')}:${padM}`;
   });
 };
 

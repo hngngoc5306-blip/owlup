@@ -335,6 +335,7 @@ export default function App() {
       localStorage.setItem('owlup_active_email', email);
       
       const accounts = getStoredAccounts();
+      const existingAccount = accounts[email];
       if (existingAccount) {
         isNewRegistration = false;
         // Update account profile with newly submitted nickname & settings

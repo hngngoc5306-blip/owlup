@@ -110,11 +110,6 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
             ))}
           </select>
         </div>
-        {isEn && pickHour && (
-          <span className="ml-1.5 px-2 py-0.5 text-xs font-bold rounded-md bg-slate-100 dark:bg-slate-800 text-[#007b4d] dark:text-[#62D2FB] select-none">
-            {parseInt(pickHour, 10) >= 12 ? 'PM' : 'AM'}
-          </span>
-        )}
       </div>
     );
   };

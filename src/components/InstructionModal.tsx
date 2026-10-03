@@ -265,7 +265,7 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                       {isEn ? 'Step 3: Smart Sleep Debt & Nap Recommendation:' : 'Bước 3: Đề xuất lịch ngủ & Bù đắp nợ giấc:'}
                     </strong>{' '}
                     {isEn
-                      ? 'Automatically adapts tonight’s sleep if you incurred sleep debt yesterday, scheduling a midday nap before 3:30 PM and 10h caffeine curfew.'
+                      ? 'Automatically adapts tonight’s sleep if you incurred sleep debt yesterday, scheduling a midday nap before 15:30 and 10h caffeine curfew.'
                       : 'Tự động phát hiện nợ ngủ hôm qua để bù đắp tối nay; xếp lịch chợp mắt trưa (trước 15:30) và giờ ngắt caffeine chuẩn xác (10h trước khi ngủ).'}
                   </div>
                 </div>

@@ -670,7 +670,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       return {
         valid: false,
         error: isEn
-          ? "Start time must be earlier than end time (e.g. 09:00 AM → 10:00 AM)."
+          ? "Start time must be earlier than end time (e.g. 09:00 → 10:00)."
           : "Thời gian bắt đầu phải sớm hơn thời gian kết thúc (VD: 09:00 → 10:00)."
       };
     }
@@ -1210,7 +1210,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     <p className="text-sm text-[#1F2937]/70 dark:text-white/70 leading-relaxed mt-2 font-sans">
                       {isEveningWindow || isPastNapSafeCutoff
                         ? (isEn 
-                            ? "It's past the optimal afternoon dip window (>3:30 PM). Taking a late nap will deplete your adenosine and disrupt tonight's sleep. OwlUp prioritizes deep night sleep instead."
+                            ? "It's past the optimal afternoon dip window (>15:30). Taking a late nap will deplete your adenosine and disrupt tonight's sleep. OwlUp prioritizes deep night sleep instead."
                             : "Đã qua khung giờ chợp mắt sinh học lý tưởng (>15:30). Ngủ muộn lúc này sẽ làm giảm áp lực buồn ngủ tự nhiên và gây mất ngủ đêm. OwlUp dồn toàn bộ cho giấc ngủ đêm chất lượng.")
                         : (isEn 
                             ? "Your commitments occupy the midday dip window. OwlUp protects your nighttime sleep efficiency."
