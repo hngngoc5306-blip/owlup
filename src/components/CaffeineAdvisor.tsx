@@ -184,17 +184,22 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
   const [drinkTime, setDrinkTime] = useState<string>('');
   const [isCustom, setIsCustom] = useState(false);
   const [customName, setCustomName] = useState('');
-  const [customSize, setCustomSize] = useState<string>('M'); // 'S', 'M', 'L', 'custom'
-  const [customVolumeMl, setCustomVolumeMl] = useState<number>(350);
-  const [customMg, setCustomMg] = useState('100');
+  const [customSize, setCustomSize] = useState<string | null>(null); // 'S', 'M', 'L', 'custom', or null
+  const [customVolumeMl, setCustomVolumeMl] = useState<string>('');
+  const [customMg, setCustomMg] = useState('');
   const [isMgManualEdit, setIsMgManualEdit] = useState(false);
   const [isDismissedWarning, setIsDismissedWarning] = useState(false);
 
   // Automatically recalculate estimated caffeine when name or volume changes, unless manually overridden
   useEffect(() => {
     if (isCustom && !isMgManualEdit) {
-      const estimated = estimateCaffeineFromDetails(customName, customVolumeMl);
-      setCustomMg(estimated.toString());
+      const vol = parseInt(customVolumeMl) || 0;
+      if (vol > 0) {
+        const estimated = estimateCaffeineFromDetails(customName, vol);
+        setCustomMg(estimated > 0 ? estimated.toString() : '');
+      } else {
+        setCustomMg('');
+      }
     }
   }, [customName, customVolumeMl, isCustom, isMgManualEdit]);
 
@@ -262,8 +267,8 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
       let finalMg = 100;
       if (isCustom) {
         finalMg = parseInt(customMg) || 0;
-      } else if (selectedDrink !== null) {
-        finalMg = Math.round(DRINK_PRESETS[selectedDrink].caffeineMg * SIZE_PRESETS[selectedSize].multiplier);
+      } else if (selectedDrink !== null && selectedSize !== null) {
+        finalMg = Math.round(DRINK_PRESETS[selectedDrink].caffeineMg * (SIZE_PRESETS[selectedSize]?.multiplier || 1));
       }
       const threshold = bedtimeThresholdMg || 25;
       const requiredHours = finalMg > threshold ? 5 * (Math.log(finalMg / threshold) / Math.log(2)) : 0;
@@ -301,9 +306,11 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
     const sizeIdx = selectedSize !== null ? selectedSize : 1;
 
     if (isCustom) {
-      if (!customName || !customMg) return;
-      finalName = `${customName.trim()} (${customVolumeMl}ml)`;
-      finalMg = parseInt(customMg) || 0;
+      const vol = parseInt(customVolumeMl) || 0;
+      const mg = parseInt(customMg) || 0;
+      if (!customName.trim() || !customMg || mg <= 0) return;
+      finalName = `${customName.trim()}${vol > 0 ? ` (${vol}ml)` : ''}`;
+      finalMg = mg;
     } else {
       if (selectedDrink === null || selectedSize === null) return;
       const baseDrink = DRINK_PRESETS[drinkIdx];
@@ -341,7 +348,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
       name: finalName,
       caffeineMg: finalMg,
       timestamp: logDate,
-      servingSize: isCustom ? `${customVolumeMl}ml` : (SIZE_PRESETS[sizeIdx] ? SIZE_PRESETS[sizeIdx].volume : '350ml'),
+      servingSize: isCustom ? (customVolumeMl ? `${customVolumeMl}ml` : '350ml') : (SIZE_PRESETS[sizeIdx] ? SIZE_PRESETS[sizeIdx].volume : '350ml'),
       category: isCustom ? 'custom' : (drinkIdx === 0 ? 'tea' : drinkIdx === 5 ? 'energy' : 'coffee'),
       icon: drinkIcon,
     };
@@ -350,9 +357,9 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
     // Reset all choices 1, 2, 3 to empty so user can add fresh drink
     setIsCustom(false);
     setCustomName('');
-    setCustomSize('M');
-    setCustomVolumeMl(350);
-    setCustomMg('100');
+    setCustomSize(null);
+    setCustomVolumeMl('');
+    setCustomMg('');
     setIsMgManualEdit(false);
     setSelectedDrink(null);
     setSelectedSize(null);
@@ -518,7 +525,19 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
         <div className="mb-7 animate-fade-in border border-[#E5E7EB] dark:border-slate-700 rounded-2xl p-6 bg-[#F8FAFC] dark:bg-[#233355]">
           <div className="flex justify-between items-center mb-4">
              <p className="text-base sm:text-lg font-bold text-[#1F2937] dark:text-white">1. {isEn ? "Drink Details:" : "Chi tiết đồ uống:"}</p>
-             <button onClick={() => setIsCustom(false)} className="text-slate-400 hover:text-red-500 p-1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+             <button 
+               onClick={() => {
+                 setIsCustom(false);
+                 setCustomName('');
+                 setCustomSize(null);
+                 setCustomVolumeMl('');
+                 setCustomMg('');
+                 setIsMgManualEdit(false);
+               }} 
+               className="text-slate-400 hover:text-red-500 p-1 cursor-pointer"
+             >
+               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+             </button>
           </div>
           <div className="space-y-4">
             <div>
@@ -551,7 +570,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                     type="button"
                     onClick={() => {
                       setCustomSize(preset.key);
-                      setCustomVolumeMl(preset.vol);
+                      setCustomVolumeMl(preset.vol.toString());
                       setIsMgManualEdit(false);
                     }}
                     className={`py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer ${
@@ -579,7 +598,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                     step={10}
                     value={customVolumeMl}
                     onChange={(e) => {
-                      const v = parseInt(e.target.value) || 0;
+                      const v = e.target.value;
                       setCustomVolumeMl(v);
                       setCustomSize('custom');
                       setIsMgManualEdit(false);
@@ -601,10 +620,15 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                     type="button" 
                     onClick={() => {
                       setIsMgManualEdit(false);
-                      const estimated = estimateCaffeineFromDetails(customName, customVolumeMl);
-                      setCustomMg(estimated.toString());
+                      const vol = parseInt(customVolumeMl) || 0;
+                      if (vol > 0) {
+                        const estimated = estimateCaffeineFromDetails(customName, vol);
+                        setCustomMg(estimated > 0 ? estimated.toString() : '');
+                      } else {
+                        setCustomMg('');
+                      }
                     }}
-                    className="text-xs text-[#007b4d] dark:text-[#62D2FB] font-semibold hover:underline"
+                    className="text-xs text-[#007b4d] dark:text-[#62D2FB] font-semibold hover:underline cursor-pointer"
                   >
                     {isEn ? "Recalculate" : "Tính lại tự động"}
                   </button>
@@ -718,7 +742,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                       }}
                       disabled={
                         !drinkTime || 
-                        (isCustom ? (!customName || !customMg) : (selectedDrink === null || selectedSize === null))
+                        (isCustom ? (!customName.trim() || !customMg || (parseInt(customMg) || 0) <= 0) : (selectedDrink === null || selectedSize === null))
                       }
                       className="px-7 py-2.5 rounded-xl bg-[#C10007] hover:bg-[#A30006] text-white font-bold text-sm sm:text-base transition-all shadow-sm hover:-translate-y-0.5 cursor-pointer disabled:opacity-50"
                     >
@@ -753,7 +777,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
             }}
             disabled={
               !drinkTime || 
-              (isCustom ? (!customName || !customMg) : (selectedDrink === null || selectedSize === null))
+              (isCustom ? (!customName.trim() || !customMg || (parseInt(customMg) || 0) <= 0) : (selectedDrink === null || selectedSize === null))
             }
             className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none rounded-2xl py-4 text-lg font-bold transition-all duration-300 mb-3.5 shadow-md cursor-pointer"
           >
@@ -761,7 +785,17 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
           </button>
         )}
         {!isCustom && (
-        <button onClick={() => setIsCustom(true)} className="w-full bg-white dark:bg-transparent border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] hover:border-[#4CB28E] dark:hover:border-[#62D2FB] hover:bg-[#4CB28E]/5 dark:hover:bg-[#62D2FB]/5 hover:shadow-sm hover:-translate-y-0.5 rounded-2xl py-3.5 text-base sm:text-lg font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer">
+        <button 
+          onClick={() => {
+            setIsCustom(true);
+            setCustomName('');
+            setCustomSize(null);
+            setCustomVolumeMl('');
+            setCustomMg('');
+            setIsMgManualEdit(false);
+          }} 
+          className="w-full bg-white dark:bg-transparent border border-dashed border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-[#4CB28E] dark:hover:text-[#62D2FB] hover:border-[#4CB28E] dark:hover:border-[#62D2FB] hover:bg-[#4CB28E]/5 dark:hover:bg-[#62D2FB]/5 hover:shadow-sm hover:-translate-y-0.5 rounded-2xl py-3.5 text-base sm:text-lg font-bold transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+        >
           <Plus className="w-5 h-5" /> {isEn ? "Add Custom Drink" : "Thêm đồ uống tùy chỉnh"}
         </button>
         )}
