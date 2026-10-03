@@ -276,6 +276,24 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       duration: 60
   });
 
+  // 8. Tomorrow's Wake Up & Alarm (Vạch cờ đích khép lại chu kỳ phục hồi 24h)
+  let absTomorrowWake = wakeMins;
+  while (absTomorrowWake <= tonightBedMins) {
+    absTomorrowWake += 24 * 60;
+  }
+  rawEvents.push({
+      absTime: absTomorrowWake,
+      time: formatMins(absTomorrowWake),
+      tag: isEn ? 'FINISH LINE' : 'VẠCH ĐÍCH',
+      tagColor: 'text-[#007b4d] dark:text-[#62D2FB] bg-[#E6F8F0] dark:bg-[#62D2FB]/10 border-[#007b4d] dark:border-[#62D2FB]',
+      icon: '🏁',
+      title: isEn ? "Tomorrow's Wake Up & Alarm" : 'Thức dậy sáng mai & Báo thức',
+      desc: isEn 
+        ? `Wake up at ${formatDisplayTime(effectiveWakeTime, isEn)} to complete your 24-hour circadian recovery cycle.`
+        : `Thức dậy lúc ${formatDisplayTime(effectiveWakeTime, isEn)} để hoàn thành trọn vẹn chu kỳ phục hồi 24 giờ.`,
+      duration: 15
+  });
+
   const timelineEvents = rawEvents
     .sort((a, b) => a.absTime - b.absTime)
     .map(evt => ({ ...evt, status: getStatus(evt.absTime, evt.duration) }));

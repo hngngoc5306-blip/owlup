@@ -169,31 +169,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   })();
 
-  const handleNavigateToTomorrow = () => {
-    try {
-      localStorage.setItem('owlup_planning_mode', 'tomorrow');
-    } catch {}
+  const handleNavigateToPlanner = () => {
     if (onNavigateToPlanner) {
       onNavigateToPlanner();
     }
   };
 
-  const handleNavigateToTodayPlanner = () => {
-    try {
-      localStorage.setItem('owlup_planning_mode', 'today');
-    } catch {}
-    if (onNavigateToPlanner) {
-      onNavigateToPlanner();
-    }
-  };
-
-  // Navigate to planner: before 20:00 → today, from 20:00 → tomorrow
   const handleSetupSleepSchedule = () => {
-    const hour = new Date().getHours();
-    const isNight = hour >= 20 || hour < 4;
-    try {
-      localStorage.setItem('owlup_planning_mode', isNight ? 'tomorrow' : 'today');
-    } catch {}
     if (onNavigateToPlanner) {
       onNavigateToPlanner();
     }
@@ -426,20 +408,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button 
-                      onClick={handleNavigateToTodayPlanner}
+                      onClick={handleNavigateToPlanner}
                       className="flex-1 bg-white dark:bg-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#2A374F] border border-slate-200 dark:border-slate-700 text-[#1F2937] dark:text-white rounded-full py-3.5 sm:py-4 px-4 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-sm hover:-translate-y-0.5 cursor-pointer text-center"
                     >
-                      <span>{isEn ? 'Adjust Today Schedule' : 'Tùy chỉnh lịch hôm nay'}</span>
+                      <span>{isEn ? 'Adjust Sleep Schedule' : 'Tùy chỉnh lịch ngủ'}</span>
                     </button>
-                    <button 
-                      onClick={handleNavigateToTomorrow}
-                      className="flex-1 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-4 px-4 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer text-center"
-                    >
-                      <span>{hasTomorrowSchedule 
-                        ? (isEn ? "Tomorrow's Sleep Schedule" : "Lịch ngủ ngày mai") 
-                        : (isEn ? "Plan for Tomorrow" : "Sắp xếp lịch cho ngày mai")}</span>
-                      <span className='font-sans font-normal ml-0.5'>→</span>
-                    </button>
+                    {onNavigateToTimeline && (
+                      <button 
+                        onClick={onNavigateToTimeline}
+                        className="flex-1 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-4 px-4 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer text-center"
+                      >
+                        <span>{isEn ? "View Recovery Timeline" : "Xem Lộ trình Phục hồi"}</span>
+                        <span className='font-sans font-normal ml-0.5'>→</span>
+                      </button>
+                    )}
                   </div>
                 </>
               )}
