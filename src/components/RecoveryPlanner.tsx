@@ -1607,16 +1607,16 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
 
                   <button 
                     onClick={() => { if (onNavigateToDashboard) onNavigateToDashboard(); }}
-                    className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full py-3 text-base font-bold transition-all cursor-pointer"
+                    className="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all cursor-pointer"
                   >
                     {isEn ? "Back to Dashboard" : "Về Tổng quan"}
                   </button>
 
                   <button 
                     onClick={() => setStep(4)}
-                    className="w-full border border-slate-300 dark:border-slate-600 rounded-full py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] transition-colors cursor-pointer text-center mt-1"
+                    className="w-full border-2 border-slate-300 dark:border-slate-600 rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white hover:border-[#4CB28E] dark:hover:border-[#62D2FB] transition-all cursor-pointer text-center"
                   >
-                    {isEn ? "Fine-Tune Hours" : "Tự chỉnh lại giờ"}
+                    {isEn ? "Arrange Sleep Schedule" : "Tự sắp xếp lịch ngủ"}
                   </button>
                 </div>
               </div>
