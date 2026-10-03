@@ -160,7 +160,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       case 'chronotype':
         if (draftChronotype === 'early_bird') return isEn ? 'Early Bird' : 'Chim sớm';
         if (draftChronotype === 'night_owl') return isEn ? 'Night Owl' : 'Cú đêm';
-        return isEn ? 'Intermediate' : 'Trung gian';
+        return isEn ? 'Flexible' : 'Linh hoạt';
     }
   };
 

@@ -360,7 +360,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           ? (language === 'en' ? '🌅 Early Bird' : '🌅 Chim sớm')
                           : userProfile.chronotype === 'night_owl'
                             ? (language === 'en' ? '🦉 Night Owl' : '🦉 Cú đêm')
-                            : (language === 'en' ? '⚖️ Intermediate' : '⚖️ Trung gian')}
+                            : (language === 'en' ? '✨ Flexible' : '✨ Linh hoạt')}
                       </strong>
                     </div>
 
