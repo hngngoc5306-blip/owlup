@@ -227,7 +227,7 @@ const saveAccountData = (email: string, data: Partial<StoredAccount>) => {
  * 2. Active email is set.
  * 3. If registered user (not guest), a corresponding registered account exists in the accounts database with onboarding complete.
  */
-export const checkIsSessionAuthorized = (): boolean => {
+const checkIsSessionAuthorized = (): boolean => {
   try {
     const activeEmail = localStorage.getItem('owlup_active_email');
     const onboardingCompleted = localStorage.getItem('owlup_onboarding_completed') === 'true';
@@ -244,7 +244,7 @@ export const checkIsSessionAuthorized = (): boolean => {
 /**
  * Checks whether an account with the given email is registered and has completed onboarding in OwlUp.
  */
-export const checkAccountRegistered = (email: string): boolean => {
+const checkAccountRegistered = (email: string): boolean => {
   if (!email || email === 'guest') return false;
   try {
     const accounts = getStoredAccounts();
