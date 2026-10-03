@@ -335,10 +335,18 @@ export default function App() {
       localStorage.setItem('owlup_active_email', email);
       
       const accounts = getStoredAccounts();
-      const existingAccount = accounts[email];
-      
       if (existingAccount) {
         isNewRegistration = false;
+        // Update account profile with newly submitted nickname & settings
+        existingAccount.profile = {
+          ...existingAccount.profile,
+          ...profile,
+          name: profile.name || existingAccount.profile.name,
+        };
+        saveAccountData(email, existingAccount);
+        setUserProfile(existingAccount.profile);
+        localStorage.setItem('owlup_user_profile', JSON.stringify(existingAccount.profile));
+
         // Load existing account data
         if (existingAccount.settings) {
           const loadedSettings = { ...existingAccount.settings };

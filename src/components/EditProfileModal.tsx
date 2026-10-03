@@ -38,6 +38,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [activeQuestion, setActiveQuestion] = useState<QuestionKey>('bedtime');
 
   // Draft states initialized from current profile
+  const [draftName, setDraftName] = useState<string>('');
   const [draftBedtime, setDraftBedtime] = useState<string>('22:30');
   const [isCustomBedtime, setIsCustomBedtime] = useState<boolean>(false);
   const [customBedtime, setCustomBedtime] = useState<string>('22:30');
@@ -50,6 +51,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   // Sync draft state whenever modal opens or userProfile changes
   useEffect(() => {
     if (isOpen && userProfile) {
+      setDraftName(userProfile.name || '');
       const bTime = userProfile.usualBedtime || '22:30';
       const presets = ['21:30', '22:00', '22:30', '23:00', '23:30', '00:00'];
       if (presets.includes(bTime)) {
@@ -107,6 +109,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
     const updated: UserProfile = {
       ...userProfile,
+      name: draftName.trim() || userProfile.name,
       usualBedtime: chosenBedtime,
       targetBedtime: chosenBedtime,
       bedtime: chosenBedtime,
@@ -296,6 +299,20 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
         {/* Modal Body / Active Question Options */}
         <div className="p-6 space-y-5 overflow-y-auto flex-1">
+          {/* Nickname Field */}
+          <div className="pb-4 border-b border-slate-200/60 dark:border-slate-700/60">
+            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+              {isEn ? "What should we call you? (Nickname)" : "Chúng tôi nên gọi bạn là gì? (Tên hiển thị)"}
+            </label>
+            <input
+              type="text"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder={isEn ? "Enter your name or nickname..." : "Nhập tên hoặc biệt danh..."}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-medium text-sm focus:outline-none focus:border-[#4CB28E] dark:focus:border-[#62D2FB]"
+            />
+          </div>
+
           {/* =========================================================================
               QUESTION 2: USUAL BEDTIME
           ========================================================================= */}

@@ -190,9 +190,10 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
     setEmailError('');
     try {
       const gUser = await signInWithGooglePopup();
+      const customName = name.trim() || gUser.name || (isEn ? 'Guest' : 'Khách');
       onCompleteProfile({
         language: language || 'en',
-        name: gUser.name || name.trim() || (isEn ? 'Guest' : 'Khách'),
+        name: customName,
         usualBedtime: isCustomBedtime ? customBedtime : bedtime,
         targetBedtime: isCustomBedtime ? customBedtime : bedtime,
         craves,
