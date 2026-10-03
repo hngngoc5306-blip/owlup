@@ -58,7 +58,10 @@ const getRealHistoryData = (): Record<string, DayData> => {
 
 export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) => {
   const isEn = language === 'en';
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 1)); // September 2026
+  const [currentDate, setCurrentDate] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const daysOfWeekEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const daysOfWeekVi = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -98,17 +101,28 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language }) =>
     const realData = getRealHistoryData();
     const data = isCurrentMonth ? realData[dateStr] : null;
 
+    const today = new Date();
+    const isToday = isCurrentMonth &&
+      today.getFullYear() === actualDate.getFullYear() &&
+      today.getMonth() === actualDate.getMonth() &&
+      today.getDate() === dayNumber;
+
     return (
       <div 
         key={`${month}-${dayNumber}`} 
         className={`min-h-[58px] sm:min-h-[85px] p-1 sm:p-2 rounded-xl sm:rounded-2xl border transition-all duration-300 flex flex-col justify-between
-          ${isCurrentMonth ? 'bg-[#FFFFF8] dark:bg-[#1E293B] border-[#E5E7EB] dark:border-slate-700 hover:bg-[#FEF9C3] dark:hover:bg-[#FEF9C3]/10 hover:border-[#FDE047]/50 hover:shadow-md cursor-pointer' : 'bg-transparent border-transparent opacity-40'}`
+          ${isCurrentMonth ? (isToday ? 'bg-[#ECFDF5] dark:bg-[#1E293B] border-[#4CB28E] dark:border-[#62D2FB] ring-2 ring-[#4CB28E]/40 dark:ring-[#62D2FB]/40 shadow-sm cursor-pointer' : 'bg-[#FFFFF8] dark:bg-[#1E293B] border-[#E5E7EB] dark:border-slate-700 hover:bg-[#FEF9C3] dark:hover:bg-[#FEF9C3]/10 hover:border-[#FDE047]/50 hover:shadow-md cursor-pointer') : 'bg-transparent border-transparent opacity-40'}`
         }
       >
         <div className="flex justify-between items-start">
-          <span className={`text-xs sm:text-base font-semibold ${isCurrentMonth ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400/50'}`}>
+          <span className={`text-xs sm:text-base font-semibold ${isToday ? 'text-white bg-[#4CB28E] dark:bg-[#62D2FB] dark:text-[#0F172A] w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs' : (isCurrentMonth ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400/50')}`}>
             {dayNumber}
           </span>
+          {isToday && (
+            <span className="text-[9px] sm:text-[10px] font-bold text-[#4CB28E] dark:text-[#62D2FB] uppercase">
+              {isEn ? 'Today' : 'Hôm nay'}
+            </span>
+          )}
         </div>
         
         {data && isCurrentMonth && (data.sleepHours > 0 || data.caffeineMg > 0) && (
