@@ -406,10 +406,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row justify-end gap-3">
+                  <div className="flex justify-end">
                     <button 
                       onClick={handleNavigateToPlanner}
-                      className="w-full sm:w-[calc(50%-0.375rem)] bg-white dark:bg-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#2A374F] border border-slate-200 dark:border-slate-700 text-[#1F2937] dark:text-white rounded-full py-3.5 sm:py-4 px-4 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-sm hover:-translate-y-0.5 cursor-pointer text-center"
+                      className="w-fit bg-white dark:bg-[#1E293B] hover:bg-slate-50 dark:hover:bg-[#2A374F] border border-slate-200 dark:border-slate-700 text-[#1F2937] dark:text-white rounded-full py-2.5 sm:py-3 px-5 sm:px-6 text-sm sm:text-base font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-sm hover:-translate-y-0.5 cursor-pointer text-center"
                     >
                       <span>{isEn ? 'Adjust Sleep Schedule' : 'Tùy chỉnh lịch ngủ'}</span>
                     </button>
