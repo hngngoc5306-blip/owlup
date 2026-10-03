@@ -909,15 +909,15 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
             </div>
 
             {/* PROMINENT ANCHOR BOX: LATEST WAKE-UP TIME TOMORROW MORNING */}
-            <div className="mb-8 p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#0F172A] border-2 border-[#007b4d] dark:border-[#62D2FB] shadow-md animate-fade-in text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="mb-8 p-5 sm:p-7 rounded-3xl bg-white dark:bg-[#0F172A] border-2 border-[#007b4d] dark:border-[#62D2FB] shadow-md animate-fade-in text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider text-[#007b4d] dark:text-[#62D2FB] mb-1.5">
                     <span>⏰</span>
                     <span>{isEn ? "Tomorrow's Wake-Up Target" : "Mốc giờ thức dậy sáng mai"}</span>
                   </div>
-                  <h4 className="font-heading font-bold text-xl sm:text-2xl text-[#1F2937] dark:text-white leading-snug">
-                    {isEn ? "What is the latest time you must wake up tomorrow?" : "Sáng mai bạn cần thức dậy muộn nhất lúc mấy giờ?"}
+                  <h4 className="font-heading font-bold text-lg sm:text-xl lg:text-[1.35rem] text-[#1F2937] dark:text-white leading-snug">
+                    {isEn ? "What is the latest time you must wake up tomorrow?" : "Sáng mai bạn cần thức dậy muộn nhất lúc mấy\u00A0giờ?"}
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
                     {isEn
@@ -925,7 +925,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       : "OwlUp sẽ tính toán lùi từ mốc giờ này để đề xuất giờ lên giường tối nay, đảm bảo bạn thức dậy đúng giờ và cơ thể được phục hồi trọn vẹn."}
                   </p>
                 </div>
-                <div className="w-full sm:w-48 shrink-0">
+                <div className="w-full sm:w-40 shrink-0">
                   <TimePickerInput
                     value={latestWakeUpTime}
                     onChange={(val) => {
