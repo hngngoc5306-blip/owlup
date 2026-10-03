@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Clock, X, ChevronUp, ChevronDown } from 'lucide-react';
 
 export interface TimePickerInputProps {
@@ -19,8 +19,20 @@ const MINUTES_COMMON = ['00', '15', '30', '45'];
 // ─── PURE HELPERS (no Date objects, no timezone) ──────────────────────────────
 
 /** Strip non-digits from "HH:mm" → max 4 digit string. "12:00" → "1200" */
-export const digitsFrom24 = (val24: string): string =>
-  (val24 || '').replace(/\D/g, '').slice(0, 4);
+export const digitsFrom24 = (val24: string, isEn: boolean = false): string => {
+  if (!val24) return '';
+  const norm = normalizeTimeString(val24) || val24;
+  if (!norm.includes(':')) return norm.replace(/\D/g, '').slice(0, 4);
+  const [hStr, mStr = '00'] = norm.split(':');
+  let h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10) || 0;
+  if (isNaN(h)) return '';
+  if (isEn) {
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${String(h12).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+  }
+  return `${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+};
 
 /**
  * 4-digit buffer → "HH:mm". No Date, no timezone.
@@ -121,6 +133,29 @@ export const parseTimeRangeString = (raw: string): { start: string; end: string 
   return null;
 };
 
+/**
+ * Derives display string purely from rawDigits buffer.
+ * Permanent colon ':' is preserved throughout the entry lifecycle.
+ */
+export const getDisplayState = (d: string): string => {
+  if (!d || d.length === 0) return '';
+  if (d.length === 1) return `${d} :`;
+  if (d.length === 2) return `${d}:`;
+  if (d.length === 3) return `${d.slice(0, 2)}:${d.slice(2)}`;
+  return `${d.slice(0, 2)}:${d.slice(2, 4)}`;
+};
+
+/**
+ * Calculates correct cursor caret position based on current raw digits.
+ */
+export const getTargetCursor = (d: string): number => {
+  if (!d || d.length === 0) return 0;
+  if (d.length === 1) return 1; // "1| :"
+  if (d.length === 2) return 3; // "12:|"
+  if (d.length === 3) return 4; // "12:0|"
+  return 5;                     // "12:00|"
+};
+
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export const TimePickerInput: React.FC<TimePickerInputProps> = ({
@@ -133,54 +168,51 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   placeholder = '--:--',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const hourRef = useRef<HTMLInputElement>(null);
-  const minuteRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isFreshFocusRef = useRef(false);
+  const nextCursorRef = useRef<number | null>(null);
 
-  // Helper to parse external 24h string into { h, m, p }
-  const parseVal = (v: string): { h: string; m: string; p: 'AM' | 'PM' } => {
-    if (!v) return { h: '', m: '', p: 'PM' };
-    const norm = normalizeTimeString(v) || v;
+  const [isFocused, setIsFocused] = useState(false);
+  const [rawDigits, setRawDigits] = useState<string>(() => digitsFrom24(value, isEn));
+
+  const getInitialPeriod = (): 'AM' | 'PM' => {
+    if (!value) return 'PM';
+    const norm = normalizeTimeString(value) || value;
     if (norm.includes(':')) {
-      const [hStr, mStr = '00'] = norm.split(':');
-      let h = parseInt(hStr, 10);
-      const m = parseInt(mStr, 10) || 0;
-      if (isNaN(h)) return { h: '', m: '', p: 'PM' };
-      const p: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
-      if (isEn) {
-        const h12 = h % 12 === 0 ? 12 : h % 12;
-        return {
-          h: String(h12).padStart(2, '0'),
-          m: String(m).padStart(2, '0'),
-          p,
-        };
-      }
-      return {
-        h: String(h).padStart(2, '0'),
-        m: String(m).padStart(2, '0'),
-        p,
-      };
+      const h = parseInt(norm.split(':')[0], 10);
+      if (!isNaN(h)) return h >= 12 ? 'PM' : 'AM';
     }
-    return { h: '', m: '', p: 'PM' };
+    return 'PM';
   };
 
-  const initial = parseVal(value);
-  const [hour, setHour] = useState<string>(initial.h);
-  const [minute, setMinute] = useState<string>(initial.m);
-  const [period, setPeriod] = useState<'AM' | 'PM'>(initial.p);
+  const [period, setPeriod] = useState<'AM' | 'PM'>(getInitialPeriod);
+  const [clockPeriod, setClockPeriod] = useState<'AM' | 'PM'>(getInitialPeriod);
   const [isClockOpen, setIsClockOpen] = useState(false);
-  const [clockPeriod, setClockPeriod] = useState<'AM' | 'PM'>(initial.p);
-  const isInteractingRef = useRef(false);
 
-  // Sync state from external `value` prop when user is not actively editing
+  // Sync state from external value prop when user is not actively editing
   useEffect(() => {
-    if (!isInteractingRef.current) {
-      const parsed = parseVal(value);
-      setHour(parsed.h);
-      setMinute(parsed.m);
-      setPeriod(parsed.p);
-      setClockPeriod(parsed.p);
+    if (!isFocused) {
+      const d = digitsFrom24(value, isEn);
+      setRawDigits(d);
+      if (value && value.includes(':')) {
+        const h = parseInt(value.split(':')[0], 10);
+        if (!isNaN(h)) {
+          const p = h >= 12 ? 'PM' : 'AM';
+          setPeriod(p);
+          setClockPeriod(p);
+        }
+      }
     }
-  }, [value, isEn]);
+  }, [value, isEn, isFocused]);
+
+  // Synchronize cursor position smoothly without fighting user clicks
+  useLayoutEffect(() => {
+    if (inputRef.current && isFocused && nextCursorRef.current !== null) {
+      const pos = nextCursorRef.current;
+      inputRef.current.setSelectionRange(pos, pos);
+      nextCursorRef.current = null;
+    }
+  });
 
   // Close clock popover on outside click
   useEffect(() => {
@@ -194,29 +226,31 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     return () => document.removeEventListener('mousedown', fn);
   }, [isClockOpen]);
 
-  // Emit 24h string to parent
-  const emit = (hStr: string, mStr: string, p: 'AM' | 'PM' = period) => {
-    if (hStr.length === 2 && mStr.length === 2) {
-      let h = parseInt(hStr, 10);
-      const m = parseInt(mStr, 10);
-      if (isNaN(h) || isNaN(m)) return;
-      if (isEn) {
-        if (p === 'PM' && h < 12) h += 12;
-        if (p === 'AM' && h === 12) h = 0;
-      }
-      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-        const v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        onChange(v24);
-      }
-    } else if (!hStr && !mStr) {
-      onChange('');
+  // Convert 4-digit buffer to 24h string with period support
+  const to24 = (d4: string, p: 'AM' | 'PM' = period): string | null => {
+    let h = parseInt(d4.slice(0, 2), 10);
+    const m = parseInt(d4.slice(2, 4), 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    if (isEn) {
+      if (p === 'PM' && h < 12) h += 12;
+      if (p === 'AM' && h === 12) h = 0;
     }
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+    return null;
+  };
+
+  const emit = (v24: string) => {
+    onChange(v24);
   };
 
   // Step ±N minutes
   const stepTime = (deltaMinutes: number) => {
-    const curH = parseInt(hour, 10) || 0;
-    const curM = parseInt(minute, 10) || 0;
+    let curH = 12;
+    let curM = 0;
+    if (rawDigits.length >= 2) curH = parseInt(rawDigits.slice(0, 2), 10) || 0;
+    if (rawDigits.length === 4) curM = parseInt(rawDigits.slice(2, 4), 10) || 0;
     let h24 = curH;
     if (isEn) {
       if (period === 'PM' && h24 < 12) h24 += 12;
@@ -227,99 +261,66 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     const nh = Math.floor(total / 60);
     const nm = total % 60;
     const v24 = `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
-    const parsed = parseVal(v24);
-    setHour(parsed.h);
-    setMinute(parsed.m);
-    setPeriod(parsed.p);
-    setClockPeriod(parsed.p);
-    onChange(v24);
+    const d = digitsFrom24(v24, isEn);
+    const p: 'AM' | 'PM' = nh >= 12 ? 'PM' : 'AM';
+    setRawDigits(d);
+    setPeriod(p);
+    setClockPeriod(p);
+    emit(v24);
   };
 
-  // Hour input change
-  const handleHourChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(true);
+    isFreshFocusRef.current = true;
+    e.currentTarget.select();
+  };
 
-    // Check for range detection (pasted)
-    if (onRangeDetected) {
-      const range = parseTimeRangeString(raw);
-      if (range) {
-        onRangeDetected(range.start, range.end);
-        const parsed = parseVal(range.start);
-        setHour(parsed.h);
-        setMinute(parsed.m);
-        setPeriod(parsed.p);
-        onChange(range.start);
+  const handleBlur = () => {
+    setIsFocused(false);
+    isFreshFocusRef.current = false;
+
+    if (rawDigits.length === 0) {
+      emit('');
+      return;
+    }
+
+    if (rawDigits.length === 1 || rawDigits.length === 2) {
+      let h = parseInt(rawDigits, 10);
+      if (!isNaN(h)) {
+        if (h > 23) h = 23;
+        const v24 = `${String(h).padStart(2, '0')}:00`;
+        setRawDigits(digitsFrom24(v24, isEn));
+        emit(v24);
         return;
       }
     }
 
-    // Check for full time string pasted (e.g. "18:00" or "18h30")
-    const norm = normalizeTimeString(raw);
-    if (norm && norm.includes(':')) {
-      const parsed = parseVal(norm);
-      setHour(parsed.h);
-      setMinute(parsed.m);
-      setPeriod(parsed.p);
-      emit(parsed.h, parsed.m, parsed.p);
-      return;
-    }
-
-    const clean = raw.replace(/\D/g, '');
-    if (clean.length === 0) {
-      setHour('');
-      emit('', minute);
-      return;
-    }
-
-    if (clean.length === 1) {
-      const num = parseInt(clean, 10);
-      // In 24h mode, hours are 00-23. If user types 3-9, it can never have a 2nd digit.
-      // Auto-pad to "03", "04", ... "09" and advance to minute!
-      if (!isEn && num >= 3 && num <= 9) {
-        const padded = '0' + clean;
-        setHour(padded);
-        minuteRef.current?.focus();
-        minuteRef.current?.select();
-        emit(padded, minute);
-      } else if (isEn && num >= 2 && num <= 9) {
-        // In 12h mode, hours are 01-12. If user types 2-9, auto-pad to "02".."09"
-        const padded = '0' + clean;
-        setHour(padded);
-        minuteRef.current?.focus();
-        minuteRef.current?.select();
-        emit(padded, minute);
-      } else {
-        setHour(clean);
+    if (rawDigits.length === 3) {
+      let h = parseInt(rawDigits.slice(0, 2), 10);
+      const mTens = parseInt(rawDigits.slice(2), 10);
+      const m = mTens <= 5 ? mTens * 10 : mTens;
+      if (!isNaN(h) && !isNaN(m)) {
+        if (h > 23) h = 23;
+        const v24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        setRawDigits(digitsFrom24(v24, isEn));
+        emit(v24);
+        return;
       }
-      return;
     }
 
-    // 2 or more digits:
-    let h = parseInt(clean.slice(0, 2), 10);
-    if (!isEn && h > 23) h = 23;
-    if (isEn && h > 12) h = 12;
-    const hStr = String(h).padStart(2, '0');
-    setHour(hStr);
-
-    // If more digits were typed (e.g. typing fast "1120" into hour field):
-    if (clean.length >= 3) {
-      let m = parseInt(clean.slice(2, 4), 10);
-      if (m > 59) m = 59;
-      const mStr = String(m).padStart(2, '0');
-      setMinute(mStr);
-      emit(hStr, mStr);
-      minuteRef.current?.focus();
-      return;
+    if (rawDigits.length === 4) {
+      const v24 = to24(rawDigits);
+      if (v24) {
+        emit(v24);
+        return;
+      }
     }
 
-    // Advance to minute
-    minuteRef.current?.focus();
-    minuteRef.current?.select();
-    emit(hStr, minute);
+    // Fallback: revert to external prop value
+    setRawDigits(digitsFrom24(value, isEn));
   };
 
-  // Hour key navigation
-  const handleHourKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.currentTarget.blur();
       return;
@@ -333,146 +334,151 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       stepTime(e.key === 'ArrowUp' ? 5 : -5);
       return;
     }
+
+    // Colon or ArrowRight: advance past hours
     if (e.key === ':' || e.key === 'ArrowRight') {
-      e.preventDefault();
-      if (hour.length === 1) {
-        const padded = '0' + hour;
-        setHour(padded);
-        emit(padded, minute);
+      if (rawDigits.length === 1) {
+        e.preventDefault();
+        const next = '0' + rawDigits;
+        setRawDigits(next);
+        nextCursorRef.current = 3;
+      } else if (rawDigits.length === 2) {
+        e.preventDefault();
+        nextCursorRef.current = 3;
       }
-      minuteRef.current?.focus();
-      minuteRef.current?.select();
       return;
     }
+
     // Vietnamese shorthand "18h"
     if (e.key === 'h' || e.key === 'H') {
       e.preventDefault();
-      if (hour) {
-        let h = parseInt(hour, 10);
-        if (!isEn && h > 23) h = 23;
-        if (isEn && h > 12) h = 12;
-        const hStr = String(h).padStart(2, '0');
-        setHour(hStr);
-        setMinute('00');
-        emit(hStr, '00');
+      if (rawDigits.length >= 1) {
+        let h = parseInt(rawDigits.slice(0, 2), 10);
+        if (h > 23) h = 23;
+        const v24 = `${String(h).padStart(2, '0')}:00`;
+        setRawDigits(digitsFrom24(v24, isEn));
+        emit(v24);
       }
+      return;
+    }
+
+    // Backspace: natural sequential deletion
+    if (e.key === 'Backspace') {
+      const input = inputRef.current;
+      const start = input?.selectionStart ?? 0;
+      const end = input?.selectionEnd ?? 0;
+      const display = getDisplayState(rawDigits);
+
+      if (start === 0 && end >= display.length && display.length > 0) {
+        e.preventDefault();
+        setRawDigits('');
+        nextCursorRef.current = 0;
+        emit('');
+        return;
+      }
+
+      if (rawDigits.length > 0) {
+        e.preventDefault();
+        const next = rawDigits.slice(0, -1);
+        setRawDigits(next);
+        nextCursorRef.current = getTargetCursor(next);
+        if (next.length === 0) {
+          emit('');
+        }
+      }
+      return;
+    }
+
+    // Delete key: clear input
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      setRawDigits('');
+      nextCursorRef.current = 0;
+      emit('');
+      return;
     }
   };
 
-  // Minute input change
-  const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
 
-    // Check for range detection
+    // 1. Range detection pasted
     if (onRangeDetected) {
       const range = parseTimeRangeString(raw);
       if (range) {
         onRangeDetected(range.start, range.end);
-        const parsed = parseVal(range.start);
-        setHour(parsed.h);
-        setMinute(parsed.m);
-        setPeriod(parsed.p);
-        onChange(range.start);
+        setRawDigits(digitsFrom24(range.start, isEn));
+        emit(range.start);
         return;
       }
     }
 
-    // Check for full time string pasted
+    // 2. Full time string pasted
     const norm = normalizeTimeString(raw);
-    if (norm && norm.includes(':')) {
-      const parsed = parseVal(norm);
-      setHour(parsed.h);
-      setMinute(parsed.m);
-      setPeriod(parsed.p);
-      emit(parsed.h, parsed.m, parsed.p);
+    if (norm && norm.includes(':') && (raw.includes('h') || raw.includes('pm') || raw.includes('am') || raw.length > 5)) {
+      setRawDigits(digitsFrom24(norm, isEn));
+      emit(norm);
       return;
     }
 
-    const clean = raw.replace(/\D/g, '');
+    // 3. Fresh focus typing over existing completed time
+    if (isFreshFocusRef.current) {
+      isFreshFocusRef.current = false;
+      const lastChar = raw.slice(-1);
+      if (/^[0-9]$/.test(lastChar) && rawDigits.length >= 4) {
+        setRawDigits(lastChar);
+        nextCursorRef.current = getTargetCursor(lastChar);
+        return;
+      }
+    }
+    isFreshFocusRef.current = false;
+
+    // 4. Sequential digit extraction
+    let clean = raw.replace(/\D/g, '').slice(0, 4);
     if (clean.length === 0) {
-      setMinute('');
-      emit(hour, '');
+      setRawDigits('');
+      nextCursorRef.current = 0;
+      emit('');
       return;
     }
 
-    if (clean.length === 1) {
-      const num = parseInt(clean, 10);
-      // Minutes tens can only be 0-5. If user types 6-9, auto-pad to "06".."09"
-      if (num >= 6) {
-        const padded = '0' + clean;
-        setMinute(padded);
-        emit(hour, padded);
-      } else {
-        setMinute(clean);
-      }
-      return;
-    }
-
-    // 2 or more digits:
-    let m = parseInt(clean.slice(0, 2), 10);
-    if (m > 59) m = 59;
-    const mStr = String(m).padStart(2, '0');
-    setMinute(mStr);
-    emit(hour, mStr);
-  };
-
-  // Minute key navigation
-  const handleMinuteKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.currentTarget.blur();
-      return;
-    }
-    if (e.key === 'Escape') {
-      setIsClockOpen(false);
-      return;
-    }
-    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      stepTime(e.key === 'ArrowUp' ? 5 : -5);
-      return;
-    }
-    if (e.key === 'ArrowLeft') {
-      const input = e.currentTarget;
-      if ((input.selectionStart ?? 0) === 0) {
-        e.preventDefault();
-        hourRef.current?.focus();
-        hourRef.current?.select();
-        return;
+    // Validate hour range
+    if (clean.length >= 2) {
+      let h = parseInt(clean.slice(0, 2), 10);
+      const maxH = isEn ? 12 : 23;
+      if (h > maxH) {
+        h = maxH;
+        clean = String(h).padStart(2, '0') + clean.slice(2);
       }
     }
-    if (e.key === 'Backspace') {
-      const input = e.currentTarget;
-      const start = input.selectionStart ?? 0;
-      const end = input.selectionEnd ?? 0;
-      if (minute.length === 0 || (start === 0 && end === minute.length)) {
-        e.preventDefault();
-        setMinute('');
-        hourRef.current?.focus();
-        return;
+
+    // Validate minute range
+    if (clean.length === 4) {
+      let m = parseInt(clean.slice(2, 4), 10);
+      if (m > 59) {
+        m = 59;
+        clean = clean.slice(0, 2) + String(m).padStart(2, '0');
+      }
+    }
+
+    setRawDigits(clean);
+    nextCursorRef.current = getTargetCursor(clean);
+
+    // Commit ONLY when 4 digits are completed!
+    if (clean.length === 4) {
+      const v24 = to24(clean);
+      if (v24) {
+        emit(v24);
       }
     }
   };
 
-  // Blur handlers
-  const handleHourBlur = () => {
-    isInteractingRef.current = false;
-    if (hour.length === 1) {
-      const padded = '0' + hour;
-      setHour(padded);
-      emit(padded, minute);
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (e.target === containerRef.current) {
+      inputRef.current?.focus();
     }
   };
 
-  const handleMinuteBlur = () => {
-    isInteractingRef.current = false;
-    if (minute.length === 1) {
-      const padded = minute.padStart(2, '0');
-      setMinute(padded);
-      emit(hour, padded);
-    }
-  };
-
-  // Global paste handler on container
   const handleContainerPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     const pasted = e.clipboardData.getData('text');
     if (!pasted) return;
@@ -482,11 +488,8 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       if (range) {
         e.preventDefault();
         onRangeDetected(range.start, range.end);
-        const parsed = parseVal(range.start);
-        setHour(parsed.h);
-        setMinute(parsed.m);
-        setPeriod(parsed.p);
-        onChange(range.start);
+        setRawDigits(digitsFrom24(range.start, isEn));
+        emit(range.start);
         return;
       }
     }
@@ -494,26 +497,9 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     const norm = normalizeTimeString(pasted);
     if (norm && norm.includes(':')) {
       e.preventDefault();
-      const parsed = parseVal(norm);
-      setHour(parsed.h);
-      setMinute(parsed.m);
-      setPeriod(parsed.p);
-      emit(parsed.h, parsed.m, parsed.p);
+      setRawDigits(digitsFrom24(norm, isEn));
+      emit(norm);
       return;
-    }
-  };
-
-  // Container click: focuses appropriate input
-  const handleContainerClick = (e: React.MouseEvent) => {
-    if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'SPAN') {
-      if (!hour) {
-        hourRef.current?.focus();
-      } else if (!minute) {
-        minuteRef.current?.focus();
-      } else {
-        hourRef.current?.focus();
-        hourRef.current?.select();
-      }
     }
   };
 
@@ -530,12 +516,10 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     } else {
       v24 = `${hStr.padStart(2, '0')}:${mStr.padStart(2, '0')}`;
     }
-    const parsed = parseVal(v24);
-    setHour(parsed.h);
-    setMinute(parsed.m);
-    setPeriod(parsed.p);
-    setClockPeriod(parsed.p);
-    onChange(v24);
+    setRawDigits(digitsFrom24(v24, isEn));
+    setPeriod(chosenPeriod);
+    setClockPeriod(chosenPeriod);
+    emit(v24);
     setIsClockOpen(false);
   };
 
@@ -543,7 +527,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
   const renderClockPicker = () => {
     if (!isClockOpen) return null;
     const curVal =
-      (hour && minute ? `${hour}:${minute}` : null) ||
+      (rawDigits.length >= 2 ? `${rawDigits.slice(0, 2)}:${rawDigits.slice(2, 4) || '00'}` : null) ||
       normalizeTimeString(value) ||
       '12:00';
     const [curH, curM] = curVal.split(':');
@@ -646,69 +630,44 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
     );
   };
 
-  // Placeholders for segments
-  const placeholderParts = placeholder.includes(':') ? placeholder.split(':') : ['--', '--'];
-  const hPlaceholder = placeholderParts[0] || '--';
-  const mPlaceholder = placeholderParts[1] || '--';
-
-  // Render inputs with PERMANENT colon (never deleted, never missing, fixed from start to finish)
-  const renderSegments = (sizeClass: string, colonSizeClass: string, isUnderline = false) => (
-    <div className={`flex items-center gap-0.5 font-heading font-bold tabular-nums ${isUnderline ? 'w-full' : ''}`}>
-      <input
-        ref={hourRef}
-        type="text"
-        inputMode="numeric"
-        value={hour}
-        onChange={handleHourChange}
-        onKeyDown={handleHourKeyDown}
-        onFocus={() => {
-          isInteractingRef.current = true;
-          hourRef.current?.select();
-        }}
-        onBlur={handleHourBlur}
-        placeholder={hPlaceholder}
-        maxLength={4}
-        autoComplete="off"
-        spellCheck={false}
-        className={`${sizeClass} text-center bg-transparent outline-none p-0 tracking-wider text-[#1F2937] dark:text-white hover:text-[#007b4d] dark:hover:text-[#62D2FB] focus:text-[#007b4d] dark:focus:text-[#62D2FB] transition-colors`}
-      />
-      <span className={`font-bold select-none text-slate-400 dark:text-slate-500 ${colonSizeClass} px-0.5`}>
-        :
-      </span>
-      <input
-        ref={minuteRef}
-        type="text"
-        inputMode="numeric"
-        value={minute}
-        onChange={handleMinuteChange}
-        onKeyDown={handleMinuteKeyDown}
-        onFocus={() => {
-          isInteractingRef.current = true;
-          minuteRef.current?.select();
-        }}
-        onBlur={handleMinuteBlur}
-        placeholder={mPlaceholder}
-        maxLength={2}
-        autoComplete="off"
-        spellCheck={false}
-        className={`${sizeClass} text-center bg-transparent outline-none p-0 tracking-wider text-[#1F2937] dark:text-white hover:text-[#007b4d] dark:hover:text-[#62D2FB] focus:text-[#007b4d] dark:focus:text-[#62D2FB] transition-colors`}
-      />
-      {isEn && (
-        <button
-          type="button"
-          onClick={() => {
-            const nextP = period === 'AM' ? 'PM' : 'AM';
-            setPeriod(nextP);
-            setClockPeriod(nextP);
-            emit(hour, minute, nextP);
-          }}
-          className="ml-1.5 px-2 py-0.5 text-xs font-bold rounded-md bg-slate-100 dark:bg-slate-800 text-[#007b4d] dark:text-[#62D2FB] hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer select-none"
-        >
-          {period}
-        </button>
-      )}
-    </div>
-  );
+  const renderSingleInput = (fontSizeClass: string, widthClass: string) => {
+    const display = getDisplayState(rawDigits);
+    return (
+      <div className="flex items-center">
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          value={display}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder={placeholder || '--:--'}
+          autoComplete="off"
+          spellCheck={false}
+          className={`${fontSizeClass} ${widthClass} font-heading font-bold tabular-nums text-center bg-transparent outline-none p-0 tracking-wider text-[#1F2937] dark:text-white hover:text-[#007b4d] dark:hover:text-[#62D2FB] focus:text-[#007b4d] dark:focus:text-[#62D2FB] transition-colors`}
+        />
+        {isEn && (
+          <button
+            type="button"
+            onClick={() => {
+              const nextP = period === 'AM' ? 'PM' : 'AM';
+              setPeriod(nextP);
+              setClockPeriod(nextP);
+              if (rawDigits.length === 4) {
+                const v24 = to24(rawDigits, nextP);
+                if (v24) emit(v24);
+              }
+            }}
+            className="ml-1.5 px-2 py-0.5 text-xs font-bold rounded-md bg-slate-100 dark:bg-slate-800 text-[#007b4d] dark:text-[#62D2FB] hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer select-none"
+          >
+            {period}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // ─── Variant: Compact ─────────────────────────────────────────────────────────
   if (variant === 'compact') {
@@ -719,7 +678,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         onPaste={handleContainerPaste}
         className={`relative inline-flex items-center bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1 text-[#1F2937] dark:text-white focus-within:border-[#4CB28E] dark:focus-within:border-[#62D2FB] focus-within:ring-1 focus-within:ring-[#4CB28E] transition-all ${className}`}
       >
-        {renderSegments('w-6 sm:w-7 text-sm sm:text-base', 'text-sm sm:text-base')}
+        {renderSingleInput('text-sm sm:text-base', 'w-16 sm:w-20')}
         {renderClockPicker()}
       </div>
     );
@@ -734,7 +693,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
         onPaste={handleContainerPaste}
         className={`relative w-full flex items-center justify-between border-b border-slate-300 dark:border-slate-500 pb-1 ${className}`}
       >
-        {renderSegments('w-9 sm:w-11 text-2xl sm:text-3xl', 'text-2xl sm:text-3xl', true)}
+        {renderSingleInput('text-2xl sm:text-3xl', 'w-28 sm:w-36')}
         <div className="flex items-center gap-1 shrink-0 ml-2">
           <div className="flex flex-col opacity-60 hover:opacity-100 transition-opacity">
             <button type="button" onClick={() => stepTime(5)} className="hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-0.5 cursor-pointer">
@@ -766,7 +725,7 @@ export const TimePickerInput: React.FC<TimePickerInputProps> = ({
       onPaste={handleContainerPaste}
       className={`relative flex-1 flex items-center justify-between bg-white dark:bg-[#0F172A] border border-slate-300 dark:border-slate-600 rounded-xl px-3.5 sm:px-4 py-2.5 sm:py-3 shadow-sm focus-within:border-[#007b4d] dark:focus-within:border-[#62D2FB] focus-within:ring-2 focus-within:ring-[#007b4d]/20 transition-all ${className}`}
     >
-      {renderSegments('w-7 sm:w-8 text-base sm:text-lg', 'text-base sm:text-lg')}
+      {renderSingleInput('text-base sm:text-lg', 'w-20 sm:w-24')}
       <div className="flex items-center gap-1 shrink-0 ml-2">
         <div className="flex flex-col opacity-60 hover:opacity-100 transition-opacity">
           <button type="button" onClick={() => stepTime(5)} className="hover:text-[#007b4d] dark:hover:text-[#62D2FB] p-0.5 cursor-pointer">
