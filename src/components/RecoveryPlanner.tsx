@@ -37,6 +37,7 @@ export interface RecoveryPlannerProps {
   userProfile?: UserProfile | null;
   bedtime?: string;
   wakeTime?: string;
+  tomorrowWakeTime?: string;
   totalSleepHours?: string;
   plannedNap?: { start: string; end: string; duration: number } | null;
   commitments?: { title: string; start: string; end: string }[];
@@ -53,6 +54,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   userProfile,
   bedtime,
   wakeTime,
+  tomorrowWakeTime,
   totalSleepHours,
   plannedNap,
   commitments: commitmentsProp,
@@ -104,6 +106,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     goal: string;
     latestWake: string;
     commitmentsStr: string;
+    napStart?: string;
+    napEnd?: string;
+    napDuration?: number;
+    totalSleepHours?: string;
   } | null>(() => {
     try {
       const todayStr = getTodayDateStr();
@@ -111,12 +117,24 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       const scheduleDate = localStorage.getItem('owlup_schedule_date');
       const isApplied = applied === 'true' && scheduleDate === todayStr;
       if (isApplied) {
+        let savedNap: { start: string; end: string; duration: number } | null = null;
+        try {
+          const napRaw = localStorage.getItem('owlup_planned_nap');
+          if (napRaw) savedNap = JSON.parse(napRaw);
+        } catch {}
+        if (!savedNap && plannedNap) {
+          savedNap = plannedNap;
+        }
         return {
-          bedtime: localStorage.getItem('owlup_bedtime') || '',
-          wakeTime: localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_waketime') || '',
+          bedtime: localStorage.getItem('owlup_bedtime') || bedtime || '22:30',
+          wakeTime: localStorage.getItem('owlup_tomorrow_waketime') || tomorrowWakeTime || '06:30',
           goal: localStorage.getItem('owlup_recovery_goal') || '',
           latestWake: localStorage.getItem('owlup_latest_waketime') || '',
           commitmentsStr: localStorage.getItem('owlup_commitments') || '[]',
+          napStart: savedNap?.start,
+          napEnd: savedNap?.end,
+          napDuration: savedNap?.duration,
+          totalSleepHours: localStorage.getItem('owlup_total_sleep_hours') || totalSleepHours || '8.0',
         };
       }
       return null;
@@ -707,21 +725,62 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     // 1. If user never saved a schedule today, this is an initial proposal!
     if (!savedSnapshot) return true;
 
-    // 2. If all current parameters match what was saved, it is the saved schedule!
+    // 2. If user modified commitments, latest wake, or goal in this session, new schedule is proposed
+    if (hasUserModified) return true;
+
+    // 3. Compare current recommendation against the saved snapshot
+    const savedHasNap = Boolean(savedSnapshot.napDuration && savedSnapshot.napDuration > 0 && savedSnapshot.napStart);
+    const recHasNap = Boolean(canNapToday && recNapDurationMins > 0 && recNapStart);
+    let isNapMatching = false;
+    if (!savedHasNap && !recHasNap) {
+      isNapMatching = true;
+    } else if (savedHasNap && recHasNap) {
+      isNapMatching = savedSnapshot.napStart === recNapStart && savedSnapshot.napDuration === recNapDurationMins;
+    }
+
     const matchesSaved = (
       (!selectedGoal || selectedGoal === savedSnapshot.goal) &&
       (!latestWakeUpTime || latestWakeUpTime === savedSnapshot.latestWake) &&
       JSON.stringify(commitments) === savedSnapshot.commitmentsStr &&
       recBedtime === savedSnapshot.bedtime &&
-      recWake === savedSnapshot.wakeTime
+      recWake === savedSnapshot.wakeTime &&
+      isNapMatching
     );
 
-    if (matchesSaved && !hasUserModified) return false;
+    return !matchesSaved;
+  })();
 
-    // 3. If anything is different, a new schedule is proposed
-    if (!matchesSaved) return true;
+  // Authoritative display values for Step 3
+  const isViewingConfirmed = !isNewScheduleProposed && Boolean(savedSnapshot);
 
-    return hasUserModified;
+  const displayBedtime = isViewingConfirmed && savedSnapshot?.bedtime ? savedSnapshot.bedtime : recBedtime;
+  const displayWake = isViewingConfirmed && savedSnapshot?.wakeTime ? savedSnapshot.wakeTime : recWake;
+  const displaySleepDuration = isViewingConfirmed && savedSnapshot?.totalSleepHours 
+    ? savedSnapshot.totalSleepHours 
+    : isViewingConfirmed && displayBedtime && displayWake
+    ? (() => {
+        const [bh, bm] = displayBedtime.split(':').map(Number);
+        const [wh, wm] = displayWake.split(':').map(Number);
+        let diff = (wh * 60 + wm) - (bh * 60 + bm);
+        if (diff <= 0) diff += 24 * 60;
+        return (diff / 60).toFixed(1);
+      })()
+    : recSleepDuration;
+
+  const displayHasNap = isViewingConfirmed 
+    ? Boolean(savedSnapshot?.napDuration && savedSnapshot.napDuration > 0 && savedSnapshot.napStart)
+    : Boolean(canNapToday && recNapDurationMins > 0);
+
+  const displayNapStart = isViewingConfirmed && savedSnapshot?.napStart ? savedSnapshot.napStart : recNapStart;
+  const displayNapEnd = isViewingConfirmed 
+    ? (savedSnapshot?.napEnd || (savedSnapshot?.napStart && savedSnapshot?.napDuration ? formatMins(parseMins(savedSnapshot.napStart) + savedSnapshot.napDuration) : recNapEnd))
+    : recNapEnd;
+  const displayNapDuration = isViewingConfirmed && savedSnapshot?.napDuration !== undefined ? savedSnapshot.napDuration : recNapDurationMins;
+
+  const displayCaffeineCutoff = (() => {
+    let cutoff = parseMins(displayBedtime) - 10 * 60;
+    while (cutoff < 0) cutoff += 24 * 60;
+    return formatMins(cutoff);
   })();
 
   // Helper for Step 2 cards: calculate bedtime for each goal dynamically
@@ -1493,15 +1552,15 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 <div className="text-sm font-bold text-[#CA8A04] dark:text-[#FCD34D] tracking-wider mb-4 uppercase">
                   {isEn ? "AFTERNOON POWER NAP" : "CHỢP MẮT BUỔI TRƯA/CHIỀU"}
                 </div>
-                {canNapToday && recNapDurationMins > 0 ? (
+                {displayHasNap ? (
                   <>
                     <div className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
-                      <span className="whitespace-nowrap">{formatDisplayTime(recNapStart, isEn)}</span>
+                      <span className="whitespace-nowrap">{formatDisplayTime(displayNapStart, isEn)}</span>
                       <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
-                      <span className="whitespace-nowrap">{formatDisplayTime(recNapEnd, isEn)}</span>
+                      <span className="whitespace-nowrap">{formatDisplayTime(displayNapEnd, isEn)}</span>
                     </div>
                     <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">
-                      {isEn ? `Duration: ${recNapDurationMins} min` : `Thời lượng: ${recNapDurationMins} phút`}
+                      {isEn ? `Duration: ${displayNapDuration} min` : `Thời lượng: ${displayNapDuration} phút`}
                     </div>
                     <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-3 leading-relaxed">
                       {isEn ? "Scheduled in your natural circadian dip to discharge adenosine." : "Được lên lịch vào vùng trũng sinh học để xả mệt mỏi mà không gây uể oải."}
@@ -1539,17 +1598,17 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   {isEn ? "MAIN NIGHT SLEEP TONIGHT" : "GIẤC NGỦ ĐÊM NAY"}
                 </div>
                 <div className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-4 flex items-center flex-wrap gap-x-2 gap-y-1 tabular-nums">
-                  <span className="whitespace-nowrap">{formatDisplayTime(recBedtime, isEn)}</span>
+                  <span className="whitespace-nowrap">{formatDisplayTime(displayBedtime, isEn)}</span>
                   <span className="text-slate-400 font-sans font-normal shrink-0">→</span>
-                  <span className="whitespace-nowrap">{formatDisplayTime(recWake, isEn)}</span>
+                  <span className="whitespace-nowrap">{formatDisplayTime(displayWake, isEn)}</span>
                 </div>
                 <div className="text-base font-medium text-[#1F2937] dark:text-white mb-1">
-                  {isEn ? `Duration: ${recSleepDuration} hours` : `Thời lượng: ${recSleepDuration} giờ`}
+                  {isEn ? `Duration: ${displaySleepDuration} hours` : `Thời lượng: ${displaySleepDuration} giờ`}
                 </div>
                 <div className="text-sm text-[#1F2937]/70 dark:text-white/70 mt-3 leading-relaxed">
                   {isEn 
-                    ? `Calculated backwards to ensure you wake up fresh at ${formatDisplayTime(recWake, isEn)}.`
-                    : `Tính toán lùi chính xác để đảm bảo bạn thức dậy sảng khoái lúc ${formatDisplayTime(recWake, isEn)} sáng mai.`}
+                    ? `Calculated backwards to ensure you wake up fresh at ${formatDisplayTime(displayWake, isEn)}.`
+                    : `Tính toán lùi chính xác để đảm bảo bạn thức dậy sảng khoái lúc ${formatDisplayTime(displayWake, isEn)} sáng mai.`}
                 </div>
               </div>
 
@@ -1559,12 +1618,12 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   <span>🚫</span> {isEn ? "RECOMMENDED CAFFEINE CURFEW TIME" : "GIỜ NGỪNG CAFFEINE ĐỀ XUẤT"}
                 </div>
                 <div className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold text-[#1F2937] dark:text-white mb-3 tabular-nums">
-                  {formatDisplayTime(recCaffeineCutoff, isEn)}
+                  {formatDisplayTime(displayCaffeineCutoff, isEn)}
                 </div>
                 <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
                   {isEn 
-                    ? `(10 hours before your ${formatDisplayTime(recBedtime, isEn)} bedtime)` 
-                    : `(10 tiếng trước giờ đi ngủ ${formatDisplayTime(recBedtime, isEn)})`}
+                    ? `(10 hours before your ${formatDisplayTime(displayBedtime, isEn)} bedtime)` 
+                    : `(10 tiếng trước giờ đi ngủ ${formatDisplayTime(displayBedtime, isEn)})`}
                 </div>
                 <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
                   {isEn 
@@ -1623,18 +1682,30 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                           localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                           recordTomorrowWakePlan(recWake);
                           localStorage.setItem('owlup_bedtime', recBedtime);
+                          localStorage.setItem('owlup_total_sleep_hours', recSleepDuration);
                           localStorage.setItem('owlup_schedule_applied', 'true');
                           localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                          let napObj = null;
+                          if (canNapToday && recNapDurationMins > 0) {
+                            napObj = { start: recNapStart, end: recNapEnd, duration: recNapDurationMins };
+                            localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
+                          } else {
+                            localStorage.removeItem('owlup_planned_nap');
+                          }
                           setSavedSnapshot({
                             bedtime: recBedtime,
                             wakeTime: recWake,
                             goal: selectedGoal || 'healthy_balanced',
                             latestWake: latestWakeUpTime,
                             commitmentsStr: JSON.stringify(commitments),
+                            napStart: napObj ? napObj.start : undefined,
+                            napEnd: napObj ? napObj.end : undefined,
+                            napDuration: napObj ? napObj.duration : 0,
+                            totalSleepHours: recSleepDuration,
                           });
                           setHasUserModified(false);
                           setScheduleSaved(true);
-                          onApplySchedule(recBedtime, recWake, recSleepDuration, recNapStart, recNapDurationMins.toString());
+                          onApplySchedule(recBedtime, recWake, recSleepDuration, canNapToday ? recNapStart : undefined, canNapToday ? recNapDurationMins.toString() : '0');
                           setIsSavedBanner(true);
                           setStep(5);
                         } catch {}
@@ -1652,10 +1723,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 ) : (
                   <button 
                     onClick={() => {
-                      setCustomBedtime(recBedtime);
-                      setCustomWakeTime(recWake);
-                      setNapStart(recNapStart);
-                      setNapDuration(recNapDurationMins.toString());
+                      setCustomBedtime(displayBedtime);
+                      setCustomWakeTime(displayWake);
+                      setNapStart(displayNapStart);
+                      setNapDuration(displayNapDuration.toString());
                       setHasAppliedOptimal(false);
                       setStep(4);
                     }} 
@@ -1877,18 +1948,37 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                         localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
                         recordTomorrowWakePlan(customWakeTime);
                         localStorage.setItem('owlup_bedtime', customBedtime);
+                        const finalHours = (liveDurationMins / 60).toFixed(1);
+                        localStorage.setItem('owlup_total_sleep_hours', finalHours);
                         localStorage.setItem('owlup_schedule_applied', 'true');
                         localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                        const dur = parseInt(napDuration || '0');
+                        let napObj = null;
+                        if (napStart && dur > 0) {
+                          const [nh, nm] = napStart.split(':').map(Number);
+                          const endMins = nh * 60 + nm + dur;
+                          const endH = Math.floor(endMins / 60) % 24;
+                          const endM = endMins % 60;
+                          const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+                          napObj = { start: napStart, end: endStr, duration: dur };
+                          localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
+                        } else {
+                          localStorage.removeItem('owlup_planned_nap');
+                        }
                         setSavedSnapshot({
                           bedtime: customBedtime,
                           wakeTime: customWakeTime,
                           goal: selectedGoal || 'healthy_balanced',
                           latestWake: latestWakeUpTime,
                           commitmentsStr: JSON.stringify(commitments),
+                          napStart: napObj ? napObj.start : undefined,
+                          napEnd: napObj ? napObj.end : undefined,
+                          napDuration: napObj ? napObj.duration : 0,
+                          totalSleepHours: finalHours,
                         });
                         setHasUserModified(false);
                         setScheduleSaved(true);
-                        onApplySchedule(customBedtime, customWakeTime, (liveDurationMins / 60).toFixed(1), napStart, napDuration);
+                        onApplySchedule(customBedtime, customWakeTime, finalHours, napStart, napDuration);
                         setIsSavedBanner(true);
                         setStep(5);
                       } catch {}

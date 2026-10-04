@@ -94,6 +94,7 @@ interface StoredAccount {
   totalSleepHours?: string;
   caffeineLog?: CaffeineItem[];
   commitments?: any[];
+  plannedNap?: { start: string; end: string; duration: number } | null;
   history?: Record<string, any>;
   lastActiveDate?: string;
   onboardingCompleted?: boolean;
@@ -516,6 +517,10 @@ export default function App() {
             setTotalSleepHours(existingAccount.totalSleepHours);
             localStorage.setItem('owlup_total_sleep_hours', existingAccount.totalSleepHours);
           }
+          if (existingAccount.plannedNap) {
+            setPlannedNap(existingAccount.plannedNap);
+            localStorage.setItem('owlup_planned_nap', JSON.stringify(existingAccount.plannedNap));
+          }
           if (Array.isArray(existingAccount.caffeineLog) && existingAccount.caffeineLog.length > 0) {
             const items = existingAccount.caffeineLog.map((it: any) => ({ ...it, timestamp: new Date(it.timestamp) }));
             setCaffeineLog(items);
@@ -784,6 +789,10 @@ export default function App() {
       if (account.totalSleepHours) {
         setTotalSleepHours(account.totalSleepHours);
         localStorage.setItem('owlup_total_sleep_hours', account.totalSleepHours);
+      }
+      if (account.plannedNap) {
+        setPlannedNap(account.plannedNap);
+        localStorage.setItem('owlup_planned_nap', JSON.stringify(account.plannedNap));
       }
       if (Array.isArray(account.caffeineLog) && account.caffeineLog.length > 0) {
         const items = account.caffeineLog.map((it: any) => ({ ...it, timestamp: new Date(it.timestamp) }));
@@ -1087,6 +1096,7 @@ export default function App() {
           tomorrowWakeTime: newWakeTime,
           totalSleepHours: newHours,
           commitments,
+          plannedNap: (napStart && dur > 0) ? { start: napStart, end: endStr, duration: dur } : null,
         });
       }
     } catch {}
@@ -1367,6 +1377,7 @@ export default function App() {
               userProfile={userProfile}
               bedtime={bedtime}
               wakeTime={todayWakeTime || wakeTime}
+              tomorrowWakeTime={tomorrowWakeTime || undefined}
               totalSleepHours={totalSleepHours}
               plannedNap={plannedNap}
               commitments={commitments}

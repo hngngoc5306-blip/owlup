@@ -102,11 +102,16 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
     }
   } else {
     try {
-      const p = localStorage.getItem('owlup_planned_nap');
-      if (p) {
-        const parsed = JSON.parse(p);
-        if (parsed.duration > 0 && parsed.start) {
-          nap = parsed;
+      const todayStr = getLocalDateStr(now);
+      const applied = localStorage.getItem('owlup_schedule_applied');
+      const scheduleDate = localStorage.getItem('owlup_schedule_date');
+      if (applied === 'true' && scheduleDate === todayStr) {
+        const p = localStorage.getItem('owlup_planned_nap');
+        if (p) {
+          const parsed = JSON.parse(p);
+          if (parsed.duration > 0 && parsed.start) {
+            nap = parsed;
+          }
         }
       }
     } catch {}

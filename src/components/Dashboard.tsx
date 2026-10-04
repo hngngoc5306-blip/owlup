@@ -50,9 +50,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const isEn = language === 'en';
   const cleanSleepHours = (() => {
     try {
-      if (bedtime && wakeTime) {
+      const effWake = tomorrowWakeTime || wakeTime;
+      if (bedtime && effWake) {
         const [bh, bm] = bedtime.split(':').map(Number);
-        const [wh, wm] = wakeTime.split(':').map(Number);
+        const [wh, wm] = effWake.split(':').map(Number);
         let diff = (wh * 60 + wm) - (bh * 60 + bm);
         if (diff <= 0) diff += 24 * 60;
         const val = (diff / 60).toFixed(1);
@@ -79,8 +80,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const plannedNap = plannedNapProp !== undefined ? plannedNapProp : (() => {
     try {
-      const saved = localStorage.getItem('owlup_planned_nap');
-      if (saved) return JSON.parse(saved);
+      const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+      const applied = localStorage.getItem('owlup_schedule_applied');
+      const scheduleDate = localStorage.getItem('owlup_schedule_date');
+      if (applied === 'true' && scheduleDate === todayStr) {
+        const saved = localStorage.getItem('owlup_planned_nap');
+        if (saved) return JSON.parse(saved);
+      }
     } catch {}
     return null;
   })();
@@ -578,7 +584,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* 3. Power nap */}
             <div className="px-3 py-3.5 sm:px-2.5 lg:px-3 sm:py-4 rounded-[20px] bg-white dark:bg-[#233355] border border-[#F1F5F9]/70 dark:border-slate-700 shadow-sm flex flex-col justify-center hover:-translate-y-1 hover:shadow-lg transition-[transform,box-shadow] duration-200 ease-in-out">
               <span className="text-xs sm:text-sm font-bold font-sans text-[#1F2937] dark:text-white mb-2 tracking-tight">{isEn ? '3. Power Nap' : '3. Chợp mắt'}</span>
-              {plannedNap && plannedNap.start && plannedNap.duration > 0 ? (
+              {hasSchedule && plannedNap && plannedNap.start && plannedNap.duration > 0 ? (
                 <>
                   <span className="text-base sm:text-[14.5px] lg:text-[14px] xl:text-[15.5px] font-bold font-heading text-[#4CB28E] dark:text-[#62D2FB] mb-1 tracking-tight">{formatDisplayTime(plannedNap.start, isEn)}</span>
                   <span className="text-xs font-sans text-slate-500 overflow-hidden text-ellipsis">{plannedNap.duration} {isEn ? 'min recharge' : 'phút sạc pin'}</span>
