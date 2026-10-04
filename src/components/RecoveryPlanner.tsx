@@ -548,69 +548,136 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
   const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
 
-  // ── 3. Calculate Power Nap (Respects Context Windows) ────────────────────────
+  // ── 3. Calculate Power Nap (Respects Recovery Goal & Context) ────────────────
+  const isCatchUpGoal = selectedGoal === 'catch_up';
+
+  // Evaluate user sleep deficit / recovery needs
+  const userProfileSleepDeficit = (() => {
+    try {
+      if (userProfile?.usualBedtime && (userProfile?.wakeUpToday || wakeTime)) {
+        const bedM = parseMins(userProfile.usualBedtime);
+        const wakeM = parseMins(userProfile.wakeUpToday || wakeTime || '07:00');
+        let durMins = wakeM - bedM;
+        if (durMins < 0) durMins += 24 * 60;
+        if (durMins > 0 && durMins < 7.5 * 60) {
+          return Number(((7.5 * 60 - durMins) / 60).toFixed(1));
+        }
+      }
+    } catch {}
+    return 0;
+  })();
+
+  const userHasNapCrave = Boolean(
+    userProfile?.craves?.includes('nap') ||
+    userProfile?.energyCraves?.includes('nap') ||
+    userProfile?.energyCrave === 'nap' ||
+    (Array.isArray(userProfile?.energyCrave) && userProfile.energyCrave.includes('nap'))
+  );
+
+  const hasMeaningfulSleepDeficit = historyAnalysis.hasHistory
+    ? (historyAnalysis.hasDebt || historyAnalysis.sleepDebtHours >= 0.5)
+    : (userProfileSleepDeficit >= 0.5 || userHasNapCrave || lostSleepMins >= 30);
+
   let canNapToday = true;
   let calcNapDuration = 20;
+  let napOmissionReasonKey: 'past_cutoff' | 'commitments_busy' | 'caffeine_conflict' | 'no_deficit' = 'past_cutoff';
 
-  // Science rule: If user opens app in the evening (>= 18:00) or past afternoon cutoff (>= 15:30),
-  // napping is omitted to protect night sleep adenosine pressure!
-  if (isEveningWindow || (isAfternoonWindow && isPastNapSafeCutoff)) {
+  if (isCatchUpGoal && !hasMeaningfulSleepDeficit && historyAnalysis.hasHistory && !userHasNapCrave) {
+    // Regression Test 2: Catch-up goal with NO meaningful sleep deficit -> avoid unnecessarily forcing additional sleep
     canNapToday = false;
     calcNapDuration = 0;
+    napOmissionReasonKey = 'no_deficit';
+  } else if (!isCatchUpGoal && !isFreeAllDay && (isEveningWindow || (isAfternoonWindow && isPastNapSafeCutoff))) {
+    // Regression Test 4: Other goals in evening/past cutoff without full-day free availability maintain existing behavior
+    canNapToday = false;
+    calcNapDuration = 0;
+    napOmissionReasonKey = 'past_cutoff';
   } else {
-    const userHasNapCrave = userProfile?.craves?.includes('nap') 
-      || userProfile?.energyCraves?.includes('nap')
-      || userProfile?.energyCrave === 'nap'
-      || (Array.isArray(userProfile?.energyCrave) && userProfile.energyCrave.includes('nap'));
-    
-    let baseNap = userHasNapCrave ? Math.max(goalBaseNap, 30) : goalBaseNap;
-    if (historyAnalysis.hasDebt) baseNap = Math.max(baseNap, 25);
+    // Determine nap duration
+    let baseNap = isCatchUpGoal ? 30 : (userHasNapCrave ? Math.max(goalBaseNap, 30) : goalBaseNap);
+    if (hasMeaningfulSleepDeficit) baseNap = Math.max(baseNap, 25);
     calcNapDuration = Math.min(45, baseNap + Math.min(20, Math.floor(lostSleepMins / 30) * 10));
 
-    // If in afternoon window (14:00 - 15:30), cap nap to 20m quick nap
-    if (isAfternoonWindow && !isPastNapSafeCutoff) {
+    // If in afternoon window (14:00 - 15:30) during active day and not free all day, cap to 20m quick nap
+    if (isAfternoonWindow && !isPastNapSafeCutoff && !isFreeAllDay && !isCatchUpGoal) {
       calcNapDuration = Math.min(20, calcNapDuration);
     }
   }
 
-  let idealNapStartMins = isAfternoonWindow 
-    ? Math.max(14 * 60 + 15, currentMinutes + 15) // quick nap starting soon
+  const wakeMinsVal = parseMins(effectiveWake || '07:00');
+  const EARLIEST_NAP_MINS = Math.max(12 * 60, wakeMinsVal + 90); // 12:00 or 90m after wake-up
+  const LATEST_NAP_END_MINS = 15 * 60 + 30; // 15:30 strict biological cutoff
+
+  // Ideal nap start: midday dip (13:00 for balanced/catch_up, 13:15 for night owl)
+  const idealNapStartMins = isAfternoonWindow && !isFreeAllDay && !isPastNapSafeCutoff && !isCatchUpGoal
+    ? Math.max(14 * 60 + 15, currentMinutes + 15)
     : (selectedGoal === 'night_owl' ? 13 * 60 + 15 : 13 * 60);
+
   let napStartMins = idealNapStartMins;
 
-  // Check nap collisions with commitments
-  if (canNapToday && commitments.length > 0) {
+  if (canNapToday && calcNapDuration > 0) {
     const sortedComms = [...commitments]
       .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
       .sort((a, b) => a.startMins - b.startMins);
 
-    const POST_COMMITMENT_BUFFER = 30;
-    const PRE_COMMITMENT_BUFFER = 15;
-
-    const isOverlapWithBuffer = (s: number, dur: number) => {
-      const e = s + dur;
-      return sortedComms.some(c => {
-        const effectiveBusyStart = c.startMins - PRE_COMMITMENT_BUFFER;
-        const effectiveBusyEnd = c.endMins + POST_COMMITMENT_BUFFER;
-        return s < effectiveBusyEnd && e > effectiveBusyStart;
-      });
-    };
-
-    if (isOverlapWithBuffer(napStartMins, calcNapDuration)) {
-      let foundSlot = false;
-      for (const c of sortedComms) {
-        let candidateStart = Math.ceil((c.endMins + POST_COMMITMENT_BUFFER) / 5) * 5;
-        if (candidateStart >= 12 * 60 && candidateStart + calcNapDuration <= 15 * 60 + 30) {
-          if (!isOverlapWithBuffer(candidateStart, calcNapDuration)) {
-            napStartMins = candidateStart;
-            foundSlot = true;
-            break;
+    // Retrieve active caffeine logs for conflict checks
+    const activeCaffeineItems = (() => {
+      try {
+        const raw = localStorage.getItem('owlup_caffeine_log');
+        if (raw) {
+          const items = JSON.parse(raw);
+          if (Array.isArray(items)) {
+            return items.map((it: any) => {
+              const d = it.timestamp ? new Date(it.timestamp) : null;
+              if (d && !isNaN(d.getTime())) {
+                return d.getHours() * 60 + d.getMinutes();
+              }
+              return null;
+            }).filter((m): m is number => m !== null);
           }
         }
+      } catch {}
+      return [];
+    })();
+
+    const isSlotConflicting = (slotStart: number, dur: number): 'commitment' | 'caffeine' | null => {
+      const slotEnd = slotStart + dur;
+      // Commitment collision with 15m buffer
+      const hasCommConflict = sortedComms.some(c => {
+        const busyStart = c.startMins - 15;
+        const busyEnd = c.endMins + 15;
+        return slotStart < busyEnd && slotEnd > busyStart;
+      });
+      if (hasCommConflict) return 'commitment';
+
+      // Caffeine collision (absorption peak window: 15m before to 30m after intake)
+      const hasCaffConflict = activeCaffeineItems.some(cMins => {
+        return slotStart < cMins + 30 && slotEnd > cMins - 15;
+      });
+      if (hasCaffConflict) return 'caffeine';
+
+      return null;
+    };
+
+    const initialConflict = isSlotConflicting(napStartMins, calcNapDuration);
+    if (initialConflict) {
+      // Find candidate slot in [EARLIEST_NAP_MINS, LATEST_NAP_END_MINS - calcNapDuration]
+      const maxStart = LATEST_NAP_END_MINS - calcNapDuration;
+      const validCandidates: number[] = [];
+      for (let cand = EARLIEST_NAP_MINS; cand <= maxStart; cand += 15) {
+        if (!isSlotConflicting(cand, calcNapDuration)) {
+          validCandidates.push(cand);
+        }
       }
-      if (!foundSlot) {
+
+      if (validCandidates.length > 0) {
+        // Pick candidate closest to ideal circadian dip
+        validCandidates.sort((a, b) => Math.abs(a - idealNapStartMins) - Math.abs(b - idealNapStartMins));
+        napStartMins = validCandidates[0];
+      } else {
         canNapToday = false;
         calcNapDuration = 0;
+        napOmissionReasonKey = initialConflict === 'caffeine' ? 'caffeine_conflict' : 'commitments_busy';
       }
     }
   }
@@ -1446,13 +1513,21 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       {isEn ? "No Nap Scheduled" : "Không xếp lịch chợp mắt"}
                     </div>
                     <p className="text-sm text-[#1F2937]/70 dark:text-white/70 leading-relaxed mt-2 font-sans">
-                      {isEveningWindow || isPastNapSafeCutoff
-                        ? (isEn 
-                            ? "It's past the optimal afternoon dip window (>15:30). Taking a late nap will deplete your adenosine and disrupt tonight's sleep. OwlUp prioritizes deep night sleep instead."
-                            : "Đã qua khung giờ chợp mắt sinh học lý tưởng (>15:30). Ngủ muộn lúc này sẽ làm giảm áp lực buồn ngủ tự nhiên và gây mất ngủ đêm. OwlUp dồn toàn bộ cho giấc ngủ đêm chất lượng.")
+                      {napOmissionReasonKey === 'no_deficit'
+                        ? (isEn
+                            ? `No meaningful sleep deficit detected (${historyAnalysis.yesterdaySleep}h sleep recorded). Additional daytime recovery sleep is omitted to preserve nighttime sleep quality.`
+                            : `Không phát hiện nợ ngủ đáng kể (đã ngủ ${historyAnalysis.yesterdaySleep}h). Không cần xếp thêm giấc ngủ bù ban ngày để bảo toàn chất lượng giấc ngủ đêm.`)
+                        : napOmissionReasonKey === 'caffeine_conflict'
+                        ? (isEn
+                            ? "Recent caffeine intake coincides with the midday nap dip window. A nap is omitted to avoid disrupted sleep."
+                            : "Thời điểm nạp caffeine trùng với khung giờ chợp mắt sinh học. Không xếp lịch chợp mắt để tránh trằn trọc.")
+                        : napOmissionReasonKey === 'commitments_busy'
+                        ? (isEn
+                            ? "Your commitments occupy the midday dip window (12:00 - 15:30). OwlUp prioritizes deep night sleep instead."
+                            : "Lịch bận kéo dài qua khung giờ trưa (12:00 - 15:30), OwlUp sẽ tối ưu giấc ngủ đêm để bù đắp năng lượng trọn vẹn cho bạn.")
                         : (isEn 
-                            ? "Your commitments occupy the midday dip window. OwlUp protects your nighttime sleep efficiency."
-                            : "Lịch bận kéo dài qua khung giờ trưa, OwlUp sẽ tối ưu giấc ngủ đêm để bù đắp năng lượng trọn vẹn cho bạn.")}
+                            ? "It's past the optimal afternoon dip window (>15:30). Taking a late nap will deplete your adenosine and disrupt tonight's sleep. OwlUp prioritizes deep night sleep instead."
+                            : "Đã qua khung giờ chợp mắt sinh học lý tưởng (>15:30). Ngủ muộn lúc này sẽ làm giảm áp lực buồn ngủ tự nhiên và gây mất ngủ đêm. OwlUp dồn toàn bộ cho giấc ngủ đêm chất lượng.")}
                     </p>
                   </>
                 )}
