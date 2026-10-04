@@ -17,7 +17,16 @@ export type WakingValidationStatus =
   | 'before_wakeup'
   | 'after_bedtime'
   | 'exceeds_waking_period'
+  | 'conflicts_with_main_sleep'
   | 'missing_sleep_data';
+
+export interface MainSleepInterval {
+  sleepStart: Date;
+  sleepEnd: Date;
+  displaySleepStart: string;
+  displaySleepEnd: string;
+  isOvernight: boolean;
+}
 
 export interface WakingValidationResult {
   isValid: boolean;
@@ -120,6 +129,75 @@ export const getWakingPeriodForDate = (
   };
 };
 
+/**
+ * Resolves the continuous Main Sleep interval for a circadian cycle.
+ * - sleepStart: Bedtime tonight (full Date)
+ * - sleepEnd: Tomorrow wake-up (full Date)
+ * Guarantees sleepStart < sleepEnd.
+ */
+export const getMainSleepInterval = (
+  date: Date = new Date(),
+  customBedtime?: string | null,
+  customTomorrowWake?: string | null,
+  customTodayWake?: string | null,
+  userProfile?: UserProfile | null,
+  isEn: boolean = true
+): MainSleepInterval => {
+  const baseYear = date.getFullYear();
+  const baseMonth = date.getMonth();
+  const baseDay = date.getDate();
+
+  const resolvedBed = customBedtime || localStorage.getItem('owlup_bedtime') || userProfile?.bedtime || userProfile?.usualBedtime || '22:30';
+  const resolvedTodayWake = customTodayWake || localStorage.getItem('owlup_wakeup_today') || localStorage.getItem('owlup_waketime') || userProfile?.wakeUpToday || userProfile?.usualWakeTime || '07:00';
+  const resolvedTomorrowWake = customTomorrowWake || localStorage.getItem('owlup_tomorrow_wake') || resolvedTodayWake || '07:00';
+
+  const [bh, bm] = resolvedBed.split(':').map(Number);
+  const [wh, wm] = resolvedTodayWake.split(':').map(Number);
+  const [twh, twm] = resolvedTomorrowWake.split(':').map(Number);
+
+  const bedMins = (bh || 0) * 60 + (bm || 0);
+  const todayWakeMins = (wh || 0) * 60 + (wm || 0);
+  const isOvernight = bedMins <= todayWakeMins;
+
+  const sleepStart = new Date(baseYear, baseMonth, baseDay + (isOvernight ? 1 : 0), bh || 0, bm || 0, 0, 0);
+  let sleepEnd = new Date(baseYear, baseMonth, baseDay + 1, twh || 0, twm || 0, 0, 0);
+  while (sleepEnd.getTime() <= sleepStart.getTime()) {
+    sleepEnd = new Date(sleepEnd.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  return {
+    sleepStart,
+    sleepEnd,
+    displaySleepStart: formatDisplayTime(resolvedBed, isEn),
+    displaySleepEnd: formatDisplayTime(resolvedTomorrowWake, isEn),
+    isOvernight,
+  };
+};
+
+/**
+ * Checks whether an event overlaps with the Main Sleep interval.
+ * - Interval event (eventEnd provided): eventStart < sleepEnd && eventEnd > sleepStart
+ * - Point event: sleepStart <= eventStart < sleepEnd
+ */
+export const isEventConflictingWithMainSleep = (params: {
+  eventStart: Date;
+  eventEnd?: Date | null;
+  sleepStart: Date;
+  sleepEnd: Date;
+}): boolean => {
+  const { eventStart, eventEnd, sleepStart, sleepEnd } = params;
+  const startMs = eventStart.getTime();
+  const sleepStartMs = sleepStart.getTime();
+  const sleepEndMs = sleepEnd.getTime();
+
+  if (eventEnd) {
+    const endMs = eventEnd.getTime();
+    return startMs < sleepEndMs && endMs > sleepStartMs;
+  } else {
+    return startMs >= sleepStartMs && startMs < sleepEndMs;
+  }
+};
+
 export const getEventDateForTime = (
   timeMins: number,
   baseDate: Date,
@@ -217,6 +295,26 @@ export const validateIntervalEventInWakingPeriod = (params: {
   const endMs = endDate.getTime();
   const wakeMs = wakeDate.getTime();
   const bedMs = bedDate.getTime();
+
+  // Check hard Main Sleep conflict
+  const sleepInterval = getMainSleepInterval(baseDate, bedtime, undefined, wakeTime, userProfile, isEn);
+  if (isEventConflictingWithMainSleep({
+    eventStart: startDate,
+    eventEnd: endDate,
+    sleepStart: sleepInterval.sleepStart,
+    sleepEnd: sleepInterval.sleepEnd,
+  })) {
+    const msgEn = `This event falls inside your sleep period (${sleepInterval.displaySleepStart} - ${sleepInterval.displaySleepEnd}). Main Sleep cannot overlap with other planned activities.`;
+    const msgVi = `Sự kiện này trùng với thời gian ngủ (${sleepInterval.displaySleepStart} - ${sleepInterval.displaySleepEnd}). Giấc ngủ chính không thể trùng với các hoạt động khác.`;
+    return {
+      isValid: false,
+      status: 'conflicts_with_main_sleep',
+      message: isEn ? msgEn : msgVi,
+      messageEn: msgEn,
+      messageVi: msgVi,
+      wakingPeriod,
+    };
+  }
 
   if (startMs < wakeMs && endMs > bedMs) {
     const msgEn = "This event extends beyond your waking hours. Please adjust its start or end time.";
@@ -340,6 +438,25 @@ export const validateInstantEventInWakingPeriod = (params: {
   const eventMs = eventDate.getTime();
   const wakeMs = wakeDate.getTime();
   const bedMs = bedDate.getTime();
+
+  // Check hard Main Sleep conflict
+  const sleepInterval = getMainSleepInterval(effectiveBaseDate, bedtime, undefined, wakeTime, userProfile, isEn);
+  if (isEventConflictingWithMainSleep({
+    eventStart: eventDate,
+    sleepStart: sleepInterval.sleepStart,
+    sleepEnd: sleepInterval.sleepEnd,
+  })) {
+    const msgEn = `This event falls inside your sleep period (${sleepInterval.displaySleepStart} - ${sleepInterval.displaySleepEnd}). Main Sleep cannot overlap with other planned activities.`;
+    const msgVi = `Sự kiện này trùng với thời gian ngủ (${sleepInterval.displaySleepStart} - ${sleepInterval.displaySleepEnd}). Giấc ngủ chính không thể trùng với các hoạt động khác.`;
+    return {
+      isValid: false,
+      status: 'conflicts_with_main_sleep',
+      message: isEn ? msgEn : msgVi,
+      messageEn: msgEn,
+      messageVi: msgVi,
+      wakingPeriod,
+    };
+  }
 
   if (eventMs < wakeMs) {
     if (timestamp) {

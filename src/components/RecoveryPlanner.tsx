@@ -24,7 +24,12 @@ import { AppLanguage, UserProfile, DayRecoveryGoal } from '../types';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { validateSleepSchedule } from '../utils/sleepValidation';
 import { recordTomorrowWakePlan } from '../utils/wakeTimeService';
-import { validateIntervalEventInWakingPeriod } from '../utils/wakingPeriodValidation';
+import {
+  validateIntervalEventInWakingPeriod,
+  isEventConflictingWithMainSleep,
+  getMainSleepInterval,
+  getEventDateForTime
+} from '../utils/wakingPeriodValidation';
 
 export interface RecoveryPlannerProps {
   isNight: boolean;
@@ -265,6 +270,31 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     return diff;
   };
 
+  const effectiveWake = wakeTime || (() => {
+    try {
+      return localStorage.getItem('owlup_wakeup_today') ||
+        localStorage.getItem('owlup_waketime') ||
+        userProfile?.wakeUpToday ||
+        userProfile?.usualWakeTime ||
+        '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const effectiveBedtime = bedtime || (() => {
+    try {
+      return localStorage.getItem('owlup_bedtime') ||
+        userProfile?.bedtime ||
+        userProfile?.usualBedtime ||
+        '';
+    } catch {
+      return '';
+    }
+  })();
+
+  const wakeMins = parseMins(effectiveWake || '07:00');
+
   const rawBaseBedMins = userProfile?.bedtime 
     ? parseMins(userProfile.bedtime) 
     : (userProfile?.usualBedtime ? parseMins(userProfile.usualBedtime) : parseMins('22:30'));
@@ -280,9 +310,49 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     napDuration
   );
 
-  const isStep3Valid = customSleepValidation.isValid;
+  // Check if any commitment conflicts with the proposed custom sleep interval (Case A enforcement)
+  const customSleepInterval = getMainSleepInterval(
+    currentTime,
+    customBedtime,
+    customWakeTime,
+    effectiveWake,
+    userProfile,
+    isEn
+  );
+
+  let conflictingCommitmentTitle: string | null = null;
+  let conflictingCommitmentTimes: string | null = null;
+
+  for (const c of commitments) {
+    const cStartMins = parseMins(c.start);
+    const cEndMins = parseMins(c.end);
+    const commStartDate = getEventDateForTime(cStartMins, currentTime, wakeMins, baseBedtimeMins, customSleepInterval.isOvernight);
+    let commEndDate = getEventDateForTime(cEndMins, currentTime, wakeMins, baseBedtimeMins, customSleepInterval.isOvernight);
+    if (commEndDate.getTime() <= commStartDate.getTime() && cEndMins < cStartMins) {
+      commEndDate = new Date(commEndDate.getTime() + 24 * 60 * 60 * 1000);
+    }
+    const hasConflict = isEventConflictingWithMainSleep({
+      eventStart: commStartDate,
+      eventEnd: commEndDate,
+      sleepStart: customSleepInterval.sleepStart,
+      sleepEnd: customSleepInterval.sleepEnd,
+    });
+    if (hasConflict) {
+      conflictingCommitmentTitle = (!isEn && (!c.title || c.title.toLowerCase() === 'busy block'))
+        ? 'Lịch bận'
+        : (isEn && c.title === 'Lịch bận' ? 'Busy Block' : (c.title || (isEn ? 'Busy Block' : 'Lịch bận')));
+      conflictingCommitmentTimes = `${formatDisplayTime(c.start, isEn)} - ${formatDisplayTime(c.end, isEn)}`;
+      break;
+    }
+  }
+
+  const isStep3Valid = customSleepValidation.isValid && !conflictingCommitmentTitle;
   const validationError = !customSleepValidation.isValid
     ? (isEn ? customSleepValidation.messageEn : customSleepValidation.messageVi)
+    : conflictingCommitmentTitle
+    ? (isEn 
+        ? `Commitment "${conflictingCommitmentTitle}" (${conflictingCommitmentTimes}) falls inside your proposed sleep period (${formatDisplayTime(customBedtime, isEn)} - ${formatDisplayTime(customWakeTime, isEn)}). Main Sleep cannot overlap with other planned activities. Please adjust your sleep or busy times.`
+        : `Lịch bận "${conflictingCommitmentTitle}" (${conflictingCommitmentTimes}) nằm trong khoảng thời gian ngủ đề xuất (${formatDisplayTime(customBedtime, isEn)} - ${formatDisplayTime(customWakeTime, isEn)}). Giấc ngủ chính không thể trùng với các hoạt động khác. Vui lòng điều chỉnh lại lịch ngủ hoặc lịch bận.`)
     : null;
 
   const liveBedtimeMins = parseMins(customBedtime);
@@ -708,29 +778,6 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       setStep(4);
     }
   };
-
-  const effectiveWake = wakeTime || (() => {
-    try {
-      return localStorage.getItem('owlup_wakeup_today') ||
-        localStorage.getItem('owlup_waketime') ||
-        userProfile?.wakeUpToday ||
-        userProfile?.usualWakeTime ||
-        '';
-    } catch {
-      return '';
-    }
-  })();
-
-  const effectiveBedtime = bedtime || (() => {
-    try {
-      return localStorage.getItem('owlup_bedtime') ||
-        userProfile?.bedtime ||
-        userProfile?.usualBedtime ||
-        '';
-    } catch {
-      return '';
-    }
-  })();
 
   const validateTimes = (start: string, end: string): { valid: boolean; error: string | null } => {
     if (!start || !end || start === '--:--' || end === '--:--' || !start.includes(':') || !end.includes(':')) {

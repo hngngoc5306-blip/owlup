@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { AppLanguage, UserProfile, DayRecoveryGoal } from '../types';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { getDrinkIcon } from './CaffeineAdvisor';
-import { Trash2 } from 'lucide-react';
+import { Trash2, AlertCircle } from 'lucide-react';
+import { isEventConflictingWithMainSleep } from '../utils/wakingPeriodValidation';
 import {
   getTodayWakeInfo,
   getTomorrowWakeInfo,
@@ -389,7 +390,39 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
     isConfigured: Boolean(effectiveTomorrowWake),
   });
 
-  const timelineEvents = rawEvents
+  // Filter events against the uninterrupted Main Sleep interval [bedtimeDate, tomorrowWakeDate]
+  const conflictingSleepEvents: typeof rawEvents = [];
+  const validRawEvents: typeof rawEvents = [];
+
+  rawEvents.forEach((evt) => {
+    // Bedtime tonight and tomorrow wake-up target define the sleep boundaries
+    if (evt.startDate.getTime() === bedtimeDate.getTime() && (evt.tag === 'MAIN SLEEP' || evt.tag === 'ĐI NGỦ')) {
+      validRawEvents.push(evt);
+      return;
+    }
+    if (evt.isEndpoint === 'end' || evt.isEndpoint === 'start') {
+      validRawEvents.push(evt);
+      return;
+    }
+
+    const eventStart = evt.startDate;
+    const eventEnd = evt.duration ? new Date(evt.startDate.getTime() + evt.duration * 60 * 1000) : null;
+
+    const conflicts = isEventConflictingWithMainSleep({
+      eventStart,
+      eventEnd,
+      sleepStart: bedtimeDate,
+      sleepEnd: tomorrowWakeDate,
+    });
+
+    if (conflicts) {
+      conflictingSleepEvents.push(evt);
+    } else {
+      validRawEvents.push(evt);
+    }
+  });
+
+  const timelineEvents = validRawEvents
     .sort((a, b) => {
       const diff = a.startDate.getTime() - b.startDate.getTime();
       if (diff !== 0) return diff;
@@ -513,6 +546,23 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
             <span>{isEn ? "Enter busy times" : "Nhập lịch bận mới"}</span>
             <span className="font-normal">&rarr;</span>
           </button>
+        </div>
+      )}
+
+      {/* MAIN SLEEP CONFLICT WARNING BANNER */}
+      {conflictingSleepEvents.length > 0 && (
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 flex items-start gap-3.5 text-amber-900 dark:text-amber-200 text-xs sm:text-sm animate-fade-in shadow-sm">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-heading font-bold text-sm sm:text-base text-amber-900 dark:text-amber-100 mb-1">
+              {isEn ? "Main Sleep Exclusivity Enforced" : "Bảo vệ Giấc ngủ Đêm Trọn vẹn"}
+            </h4>
+            <p className="leading-relaxed">
+              {isEn
+                ? `${conflictingSleepEvents.length} scheduled item(s) (${conflictingSleepEvents.map(e => e.title).join(', ')}) fall inside your uninterrupted sleep period (${formatDisplayTime(effectiveBedtime, isEn)} – ${formatDisplayTime(effectiveTomorrowWake, isEn)}). Activities inside Main Sleep are excluded from the recovery timeline to preserve continuous biological rest.`
+                : `${conflictingSleepEvents.length} hoạt động (${conflictingSleepEvents.map(e => e.title).join(', ')}) trùng với khung giờ ngủ liên tục (${formatDisplayTime(effectiveBedtime, isEn)} – ${formatDisplayTime(effectiveTomorrowWake, isEn)}). Các hoạt động này đã được loại bỏ khỏi dòng thời gian phục hồi để đảm bảo giấc ngủ không bị ngắt quãng.`}
+            </p>
+          </div>
         </div>
       )}
 
