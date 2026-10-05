@@ -244,21 +244,14 @@ export const syncAccountToSupabase = async (
     settings: accountData.settings,
     bedtime: accountData.bedtime,
     wake_time: accountData.wakeTime,
-    wakeTime: accountData.wakeTime,
     total_sleep_hours: accountData.totalSleepHours,
-    totalSleepHours: accountData.totalSleepHours,
     caffeine_log: accountData.caffeineLog,
-    caffeineLog: accountData.caffeineLog,
     commitments: accountData.commitments,
     planned_nap: accountData.plannedNap,
-    plannedNap: accountData.plannedNap,
     history: accountData.history,
     last_active_date: accountData.lastActiveDate,
-    lastActiveDate: accountData.lastActiveDate,
     onboarding_completed: accountData.onboardingCompleted ?? true,
-    onboardingCompleted: accountData.onboardingCompleted ?? true,
     recovery_goal: accountData.recoveryGoal,
-    recoveryGoal: accountData.recoveryGoal,
   };
   await upsertUserData(userId, payload);
 };
