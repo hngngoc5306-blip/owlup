@@ -175,7 +175,7 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                 <Sun className="w-6 h-6 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                 <div>
                   <h4 className="font-heading font-bold text-base sm:text-lg text-amber-900 dark:text-amber-200">
-                    {isEn ? '💡 Pro Tip: Start Your Day with OwlUp' : '💡 Mẹo vàng: Mở OwlUp vào buổi sáng'}
+                    {isEn ? 'Pro Tip: Start Your Day with OwlUp' : 'Mẹo vàng: Mở OwlUp vào buổi sáng'}
                   </h4>
                   <p className="text-sm sm:text-[15px] text-amber-800/90 dark:text-amber-200/80 mt-1.5 leading-relaxed">
                     {isEn
