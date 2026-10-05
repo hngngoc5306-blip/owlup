@@ -233,19 +233,6 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
               </div>
             </div>
           )}
-                  <div className="leading-relaxed">
-                    <strong className="text-slate-900 dark:text-white font-bold">
-                      {isEn ? 'Step 1 & 2: Busy Hours & Wake Anchor:' : 'Bước 1 & 2: Khung giờ bận & Giờ dậy sáng mai:'}
-                    </strong>{' '}
-                    {isEn
-                      ? 'Input classes, work shifts, and your required wake-up time, then choose 1 of 4 scientific recovery goals.'
-                      : 'Nhập lịch học, ca làm và mốc giờ dậy muộn nhất sáng mai, sau đó chọn 1 trong 4 mục tiêu phục hồi sinh học.'}
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-[#2D3748]/50 bg-slate-100 dark:bg-[#233355]/40 flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" style={{ color: isNight ? '#62D2FB' : '#4CB28E' }} />
-
           {/* SLIDE 3: CAFFEINE */}
           {activeSlide === 3 && (
             <div className="space-y-4 animate-premium-in">
