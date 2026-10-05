@@ -185,7 +185,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
   // 5: Success confirmation
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
     try {
-      if (isScheduleAppliedToday) return 3;
+      if (isScheduleAppliedToday) return 5;
     } catch {}
     return 1;
   });
