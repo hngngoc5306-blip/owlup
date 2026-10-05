@@ -745,8 +745,8 @@ export default function App() {
     const email = googleUser.email.trim().toLowerCase();
     let isRegistered = checkAccountRegistered(email);
 
-    // If not found in local localStorage cache, check Supabase across devices
-    if (!isRegistered && isSupabaseConfigured) {
+    // Always fetch latest from Supabase if configured, to ensure cross-device sync
+    if (isSupabaseConfigured) {
       try {
         const storedId = getStoredAuthUserId();
         let remoteRecord = storedId ? await fetchUserData(storedId) : null;
@@ -761,7 +761,7 @@ export default function App() {
           isRegistered = true;
         }
       } catch (err) {
-        console.warn('[Supabase Sync] Error checking user registration:', err);
+        console.warn('[Supabase Sync] Error fetching user registration:', err);
       }
     }
 
@@ -769,7 +769,7 @@ export default function App() {
       // FLOW A: Existing Registered User
       if (googleUser.sub) {
         setStoredAuthUserId(googleUser.sub);
-        // Force an immediate sync of local data to Supabase
+        // Force an immediate sync of local data to Supabase (only pushes if local data is newer? Actually hydrate just overwrote it, so this pushes the merged result)
         const accounts = getStoredAccounts();
         if (accounts[email]) {
           syncAccountToSupabase(googleUser.sub, accounts[email]).catch(() => {});
