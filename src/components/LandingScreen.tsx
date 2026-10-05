@@ -7,7 +7,7 @@ interface LandingScreenProps {
   onStartProfileSetup: () => void;
   onContinueAsGuest: () => void;
   onLoginWithEmail?: (email: string) => boolean;
-  onLoginWithGoogle?: (user: GoogleUserData) => { success: boolean; isRegistered: boolean; message?: string } | void;
+  onLoginWithGoogle?: (user: GoogleUserData) => Promise<{ success: boolean; isRegistered: boolean; message?: string } | void> | { success: boolean; isRegistered: boolean; message?: string } | void;
   registrationNotice?: string;
   defaultEmail?: string;
   isNight?: boolean;
@@ -62,7 +62,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
     try {
       const user = await signInWithGooglePopup();
       if (onLoginWithGoogle) {
-        const res = onLoginWithGoogle(user);
+        const res = await onLoginWithGoogle(user);
         if (res && !res.isRegistered) {
           setLocalNotice(res.message || '');
         }
@@ -165,7 +165,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
         <button
           onClick={onStartProfileSetup}
-          className="bg-[#4CB28E] hover:bg-[#007b4d] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] px-8 sm:px-14 md:px-20 py-3 sm:py-3.5 w-full max-w-xs sm:w-auto rounded-full font-sans font-semibold text-base sm:text-lg shadow-[0_8px_20px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_25px_rgba(82,183,136,0.35)] transition-all cursor-pointer active:scale-95"
+          className="bg-[#4CB28E] hover:bg-[#007b4d] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] px-8 sm:px-14 md:px-20 py-3 sm:py-3.5 w-full max-w-xs sm:w-auto rounded-full font-sans font-semibold text-base sm:text-lg shadow-[0_8px_20px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_25px_rgba(82,183,136,0.35)] transition-all cursor-pointer active:scale-95"
         >
           {isEn ? 'Get Started' : 'Bắt đầu ngay'}
         </button>
@@ -238,7 +238,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
               <div className="flex flex-col gap-2.5 pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] font-bold text-sm shadow-md transition-all cursor-pointer"
+                  className="w-full py-3 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] font-bold text-sm shadow-md transition-all cursor-pointer"
                 >
                   {isEn ? 'Sign In' : 'Đăng nhập'}
                 </button>

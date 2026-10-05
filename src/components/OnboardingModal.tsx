@@ -75,7 +75,7 @@ const StepLayout = ({ children, title, subtitle, isNextValid, handleNext, isEn, 
         disabled={!isNextValid}
         className={`w-full py-4 rounded-full font-sans font-bold text-lg transition-all duration-300 ease-in-out cursor-pointer ${
           isNextValid 
-            ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] shadow-lg hover:shadow-xl hover:-translate-y-1' 
+            ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] shadow-lg hover:shadow-xl hover:-translate-y-1' 
             : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
         }`}
       >
@@ -734,7 +734,7 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
                   <button
                     onClick={handleCompleteWithPrefilledGoogle}
                     disabled={isSigningIn}
-                    className="w-full py-4 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] font-sans font-bold text-lg shadow-[0_8px_30px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_40px_rgba(82,183,136,0.35)] hover:-translate-y-1 transition-all duration-300 ease-in-out cursor-pointer active:scale-95"
+                    className="w-full py-4 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] font-sans font-bold text-lg shadow-[0_8px_30px_rgba(82,183,136,0.25)] hover:shadow-[0_12px_40px_rgba(82,183,136,0.35)] hover:-translate-y-1 transition-all duration-300 ease-in-out cursor-pointer active:scale-95"
                   >
                     {isEn ? 'Complete Registration with Google' : 'Hoàn tất đăng ký bằng Google'}
                   </button>

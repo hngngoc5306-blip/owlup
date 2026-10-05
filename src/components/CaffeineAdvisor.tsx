@@ -858,7 +858,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
               !drinkTime || 
               (isCustom ? (!customName.trim() || !customMg || (parseInt(customMg) || 0) <= 0) : (selectedDrink === null || selectedSize === null))
             }
-            className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none rounded-2xl py-4 text-lg font-bold transition-all duration-300 mb-3.5 shadow-md cursor-pointer"
+            className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none rounded-2xl py-4 text-lg font-bold transition-all duration-300 mb-3.5 shadow-md cursor-pointer"
           >
             {isEn ? "Log this Drink" : "Ghi nhận ly này"}
           </button>
@@ -959,7 +959,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
                       <button
                         onClick={handleSaveEditDrink}
                         disabled={!editDrinkTime}
-                        className="px-3.5 py-2 rounded-xl bg-[#4CB28E] dark:bg-[#62D2FB] text-white dark:text-slate-900 font-bold text-xs sm:text-sm hover:opacity-90 disabled:opacity-50 cursor-pointer transition-all"
+                        className="px-3.5 py-2 rounded-xl bg-[#4CB28E] dark:bg-[#62D2FB] text-white dark:text-[#17233E] font-bold text-xs sm:text-sm hover:opacity-90 disabled:opacity-50 cursor-pointer transition-all"
                       >
                         {isEn ? "Save" : "Lưu"}
                       </button>
@@ -997,7 +997,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
               onNavigateToTimeline && onNavigateToTimeline();
             }}
             disabled={hasInvalidLoggedDrinks}
-            className="px-7 py-3 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] font-bold text-base flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+            className="px-7 py-3 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] font-bold text-base flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             <span>{isEn ? "Open Full Timeline" : "Mở Lộ trình chi tiết"}</span>
             <span className="font-normal text-lg leading-none">→</span>

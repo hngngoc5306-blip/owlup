@@ -437,7 +437,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                         <span className="font-medium text-sm truncate">{opt.l}</span>
                       </div>
                       <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors ${
-                        isSelected ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E] dark:bg-[#62D2FB] text-white' : 'border-slate-300 dark:border-slate-600'
+                        isSelected ? 'border-[#4CB28E] dark:border-[#62D2FB] bg-[#4CB28E] dark:bg-[#62D2FB] text-white dark:text-[#17233E]' : 'border-slate-300 dark:border-slate-600'
                       }`}>
                         {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                       </div>
@@ -618,7 +618,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             type="button"
             onClick={handleSave}
             disabled={isSaved}
-            className={`px-6 py-2.5 rounded-xl text-sm font-bold text-white dark:text-[#0E172A] transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold text-white dark:text-[#17233E] transition-all cursor-pointer flex items-center gap-1.5 ${
               isSaved 
                 ? 'bg-emerald-600 dark:bg-emerald-400 scale-95 shadow-inner' 
                 : 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#3FA07E] dark:hover:bg-[#4EBCDF] shadow-md hover:shadow-lg'

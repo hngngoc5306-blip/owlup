@@ -9,7 +9,8 @@ import {
   getTomorrowWakeInfo,
   getTomorrowDate,
   formatDisplayDate,
-  getLocalDateStr
+  getLocalDateStr,
+  calculateSleepEndTime
 } from '../utils/wakeTimeService';
 
 interface RecoveryTimelineProps {
@@ -140,7 +141,6 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   const tomorrowWakeInfo = getTomorrowWakeInfo(now, isEn);
 
   const effectiveTodayWake = todayWakeTimeProp !== undefined ? todayWakeTimeProp : (todayWakeInfo.time || wakeTime || null);
-  const effectiveTomorrowWake = tomorrowWakeTimeProp !== undefined ? tomorrowWakeTimeProp : tomorrowWakeInfo.time;
   
   const todayDisplayDate = todayWakeInfo.displayDate;
   const tomorrowDisplayDate = tomorrowWakeInfo.displayDate;
@@ -166,6 +166,36 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   const bedMins = parseMins(effectiveBedtime);
   const wakeMins = effectiveTodayWake ? parseMins(effectiveTodayWake) : 7 * 60;
 
+  // Retrieve Tomorrow's Wake-Up directly from the confirmed sleep schedule
+  const effectiveTomorrowWake = (() => {
+    // 1. Authoritative prop passed from parent
+    if (tomorrowWakeTimeProp) return tomorrowWakeTimeProp;
+
+    // 2. Query from wake time service
+    if (tomorrowWakeInfo.time) return tomorrowWakeInfo.time;
+
+    // 3. Stored tomorrow wake plan from local storage
+    try {
+      const storedTomorrow = localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_tomorrow_wake');
+      if (storedTomorrow) return storedTomorrow;
+    } catch {}
+
+    // 4. Night sleep end time derived directly from confirmed schedule (bedtime + totalSleepHours)
+    if (effectiveBedtime && totalSleepHours) {
+      const computedEnd = calculateSleepEndTime(effectiveBedtime, totalSleepHours);
+      if (computedEnd) return computedEnd;
+    }
+
+    // 5. Wake time fallback from confirmed schedule / account (Dashboard fallback)
+    if (wakeTime) return wakeTime;
+    try {
+      const legacyWake = localStorage.getItem('owlup_waketime');
+      if (legacyWake) return legacyWake;
+    } catch {}
+
+    return null;
+  })();
+
   // If bedtime is <= today's wake time (e.g. 01:00 AM after 08:00 AM wake-up),
   // it is in the early morning of tomorrow's calendar day
   const isBedtimePastMidnight = bedMins <= wakeMins;
@@ -182,15 +212,8 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   const curfewTimeStr = `${curfewDate.getHours().toString().padStart(2, '0')}:${curfewDate.getMinutes().toString().padStart(2, '0')}`;
   const curfewDisplayDate = formatDisplayDate(curfewDate, isEn);
 
-  // Status evaluator based on real timestamps
+  // Current timestamp for timeline evaluation
   const nowMs = now.getTime();
-  const getEventStatus = (eventStart: Date, durationMins: number = 30): 'active' | 'past' | 'upcoming' => {
-    const startMs = eventStart.getTime();
-    const endMs = startMs + durationMins * 60 * 1000;
-    if (nowMs >= startMs && nowMs <= endMs) return 'active';
-    if (nowMs > endMs) return 'past';
-    return 'upcoming';
-  };
 
   const rawEvents: any[] = [];
   
@@ -427,35 +450,58 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
     }
   });
 
-  const timelineEvents = validRawEvents
-    .sort((a, b) => {
-      const diff = a.startDate.getTime() - b.startDate.getTime();
-      if (diff !== 0) return diff;
-      if (a.isEndpoint === 'start') return -1;
-      if (b.isEndpoint === 'start') return 1;
-      if (a.isEndpoint === 'end') return 1;
-      if (b.isEndpoint === 'end') return -1;
-      return 0;
-    })
-    .map(evt => ({ ...evt, status: getEventStatus(evt.startDate, evt.duration) }));
+  const sortedEvents = validRawEvents.sort((a, b) => {
+    const diff = a.startDate.getTime() - b.startDate.getTime();
+    if (diff !== 0) return diff;
+    if (a.isEndpoint === 'start') return -1;
+    if (b.isEndpoint === 'start') return 1;
+    if (a.isEndpoint === 'end') return 1;
+    if (b.isEndpoint === 'end') return -1;
+    return 0;
+  });
 
-  // Find happening now or up next
-  let activeEventIndex = timelineEvents.findIndex(e => e.status === 'active');
-  let isStrictlyActive = true;
-  
+  const eventsWithTimes = sortedEvents.map(evt => {
+    const startMs = evt.startDate.getTime();
+    const durationMins = Math.max(evt.duration ?? 30, 1);
+    const endMs = startMs + durationMins * 60 * 1000;
+    return {
+      ...evt,
+      startMs,
+      endMs,
+    };
+  });
+
+  // Exactly ONE event may have Current / Nearest Upcoming status:
+  // Priority 1: If an event is currently happening (event_start <= current_time < event_end) -> CURRENT.
+  let activeEventIndex = eventsWithTimes.findIndex(e => nowMs >= e.startMs && nowMs < e.endMs);
+
+  // Priority 2: Otherwise, select the future event with the smallest event_start -> NEAREST UPCOMING.
+  // Because events are sorted chronologically ascending, the first event with startMs > nowMs is the nearest upcoming.
   if (activeEventIndex === -1) {
-    activeEventIndex = timelineEvents.findIndex(e => e.status === 'upcoming');
-    isStrictlyActive = false;
+    activeEventIndex = eventsWithTimes.findIndex(e => e.startMs > nowMs);
   }
-  
-  if (activeEventIndex === -1 && timelineEvents.length > 0) {
-    activeEventIndex = timelineEvents.length - 1;
-    isStrictlyActive = false;
-  }
-  
+
+  // Exactly 3 statuses:
+  // - Current / Nearest Upcoming: exactly one event (assigned 'active' to activate existing visual state)
+  // - PAST: event_end <= current_time
+  // - UPCOMING: all other future events
+  const timelineEvents = eventsWithTimes.map((evt, idx) => {
+    let status: 'active' | 'past' | 'upcoming';
+    if (idx === activeEventIndex) {
+      status = 'active';
+    } else if (evt.endMs <= nowMs) {
+      status = 'past';
+    } else {
+      status = 'upcoming';
+    }
+    return { ...evt, status };
+  });
+
+  let isStrictlyActive = false;
   let activeEvent = null;
   if (activeEventIndex !== -1) {
-     activeEvent = timelineEvents[activeEventIndex];
+    activeEvent = timelineEvents[activeEventIndex];
+    isStrictlyActive = nowMs >= activeEvent.startMs && nowMs < activeEvent.endMs;
   }
 
   const hasSchedule = (() => {
@@ -463,9 +509,9 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
       const todayStr = getLocalDateStr(now);
       const applied = localStorage.getItem('owlup_schedule_applied');
       const scheduleDate = localStorage.getItem('owlup_schedule_date');
-      return applied === 'true' && scheduleDate === todayStr;
+      return (applied === 'true' && scheduleDate === todayStr) || Boolean(effectiveTomorrowWake);
     } catch {}
-    return false;
+    return Boolean(effectiveTomorrowWake);
   })();
 
   return (
@@ -494,7 +540,7 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
           </div>
           <button
             onClick={onNavigateToPlanner}
-            className="px-6 py-3 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer hover:-translate-y-0.5 whitespace-nowrap self-end sm:self-center"
+            className="px-6 py-3 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] rounded-full text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-md cursor-pointer hover:-translate-y-0.5 whitespace-nowrap self-end sm:self-center"
           >
             <span>{isEn ? "Set up sleep schedule" : "Thiết lập lịch ngủ ngay"}</span>
             <span className="font-normal">&rarr;</span>
@@ -654,7 +700,7 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
                     </span>
                     <button
                       onClick={onNavigateToPlanner}
-                      className="px-4 py-1.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] text-xs font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-center hover:-translate-y-0.5"
+                      className="px-4 py-1.5 rounded-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] text-xs font-bold transition-all shadow-sm cursor-pointer whitespace-nowrap self-end sm:self-center hover:-translate-y-0.5"
                     >
                       {isEn ? "Set up sleep schedule →" : "Cài đặt lịch ngủ ngay →"}
                     </button>

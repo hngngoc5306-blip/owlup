@@ -128,7 +128,7 @@ export const HistoryCalendar: React.FC<HistoryCalendarProps> = ({ language, curr
         }
       >
         <div className="flex justify-between items-start">
-          <span className={`text-xs sm:text-base font-semibold ${isToday ? 'text-white bg-[#4CB28E] dark:bg-[#62D2FB] dark:text-[#0F172A] w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs' : (isCurrentMonth ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400/50')}`}>
+          <span className={`text-xs sm:text-base font-semibold ${isToday ? 'text-white bg-[#4CB28E] dark:bg-[#62D2FB] dark:text-[#17233E] w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs' : (isCurrentMonth ? 'text-[#4CB28E] dark:text-[#62D2FB]' : 'text-slate-400/50')}`}>
             {dayNumber}
           </span>
           {isToday && (

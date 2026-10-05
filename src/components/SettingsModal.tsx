@@ -580,7 +580,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               id="btn-save-settings"
               onClick={handleSaveChange}
-              className="text-white dark:text-[#0E172A] px-6 py-2.5 rounded-xl text-xs font-bold bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#3a9a78] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] cursor-pointer shadow-md transition-all flex items-center gap-1.5 active:scale-95"
+              className="text-white dark:text-[#17233E] px-6 py-2.5 rounded-xl text-xs font-bold bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#3a9a78] dark:bg-[#62D2FB] dark:hover:bg-[#4bbad5] cursor-pointer shadow-md transition-all flex items-center gap-1.5 active:scale-95"
             >
               <Check className="w-4 h-4" />
               <span>{tcomm.saveChanges}</span>

@@ -27,6 +27,16 @@ import {
   saveWakeRecord,
   getLocalDateStr,
 } from './utils/wakeTimeService';
+import {
+  supabase,
+  isSupabaseConfigured,
+  fetchUserData,
+  fetchUserDataByEmail,
+  hydrateLocalStorage,
+  getStoredAuthUserId,
+  setStoredAuthUserId,
+  syncAccountToSupabase,
+} from './utils/supabase';
 export const getCaffeineLimitsByFrequency = (frequency?: string): { dailyLimitMg: number; thresholdMg: number } => {
   switch (frequency) {
     case 'never':
@@ -230,6 +240,14 @@ const saveAccountData = (email: string, data: Partial<StoredAccount>) => {
       onboardingCompleted: data.onboardingCompleted ?? existing.onboardingCompleted ?? true,
     };
     localStorage.setItem('owlup_accounts', JSON.stringify(accounts));
+
+    // Also upsert to Supabase alongside localStorage
+    const activeUserId = getStoredAuthUserId();
+    if (activeUserId && isSupabaseConfigured) {
+      syncAccountToSupabase(activeUserId, accounts[email]).catch((err) => {
+        console.warn('[Supabase Sync Error]', err);
+      });
+    }
   } catch {}
 };
 
@@ -335,6 +353,77 @@ export default function App() {
     if (!checkIsSessionAuthorized()) {
       setShowLandingScreen(true);
     }
+  }, []);
+
+  // Supabase Auth listener: sync user data and hydrate across devices
+  useEffect(() => {
+    if (!supabase) return;
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const userId = session.user.id;
+        setStoredAuthUserId(userId);
+
+        // 1. Query the user's data from Supabase:
+        // supabase.from('users').select('*').eq('id', user.id)
+        const userData = await fetchUserData(userId);
+
+        if (userData && (userData.profile || userData.onboarding_completed || userData.onboardingCompleted)) {
+          // If data exists → hydrate localStorage with the fetched data
+          hydrateLocalStorage(userData);
+
+          if (userData.profile) {
+            setUserProfile(userData.profile);
+          }
+          if (userData.settings) {
+            setSettings((prev) => ({ ...prev, ...userData.settings }));
+          }
+          if (userData.bedtime) {
+            setBedtime(userData.bedtime);
+          }
+          const wake = userData.wake_time || userData.wakeTime;
+          if (wake) {
+            setWakeTime(wake);
+            setTodayWakeTime(wake);
+          }
+          if (userData.total_sleep_hours || userData.totalSleepHours) {
+            setTotalSleepHours(userData.total_sleep_hours || userData.totalSleepHours || '8.0');
+          }
+          if (userData.caffeine_log || userData.caffeineLog) {
+            setCaffeineLog(userData.caffeine_log || userData.caffeineLog || []);
+          }
+          if (userData.commitments) {
+            setCommitments(userData.commitments);
+          }
+          if (userData.planned_nap || userData.plannedNap) {
+            setPlannedNap(userData.planned_nap || userData.plannedNap);
+          }
+          if (userData.history) {
+            setHistory(userData.history);
+          }
+
+          setShowLandingScreen(false);
+          setIsOnboardingOpen(false);
+        } else {
+          // If no data → this is a new user → trigger onboarding as usual
+          const email = session.user.email?.trim().toLowerCase();
+          if (email) {
+            setPrefilledGoogleUser({
+              email,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'OwlUp User',
+              picture: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture,
+              sub: userId,
+            });
+          }
+          setIsGuestOnboarding(false);
+          setIsOnboardingOpen(true);
+        }
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
   }, []);
 
   const [featureGuideFocus, setFeatureGuideFocus] = useState<FeatureGuideType>('all');
@@ -511,8 +600,14 @@ export default function App() {
               setWakeTime(todayInfo.time);
             }
           }
-          const tomorrowInfo = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
-          setTomorrowWakeTime(tomorrowInfo.time);
+          const storedTomorrow = existingAccount.tomorrowWakeTime || localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_tomorrow_wake');
+          if (storedTomorrow) {
+            setTomorrowWakeTime(storedTomorrow);
+            recordTomorrowWakePlan(storedTomorrow);
+          } else {
+            const tomorrowInfo = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
+            setTomorrowWakeTime(tomorrowInfo.time);
+          }
           if (existingAccount.totalSleepHours) {
             setTotalSleepHours(existingAccount.totalSleepHours);
             localStorage.setItem('owlup_total_sleep_hours', existingAccount.totalSleepHours);
@@ -644,9 +739,29 @@ export default function App() {
     }
   };
 
-  const handleLoginWithGoogle = (googleUser: GoogleUserData) => {
+  const handleLoginWithGoogle = async (googleUser: GoogleUserData) => {
     const email = googleUser.email.trim().toLowerCase();
-    const isRegistered = checkAccountRegistered(email);
+    let isRegistered = checkAccountRegistered(email);
+
+    // If not found in local localStorage cache, check Supabase across devices
+    if (!isRegistered && isSupabaseConfigured) {
+      try {
+        const storedId = getStoredAuthUserId();
+        let remoteRecord = storedId ? await fetchUserData(storedId) : null;
+        if (!remoteRecord) {
+          remoteRecord = await fetchUserDataByEmail(email);
+        }
+        if (remoteRecord && (remoteRecord.profile || remoteRecord.onboarding_completed || remoteRecord.onboardingCompleted)) {
+          hydrateLocalStorage(remoteRecord);
+          if (remoteRecord.id) {
+            setStoredAuthUserId(remoteRecord.id);
+          }
+          isRegistered = true;
+        }
+      } catch (err) {
+        console.warn('[Supabase Sync] Error checking user registration:', err);
+      }
+    }
 
     if (isRegistered) {
       // FLOW A: Existing Registered User
@@ -774,8 +889,14 @@ export default function App() {
           setWakeTime(todayInfo.time);
         }
       }
-      const tomorrowInfo = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
-      setTomorrowWakeTime(tomorrowInfo.time);
+      const storedTomorrow = account.tomorrowWakeTime || localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_tomorrow_wake');
+      if (storedTomorrow) {
+        setTomorrowWakeTime(storedTomorrow);
+        recordTomorrowWakePlan(storedTomorrow);
+      } else {
+        const tomorrowInfo = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
+        setTomorrowWakeTime(tomorrowInfo.time);
+      }
       if (account.bedtime) {
         setBedtime(account.bedtime);
         localStorage.setItem('owlup_bedtime', account.bedtime);
@@ -932,6 +1053,8 @@ export default function App() {
   });
   const [tomorrowWakeTime, setTomorrowWakeTime] = useState<string | null>(() => {
     try {
+      const stored = localStorage.getItem('owlup_tomorrow_waketime') || localStorage.getItem('owlup_tomorrow_wake');
+      if (stored) return stored;
       const info = getTomorrowWakeInfo(new Date(), (settings?.language || 'en') === 'en');
       return info.time;
     } catch {

@@ -153,7 +153,7 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
                   onClick={() => setActiveSlide(tab.id)}
                   className={`px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all cursor-pointer shrink-0 text-sm ${
                     activeSlide === tab.id
-                      ? 'font-bold text-white dark:text-[#0E172A] shadow-sm'
+                      ? 'font-bold text-white dark:text-[#17233E] shadow-sm'
                       : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-[#233355]'
                   }`}
                   style={activeSlide === tab.id ? { backgroundColor: isNight ? '#62D2FB' : '#4CB28E' } : undefined}
@@ -399,7 +399,7 @@ export const InstructionModal: React.FC<InstructionModalProps> = ({
           <button
             onClick={handleNext}
             className="px-7 py-3 rounded-xl text-sm sm:text-base font-bold flex items-center gap-2 cursor-pointer shadow-md transition-all active:scale-95 hover:-translate-y-0.5"
-            style={{ backgroundColor: isNight ? '#62D2FB' : '#4CB28E', color: isNight ? '#0E172A' : '#FFFFFF' }}
+            style={{ backgroundColor: isNight ? '#62D2FB' : '#4CB28E', color: isNight ? '#17233E' : '#FFFFFF' }}
           >
             <span>
               {activeSlide === totalSlides || isSingleMode 

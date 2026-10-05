@@ -348,7 +348,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </p>
                   <button
                     onClick={handleSetupSleepSchedule}
-                    className="w-full sm:w-auto px-10 py-4 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full text-lg font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-1 cursor-pointer"
+                    className="w-full sm:w-auto px-10 py-4 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] rounded-full text-lg font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-1 cursor-pointer"
                   >
                     <span>{isEn ? "Set up sleep schedule" : "Thiết lập lịch ngủ ngay"}</span>
                     <span className="font-normal">→</span>
@@ -440,7 +440,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </p>
                   <button
                     onClick={onNavigateToCaffeine}
-                    className="w-full sm:w-auto px-10 py-4 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full text-lg font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-1 cursor-pointer"
+                    className="w-full sm:w-auto px-10 py-4 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] rounded-full text-lg font-sans font-bold flex justify-center items-center gap-2 transition-all shadow-lg shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-1 cursor-pointer"
                   >
                     <span>{isEn ? "Log First Drink" : "Nhập caffeine ngay"}</span>
                     <span className="font-normal">→</span>
@@ -515,7 +515,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                    
                   <button 
                     onClick={onNavigateToCaffeine}
-                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full py-4 text-base font-bold transition-all duration-300 shadow-lg shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 cursor-pointer hover:-translate-y-1 whitespace-nowrap"
+                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] rounded-full py-4 text-base font-bold transition-all duration-300 shadow-lg shadow-[#4CB28E]/20 dark:shadow-[#62D2FB]/20 cursor-pointer hover:-translate-y-1 whitespace-nowrap"
                   >
                     {isEn ? "Log Today's Drink" : "Nhật ký uống hôm nay"}
                   </button>
@@ -559,7 +559,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </p>
             <button
               onClick={handleSetupSleepSchedule}
-              className="px-8 py-3.5 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#0E172A] rounded-full text-base font-sans font-bold flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-0.5 cursor-pointer"
+              className="px-8 py-3.5 bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] dark:hover:bg-[#4bbad5] text-white dark:text-[#17233E] rounded-full text-base font-sans font-bold flex items-center gap-2 transition-all shadow-md shadow-[#4CB28E]/25 dark:shadow-[#62D2FB]/25 hover:-translate-y-0.5 cursor-pointer"
             >
               <span>{isEn ? "Set Up Sleep Schedule" : "Thiết lập lịch ngủ ngay"}</span>
               <span className="font-normal">&rarr;</span>

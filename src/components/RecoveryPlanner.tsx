@@ -434,291 +434,296 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     };
   })();
 
-  // ── 1. Target Durations and Circadian Ideal Bedtimes per Goal ──────────────
-  let goalTargetSleepMins = 8 * 60; // 8h default (healthy_balanced)
-  let goalIdealBedMins = 22 * 60 + 30; // 22:30 ideal circadian bedtime
-  let goalBaseNap = 20;
+  // ── Sleep Duration Configuration & Bedtime Formula per Goal ─────────────────
+  const GOAL_SLEEP_CONFIG: Record<string, { durationMins: number; durationHoursStr: string; hasNap: boolean }> = {
+    healthy_balanced: { durationMins: 8 * 60, durationHoursStr: '8.0', hasNap: false },
+    max_productivity: { durationMins: 7 * 60 + 15, durationHoursStr: '7.3', hasNap: true },
+    catch_up: { durationMins: 8 * 60 + 45, durationHoursStr: '8.8', hasNap: false },
+    night_owl: { durationMins: 7 * 60 + 45, durationHoursStr: '7.8', hasNap: false },
+  };
 
-  if (selectedGoal === 'catch_up') {
-    goalTargetSleepMins = 8 * 60 + 45; // 8h45m
-    goalIdealBedMins = 21 * 60 + 45; // 21:45 early sleep for deep restoration
-    goalBaseNap = 30;
-  } else if (selectedGoal === 'max_productivity') {
-    goalTargetSleepMins = 7 * 60 + 15; // 7h15m
-    goalIdealBedMins = 22 * 60 + 30; // 22:30 -> wake at 05:45/06:00
-    goalBaseNap = 20;
-  } else if (selectedGoal === 'night_owl') {
-    goalTargetSleepMins = 7 * 60 + 45; // 7h45m
-    goalIdealBedMins = 23 * 60 + 45; // 23:45
-    goalBaseNap = 25;
+  interface BlockedInterval {
+    startMs: number;
+    endMs: number;
+    title: string;
+    displayTimes: string;
   }
 
-  const extraDebtMins = historyAnalysis.hasDebt ? Math.min(60, Math.round(historyAnalysis.sleepDebtHours * 30)) : 0;
-  const targetDurationMins = goalTargetSleepMins + extraDebtMins;
-
-  // ── 2. Calculate Wake Deadline anchored by latestWakeUpTime ─────────────────
-  const morningComms = commitments
-    .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
-    .filter(c => c.startMins >= 4 * 60 && c.startMins <= 10 * 60)
-    .sort((a, b) => a.startMins - b.startMins);
-
-  const hasMorningComm = morningComms.length > 0;
-  const latestWakeMins = parseMins(latestWakeUpTime || '07:00');
-
-  // Deadline for wake up: earliest of morning commitments (with 30m prep) and latestWakeUpTime
-  let deadlineWakeMins = latestWakeMins;
-  if (hasMorningComm) {
-    const commWakeRequired = Math.max(4 * 60 + 30, morningComms[0].startMins - 30);
-    deadlineWakeMins = Math.min(commWakeRequired, latestWakeMins);
-  }
-
-  // ── 3. Evening Commitments Constraint ───────────────────────────────────────
-  let latestEveningBusyMins = 0;
-  commitments.forEach(c => {
-    const s = parseMins(c.start);
-    let e = parseMins(c.end);
-    if (e < s) e += 24 * 60;
-    if (e > 20 * 60 && e > latestEveningBusyMins) {
-      latestEveningBusyMins = e;
-    }
-  });
-
-  const earliestBedAfterCommMins = latestEveningBusyMins > 0 ? latestEveningBusyMins + 30 : 0;
-
-  // ── 4. Harmonize Bedtime & Wake Time ─────────────────────────────────────────
-  // Default bedtime starts at the natural circadian ideal (e.g. 22:30 for balanced):
-  let chosenBedContMins = goalIdealBedMins;
-  if (chosenBedContMins < 12 * 60) chosenBedContMins += 24 * 60;
-
-  // If user is busy past the ideal bedtime, delay bedtime accordingly:
-  if (earliestBedAfterCommMins > 0 && earliestBedAfterCommMins > chosenBedContMins) {
-    chosenBedContMins = earliestBedAfterCommMins;
-  }
-
-  // Ensure Bedtime Tonight is never in the past relative to currentMinutes!
-  let curContMins = currentMinutes;
-  if (curContMins >= 12 * 60 && chosenBedContMins < 12 * 60) {
-    chosenBedContMins += 24 * 60;
-  }
-  if (chosenBedContMins <= curContMins) {
-    chosenBedContMins = Math.ceil((curContMins + 15) / 5) * 5;
-  }
-
-  // Continuous wake deadline (next morning):
-  let contDeadlineWake = deadlineWakeMins;
-  while (contDeadlineWake <= chosenBedContMins) contDeadlineWake += 24 * 60;
-
-  // Check if sleeping at chosenBedContMins would cause user to wake up AFTER the deadline:
-  let naturalWakeContMins = chosenBedContMins + targetDurationMins;
-
-  // If natural wake exceeds deadline, bedtime must shift earlier:
-  if (naturalWakeContMins > contDeadlineWake) {
-    let shiftedBedMins = contDeadlineWake - targetDurationMins;
-    if (earliestBedAfterCommMins > 0 && shiftedBedMins < earliestBedAfterCommMins) {
-      shiftedBedMins = earliestBedAfterCommMins;
-    }
-    // Bedtime cannot be shifted to the past:
-    if (shiftedBedMins < curContMins) {
-      shiftedBedMins = Math.ceil((curContMins + 15) / 5) * 5;
-    }
-    chosenBedContMins = shiftedBedMins;
-  }
-
-  // Calculate final wake time (cannot exceed contDeadlineWake):
-  let finalWakeContMins = chosenBedContMins + targetDurationMins;
-  if (finalWakeContMins > contDeadlineWake) {
-    finalWakeContMins = contDeadlineWake;
-  }
-
-  // Ensure minimum biological sleep duration (at least 4.0 hours):
-  if (finalWakeContMins - chosenBedContMins < 4 * 60) {
-    finalWakeContMins = chosenBedContMins + 4 * 60;
-  }
-
-  let finalBedtimeMins = chosenBedContMins % (24 * 60);
-
-  // Biological Clamp: Keep night bedtime between 20:00 and 02:00
-  if (finalBedtimeMins > 2 * 60 && finalBedtimeMins < 20 * 60) {
-    finalBedtimeMins = selectedGoal === 'night_owl' ? 0 * 60 + 30 : 22 * 60 + 30;
-  }
-
-  // Double check that finalBedtimeMins is still strictly in the future after clamp:
-  let checkFinalCont = finalBedtimeMins;
-  if (curContMins >= 12 * 60 && finalBedtimeMins < 12 * 60) {
-    checkFinalCont += 24 * 60;
-  }
-  if (checkFinalCont <= curContMins) {
-    checkFinalCont = Math.ceil((curContMins + 15) / 5) * 5;
-    finalBedtimeMins = checkFinalCont % (24 * 60);
-  }
-
-  while (finalWakeContMins <= checkFinalCont) {
-    finalWakeContMins += 24 * 60;
-  }
-  if (finalWakeContMins - checkFinalCont < 4 * 60) {
-    finalWakeContMins = checkFinalCont + 4 * 60;
-  }
-
-  finalBedtimeMins = Math.round(finalBedtimeMins / 5) * 5 % (24 * 60);
-  let finalWakeMins = Math.round(finalWakeContMins / 5) * 5 % (24 * 60);
-
-  let actualRecDurationMins = finalWakeContMins - checkFinalCont;
-  if (actualRecDurationMins < 0) actualRecDurationMins += 24 * 60;
-  const lostSleepMins = Math.max(0, targetDurationMins - actualRecDurationMins);
-
-  // ── 3. Calculate Power Nap (Respects Recovery Goal & Context) ────────────────
-  const isCatchUpGoal = selectedGoal === 'catch_up';
-
-  // Evaluate user sleep deficit / recovery needs
-  const userProfileSleepDeficit = (() => {
-    try {
-      if (userProfile?.usualBedtime && (userProfile?.wakeUpToday || wakeTime)) {
-        const bedM = parseMins(userProfile.usualBedtime);
-        const wakeM = parseMins(userProfile.wakeUpToday || wakeTime || '07:00');
-        let durMins = wakeM - bedM;
-        if (durMins < 0) durMins += 24 * 60;
-        if (durMins > 0 && durMins < 7.5 * 60) {
-          return Number(((7.5 * 60 - durMins) / 60).toFixed(1));
-        }
-      }
-    } catch {}
-    return 0;
-  })();
-
-  const userHasNapCrave = Boolean(
-    userProfile?.craves?.includes('nap') ||
-    userProfile?.energyCraves?.includes('nap') ||
-    userProfile?.energyCrave === 'nap' ||
-    (Array.isArray(userProfile?.energyCrave) && userProfile.energyCrave.includes('nap'))
-  );
-
-  const hasMeaningfulSleepDeficit = historyAnalysis.hasHistory
-    ? (historyAnalysis.hasDebt || historyAnalysis.sleepDebtHours >= 0.5)
-    : (userProfileSleepDeficit >= 0.5 || userHasNapCrave || lostSleepMins >= 30);
-
-  let canNapToday = true;
-  let calcNapDuration = 20;
-  let napOmissionReasonKey: 'past_cutoff' | 'commitments_busy' | 'caffeine_conflict' | 'no_deficit' = 'past_cutoff';
-
-  if (isCatchUpGoal && !hasMeaningfulSleepDeficit && historyAnalysis.hasHistory && !userHasNapCrave) {
-    // Regression Test 2: Catch-up goal with NO meaningful sleep deficit -> avoid unnecessarily forcing additional sleep
-    canNapToday = false;
-    calcNapDuration = 0;
-    napOmissionReasonKey = 'no_deficit';
-  } else if (!isCatchUpGoal && !isFreeAllDay && (isEveningWindow || (isAfternoonWindow && isPastNapSafeCutoff))) {
-    // Regression Test 4: Other goals in evening/past cutoff without full-day free availability maintain existing behavior
-    canNapToday = false;
-    calcNapDuration = 0;
-    napOmissionReasonKey = 'past_cutoff';
-  } else {
-    // Determine nap duration
-    let baseNap = isCatchUpGoal ? 30 : (userHasNapCrave ? Math.max(goalBaseNap, 30) : goalBaseNap);
-    if (hasMeaningfulSleepDeficit) baseNap = Math.max(baseNap, 25);
-    calcNapDuration = Math.min(45, baseNap + Math.min(20, Math.floor(lostSleepMins / 30) * 10));
-
-    // If in afternoon window (14:00 - 15:30) during active day and not free all day, cap to 20m quick nap
-    if (isAfternoonWindow && !isPastNapSafeCutoff && !isFreeAllDay && !isCatchUpGoal) {
-      calcNapDuration = Math.min(20, calcNapDuration);
-    }
-  }
-
-  const wakeMinsVal = parseMins(effectiveWake || '07:00');
-  const EARLIEST_NAP_MINS = Math.max(12 * 60, wakeMinsVal + 90); // 12:00 or 90m after wake-up
-  const LATEST_NAP_END_MINS = 15 * 60 + 30; // 15:30 strict biological cutoff
-
-  // Ideal nap start: midday dip (13:00 for balanced/catch_up, 13:15 for night owl)
-  const idealNapStartMins = isAfternoonWindow && !isFreeAllDay && !isPastNapSafeCutoff && !isCatchUpGoal
-    ? Math.max(14 * 60 + 15, currentMinutes + 15)
-    : (selectedGoal === 'night_owl' ? 13 * 60 + 15 : 13 * 60);
-
-  let napStartMins = idealNapStartMins;
-
-  if (canNapToday && calcNapDuration > 0) {
-    const sortedComms = [...commitments]
-      .map(c => ({ ...c, startMins: parseMins(c.start), endMins: parseMins(c.end) }))
-      .sort((a, b) => a.startMins - b.startMins);
-
-    // Retrieve active caffeine logs for conflict checks
-    const activeCaffeineItems = (() => {
-      try {
-        const raw = localStorage.getItem('owlup_caffeine_log');
-        if (raw) {
-          const items = JSON.parse(raw);
-          if (Array.isArray(items)) {
-            return items.map((it: any) => {
-              const d = it.timestamp ? new Date(it.timestamp) : null;
-              if (d && !isNaN(d.getTime())) {
-                return d.getHours() * 60 + d.getMinutes();
-              }
-              return null;
-            }).filter((m): m is number => m !== null);
-          }
-        }
-      } catch {}
+  const getBlockedCommitmentIntervals = (
+    commitmentsList: { title: string; start: string; end: string }[],
+    isFree: boolean,
+    baseDate: Date
+  ): BlockedInterval[] => {
+    if (isFree || !commitmentsList || commitmentsList.length === 0) {
       return [];
-    })();
+    }
+    const baseYear = baseDate.getFullYear();
+    const baseMonth = baseDate.getMonth();
+    const baseDay = baseDate.getDate();
 
-    const isSlotConflicting = (slotStart: number, dur: number): 'commitment' | 'caffeine' | null => {
-      const slotEnd = slotStart + dur;
-      // Commitment collision with 15m buffer
-      const hasCommConflict = sortedComms.some(c => {
-        const busyStart = c.startMins - 15;
-        const busyEnd = c.endMins + 15;
-        return slotStart < busyEnd && slotEnd > busyStart;
+    const intervals: BlockedInterval[] = [];
+
+    for (const c of commitmentsList) {
+      if (!c.start || !c.end || !c.start.includes(':') || !c.end.includes(':')) continue;
+      const [sh, sm] = c.start.split(':').map(Number);
+      const [eh, em] = c.end.split(':').map(Number);
+      if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) continue;
+
+      const startMins = sh * 60 + sm;
+      const endMins = eh * 60 + em;
+      const crossesMidnight = endMins <= startMins;
+
+      const displayTimes = `${formatDisplayTime(c.start, isEn)} - ${formatDisplayTime(c.end, isEn)}`;
+      const title = (!isEn && (!c.title || c.title.toLowerCase() === 'busy block'))
+        ? 'Lịch bận'
+        : (isEn && c.title === 'Lịch bận' ? 'Busy Block' : (c.title || (isEn ? 'Busy Block' : 'Lịch bận')));
+
+      // Day 0 interval (today / tonight)
+      const start0 = new Date(baseYear, baseMonth, baseDay, sh, sm, 0, 0);
+      const end0 = crossesMidnight
+        ? new Date(baseYear, baseMonth, baseDay + 1, eh, em, 0, 0)
+        : new Date(baseYear, baseMonth, baseDay, eh, em, 0, 0);
+
+      intervals.push({
+        startMs: start0.getTime(),
+        endMs: end0.getTime(),
+        title,
+        displayTimes,
       });
-      if (hasCommConflict) return 'commitment';
 
-      // Caffeine collision (absorption peak window: 15m before to 30m after intake)
-      const hasCaffConflict = activeCaffeineItems.some(cMins => {
-        return slotStart < cMins + 30 && slotEnd > cMins - 15;
+      // Day 1 interval (tomorrow morning / day 1)
+      const start1 = new Date(baseYear, baseMonth, baseDay + 1, sh, sm, 0, 0);
+      const end1 = crossesMidnight
+        ? new Date(baseYear, baseMonth, baseDay + 2, eh, em, 0, 0)
+        : new Date(baseYear, baseMonth, baseDay + 1, eh, em, 0, 0);
+
+      intervals.push({
+        startMs: start1.getTime(),
+        endMs: end1.getTime(),
+        title,
+        displayTimes,
       });
-      if (hasCaffConflict) return 'caffeine';
+    }
 
-      return null;
-    };
+    return intervals;
+  };
 
-    const initialConflict = isSlotConflicting(napStartMins, calcNapDuration);
-    if (initialConflict) {
-      // Find candidate slot in [EARLIEST_NAP_MINS, LATEST_NAP_END_MINS - calcNapDuration]
-      const maxStart = LATEST_NAP_END_MINS - calcNapDuration;
-      const validCandidates: number[] = [];
-      for (let cand = EARLIEST_NAP_MINS; cand <= maxStart; cand += 15) {
-        if (!isSlotConflicting(cand, calcNapDuration)) {
-          validCandidates.push(cand);
+  const calculateFeasibleSleepSchedule = (
+    latestWakeStr: string,
+    durationMins: number,
+    commitmentsList: { title: string; start: string; end: string }[],
+    isFree: boolean,
+    baseDate: Date
+  ) => {
+    if (!latestWakeStr || !latestWakeStr.includes(':')) {
+      const now = new Date(baseDate);
+      return {
+        isValid: false,
+        effectiveWake: '--:--',
+        bedtime: '--:--',
+        sleepStart: now,
+        sleepEnd: now,
+        conflictingCommitment: null as BlockedInterval | null,
+      };
+    }
+
+    const [wh, wm] = latestWakeStr.split(':').map(Number);
+    const baseYear = baseDate.getFullYear();
+    const baseMonth = baseDate.getMonth();
+    const baseDay = baseDate.getDate();
+
+    const latestWakeDate = new Date(baseYear, baseMonth, baseDay + 1, wh, wm, 0, 0);
+    const blockedIntervals = getBlockedCommitmentIntervals(commitmentsList, isFree, baseDate);
+
+    let foundWakeDate: Date | null = null;
+    let conflictingInterval: BlockedInterval | null = null;
+
+    // Search downwards from latestWakeDate in 5-min increments (up to 4 hours earlier)
+    for (let offsetMins = 0; offsetMins <= 240; offsetMins += 5) {
+      const testWake = new Date(latestWakeDate.getTime() - offsetMins * 60 * 1000);
+      const testBed = new Date(testWake.getTime() - durationMins * 60 * 1000);
+
+      let hasConflict = false;
+      let firstConflict: BlockedInterval | null = null;
+
+      for (const interval of blockedIntervals) {
+        if (testBed.getTime() < interval.endMs && testWake.getTime() > interval.startMs) {
+          hasConflict = true;
+          firstConflict = interval;
+          break;
         }
       }
 
-      if (validCandidates.length > 0) {
-        // Pick candidate closest to ideal circadian dip
-        validCandidates.sort((a, b) => Math.abs(a - idealNapStartMins) - Math.abs(b - idealNapStartMins));
-        napStartMins = validCandidates[0];
-      } else {
-        canNapToday = false;
-        calcNapDuration = 0;
-        napOmissionReasonKey = initialConflict === 'caffeine' ? 'caffeine_conflict' : 'commitments_busy';
+      if (!hasConflict) {
+        foundWakeDate = testWake;
+        break;
+      } else if (offsetMins === 0) {
+        conflictingInterval = firstConflict;
       }
     }
-  }
 
-  const recBedtime = formatMins(finalBedtimeMins);
-  const recWake = formatMins(finalWakeMins);
-  const recSleepDuration = (actualRecDurationMins / 60).toFixed(1);
-  const recNapStart = formatMins(napStartMins);
-  const recNapEnd = formatMins(napStartMins + calcNapDuration);
-  const recNapDurationMins = calcNapDuration;
+    const formatTime = (d: Date) =>
+      `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-  const recSleepValidation = validateSleepSchedule(
-    recBedtime,
-    recWake,
-    currentTime,
-    recNapStart,
-    recNapDurationMins.toString()
+    if (foundWakeDate) {
+      const finalBedDate = new Date(foundWakeDate.getTime() - durationMins * 60 * 1000);
+      return {
+        isValid: true,
+        effectiveWake: formatTime(foundWakeDate),
+        bedtime: formatTime(finalBedDate),
+        sleepStart: finalBedDate,
+        sleepEnd: foundWakeDate,
+        conflictingCommitment: null as BlockedInterval | null,
+      };
+    } else {
+      const nominalBedDate = new Date(latestWakeDate.getTime() - durationMins * 60 * 1000);
+      return {
+        isValid: false,
+        effectiveWake: latestWakeStr,
+        bedtime: formatTime(nominalBedDate),
+        sleepStart: nominalBedDate,
+        sleepEnd: latestWakeDate,
+        conflictingCommitment: conflictingInterval,
+      };
+    }
+  };
+
+  const findOptimalNapSlot = (
+    mainSleepStart: Date,
+    mainSleepEnd: Date,
+    blockedIntervals: BlockedInterval[],
+    baseDate: Date
+  ) => {
+    const napDuration = 20; // Target ~20 minutes
+    const baseYear = baseDate.getFullYear();
+    const baseMonth = baseDate.getMonth();
+    const baseDay = baseDate.getDate();
+
+    // Prefer circadian dip 12:30 - 14:30 centered around 13:00, then nearest available slots before/after
+    const dipCandidates = ['13:00', '13:15', '12:45', '13:30', '12:30', '13:45', '14:00', '14:10'];
+    const outerCandidates = ['12:15', '12:00', '11:45', '11:30', '14:30', '14:45', '15:00', '15:10'];
+    const allCandidates = [...dipCandidates, ...outerCandidates];
+
+    const fourHoursMs = 4 * 60 * 60 * 1000;
+    const bedtimeMs = mainSleepStart.getTime();
+
+    for (const timeStr of allCandidates) {
+      const [h, m] = timeStr.split(':').map(Number);
+      const candStart = new Date(baseYear, baseMonth, baseDay, h, m, 0, 0);
+      const candEnd = new Date(candStart.getTime() + napDuration * 60 * 1000);
+
+      const candStartMs = candStart.getTime();
+      const candEndMs = candEnd.getTime();
+
+      // 1. Must be at least 4 hours before Bedtime Tonight
+      if (bedtimeMs - candEndMs < fourHoursMs) {
+        continue;
+      }
+
+      // 2. Must avoid Main Sleep
+      if (candStartMs < mainSleepEnd.getTime() && candEndMs > mainSleepStart.getTime()) {
+        continue;
+      }
+
+      // 3. Must avoid commitments
+      let conflicts = false;
+      for (const interval of blockedIntervals) {
+        if (candStartMs < interval.endMs && candEndMs > interval.startMs) {
+          conflicts = true;
+          break;
+        }
+      }
+      if (conflicts) {
+        continue;
+      }
+
+      const formatTime = (d: Date) =>
+        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      return {
+        hasNap: true,
+        napStart: formatTime(candStart),
+        napEnd: formatTime(candEnd),
+        napDurationMins: napDuration,
+        omissionReasonKey: 'no_deficit' as const,
+      };
+    }
+
+    return {
+      hasNap: false,
+      napStart: '--:--',
+      napEnd: '--:--',
+      napDurationMins: 0,
+      omissionReasonKey: 'commitments_busy' as const,
+    };
+  };
+
+  // Helper for Step 2 cards & Step 3 output: calculate bedtime for each goal dynamically
+  // Reactive to latestWakeUpTime changes, accounting for commitments and feasible window
+  const getBedtimeForGoal = (goalId: 'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl', wakeTimeInput?: string) => {
+    const targetWake = wakeTimeInput || latestWakeUpTime;
+    if (!targetWake) {
+      return '--:--';
+    }
+    const dur = GOAL_SLEEP_CONFIG[goalId]?.durationMins ?? 8 * 60;
+    const schedule = calculateFeasibleSleepSchedule(targetWake, dur, commitments, isFreeAllDay, currentTime);
+    return schedule.bedtime;
+  };
+
+  // ── Step 3 Output Values Derived from Step 2 Inputs ─────────────────────────
+  const activeGoal = selectedGoal || 'healthy_balanced';
+  const activeGoalConfig = GOAL_SLEEP_CONFIG[activeGoal] || GOAL_SLEEP_CONFIG.healthy_balanced;
+
+  const activeSchedule = calculateFeasibleSleepSchedule(
+    latestWakeUpTime || '07:00',
+    activeGoalConfig.durationMins,
+    commitments,
+    isFreeAllDay,
+    currentTime
   );
 
-  // Caffeine Curfew: 10h before bedtime
-  let cutoffMins = finalBedtimeMins - 10 * 60;
+  // Main Night Sleep:
+  const recWake = activeSchedule.effectiveWake;
+  const recBedtime = activeSchedule.bedtime;
+  const recSleepDuration = activeGoalConfig.durationHoursStr;
+
+  const blockedCommitmentIntervals = getBlockedCommitmentIntervals(commitments, isFreeAllDay, currentTime);
+
+  // Nap:
+  // Max Productivity only: target ~20 min nap, avoiding commitments & main sleep, >= 4h before bedtime
+  // All other goals: no nap.
+  const napSlot = activeGoal === 'max_productivity'
+    ? findOptimalNapSlot(activeSchedule.sleepStart, activeSchedule.sleepEnd, blockedCommitmentIntervals, currentTime)
+    : null;
+
+  const canNapToday = Boolean(napSlot?.hasNap);
+  const recNapDurationMins = napSlot?.hasNap ? napSlot.napDurationMins : 0;
+  const recNapStart = napSlot?.hasNap ? napSlot.napStart : '--:--';
+  const recNapEnd = napSlot?.hasNap ? napSlot.napEnd : '--:--';
+  const napOmissionReasonKey: 'past_cutoff' | 'commitments_busy' | 'caffeine_conflict' | 'no_deficit' = napSlot ? napSlot.omissionReasonKey : 'no_deficit';
+
+  // Caffeine Curfew: bedtime - 10 hours
+  let cutoffMins = parseMins(recBedtime) - 10 * 60;
   while (cutoffMins < 0) cutoffMins += 24 * 60;
   const recCaffeineCutoff = formatMins(cutoffMins);
+
+  const lostSleepMins = 0;
+
+  const conflictingTitle = activeSchedule.conflictingCommitment?.title || (isEn ? 'Busy Block' : 'Lịch bận');
+  const conflictingTimes = activeSchedule.conflictingCommitment?.displayTimes || '';
+
+  const recSleepValidation: SleepScheduleValidation = {
+    isValid: activeSchedule.isValid,
+    errorKey: activeSchedule.isValid ? undefined : 'bedtime_past',
+    messageEn: activeSchedule.isValid
+      ? undefined
+      : `Commitment "${conflictingTitle}" (${conflictingTimes}) falls inside your proposed sleep period (${formatDisplayTime(recBedtime, true)} - ${formatDisplayTime(recWake, true)}). Main Sleep cannot overlap with other planned activities. Please adjust your sleep or busy times.`,
+    messageVi: activeSchedule.isValid
+      ? undefined
+      : `Lịch bận "${conflictingTitle}" (${conflictingTimes}) nằm trong khoảng thời gian ngủ đề xuất (${formatDisplayTime(recBedtime, false)} - ${formatDisplayTime(recWake, false)}). Giấc ngủ chính không thể trùng với các hoạt động khác. Vui lòng điều chỉnh lại lịch ngủ hoặc lịch bận.`,
+    bedContMins: parseMins(recBedtime),
+    wakeContMins: parseMins(recWake),
+    sleepDurationMins: activeGoalConfig.durationMins,
+  };
 
   // ── Determine if a new schedule is proposed/changed vs viewing saved schedule ─
   const isNewScheduleProposed = (() => {
@@ -783,47 +788,6 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     return formatMins(cutoff);
   })();
 
-  // Helper for Step 2 cards: calculate bedtime for each goal dynamically
-  const getBedtimeForGoal = (goalId: 'healthy_balanced' | 'max_productivity' | 'catch_up' | 'night_owl') => {
-    if (!latestWakeUpTime) {
-      return '--:--';
-    }
-    let dur = 8 * 60;
-    let idealBed = 22 * 60 + 30; // 22:30 ideal
-    if (goalId === 'max_productivity') {
-      dur = 7 * 60 + 15;
-      idealBed = 22 * 60 + 30; // 22:30
-    } else if (goalId === 'catch_up') {
-      dur = 8 * 60 + 45;
-      idealBed = 21 * 60 + 45; // 21:45
-    } else if (goalId === 'night_owl') {
-      dur = 7 * 60 + 45;
-      idealBed = 23 * 60 + 45; // 23:45
-    }
-
-    const wMins = parseMins(latestWakeUpTime);
-    let contDeadline = wMins;
-    while (contDeadline <= idealBed) contDeadline += 24 * 60;
-
-    let chosenBed = idealBed;
-    // If waking up naturally exceeds the latest wake deadline, shift bedtime earlier:
-    if (idealBed + dur > contDeadline) {
-      chosenBed = contDeadline - dur;
-      while (chosenBed < 0) chosenBed += 24 * 60;
-    }
-
-    // Ensure bedtime is not in the past relative to currentMinutes
-    let bedCont = chosenBed;
-    if (currentMinutes >= 12 * 60 && chosenBed < 12 * 60) {
-      bedCont = chosenBed + 24 * 60;
-    }
-    if (bedCont <= currentMinutes) {
-      bedCont = Math.ceil((currentMinutes + 15) / 5) * 5;
-    }
-
-    const finalBed = bedCont % (24 * 60);
-    return formatMins(Math.round(finalBed / 5) * 5 % (24 * 60));
-  };
 
   // Free Recovery Windows Calculation
   const getFreeWindows = () => {
@@ -1236,7 +1200,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       disabled={!validateTimes(newStart, newEnd).valid}
                       className={`font-bold text-base sm:text-lg px-6 sm:px-10 py-2.5 sm:py-3 rounded-full transition-all shadow-md ${
                         validateTimes(newStart, newEnd).valid
-                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer'
+                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] cursor-pointer'
                           : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
                       }`}
                     >
@@ -1313,7 +1277,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       }}
                       className={`rounded-full px-8 sm:px-12 py-3.5 text-base sm:text-lg font-bold shadow-md transition-all ${
                         !isCtaDisabled
-                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1'
+                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] cursor-pointer hover:-translate-y-1'
                           : 'bg-slate-200 dark:bg-slate-700/80 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
                       }`}
                     >
@@ -1453,7 +1417,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       </div>
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
                         isSelected
-                          ? 'border-[#4CB28E] bg-[#4CB28E] dark:border-[#62D2FB] dark:bg-[#62D2FB] text-white dark:text-[#0E172A]'
+                          ? 'border-[#4CB28E] bg-[#4CB28E] dark:border-[#62D2FB] dark:bg-[#62D2FB] text-white dark:text-[#17233E]'
                           : 'border-slate-300 dark:border-slate-600'
                       }`}>
                         {isSelected && <span className="text-xs font-bold">✓</span>}
@@ -1464,6 +1428,18 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               })}
             </div>
 
+            {selectedGoal && latestWakeUpTime && !recSleepValidation.isValid && (
+              <div className="mb-6 p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 text-sm font-medium flex items-start gap-3 animate-shake">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-red-500" />
+                <div className="leading-relaxed">
+                  <strong className="block mb-0.5 font-bold">
+                    {isEn ? "Schedule Notice:" : "Cảnh báo lịch trình:"}
+                  </strong>
+                  <p>{isEn ? recSleepValidation.messageEn : recSleepValidation.messageVi}</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center mt-6">
               <button 
                 onClick={() => setStep(1)} 
@@ -1473,7 +1449,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
               </button>
               <button 
                 onClick={() => {
-                  if (selectedGoal && latestWakeUpTime) {
+                  if (selectedGoal && latestWakeUpTime && recSleepValidation.isValid) {
                     setCustomBedtime(recBedtime);
                     setCustomWakeTime(recWake);
                     setNapStart(recNapStart);
@@ -1481,10 +1457,10 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     setStep(3);
                   }
                 }}
-                disabled={!selectedGoal || !latestWakeUpTime}
+                disabled={!selectedGoal || !latestWakeUpTime || !recSleepValidation.isValid}
                 className={`rounded-full px-8 sm:px-12 py-3.5 sm:py-4 text-base sm:text-lg font-bold shadow-md transition-all ${
-                  selectedGoal && latestWakeUpTime
-                    ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white cursor-pointer hover:-translate-y-1'
+                  selectedGoal && latestWakeUpTime && recSleepValidation.isValid
+                    ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] cursor-pointer hover:-translate-y-1'
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
                 }`}
               >
@@ -1713,7 +1689,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       disabled={!recSleepValidation.isValid}
                       className={`rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md ${
                         recSleepValidation.isValid
-                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] cursor-pointer hover:-translate-y-1'
+                          ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] cursor-pointer hover:-translate-y-1'
                           : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
                       }`}
                     >
@@ -1730,7 +1706,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       setHasAppliedOptimal(false);
                       setStep(4);
                     }} 
-                    className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
+                    className="bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] rounded-full px-8 sm:px-14 py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-1"
                   >
                     {isEn ? "Customize Schedule" : "Tùy chỉnh lịch trình"}
                   </button>
@@ -1987,7 +1963,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   disabled={!isStep3Valid}
                   className={`font-bold text-sm sm:text-base md:text-lg px-8 sm:px-14 py-3.5 sm:py-4 rounded-full text-center transition-all ${
                     isStep3Valid
-                      ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] cursor-pointer shadow-md hover:-translate-y-1'
+                      ? 'bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] cursor-pointer shadow-md hover:-translate-y-1'
                       : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60 shadow-none'
                   }`}
                 >
@@ -2066,7 +2042,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                 <div className="flex flex-col gap-3">
                   <button 
                     onClick={() => { if (onNavigateToTimeline) onNavigateToTimeline(); }}
-                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#0E172A] rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
+                    className="w-full bg-[#4CB28E] dark:bg-[#62D2FB] hover:bg-[#007b4d] text-white dark:text-[#17233E] rounded-full py-3.5 sm:py-4 text-base sm:text-lg font-bold transition-all shadow-md cursor-pointer hover:-translate-y-0.5"
                   >
                     {isEn ? "View Recovery Timeline" : "Xem Lộ trình Phục hồi"}
                   </button>

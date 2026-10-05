@@ -232,6 +232,18 @@ export const getTomorrowWakeInfo = (
     }
   }
 
+  // Fallback to stored tomorrow wake plan if present in localStorage
+  const storedTomorrowWake = localStorage.getItem(STORAGE_KEYS.TOMORROW_WAKE) || localStorage.getItem('owlup_tomorrow_wake');
+  if (storedTomorrowWake) {
+    return {
+      time: storedTomorrowWake,
+      dateStr: tomorrowStr,
+      date: tomorrowDate,
+      displayDate,
+      source: 'record',
+    };
+  }
+
   return {
     time: null,
     dateStr: tomorrowStr,
@@ -239,6 +251,26 @@ export const getTomorrowWakeInfo = (
     displayDate,
     source: 'none',
   };
+};
+
+/**
+ * Calculates the sleep end time given a sleep start time (HH:mm) and total sleep duration in hours (e.g. "7.3" or "8.0").
+ * Rounded to the nearest 5 minutes, matching the Sleep Schedule recommendation engine.
+ */
+export const calculateSleepEndTime = (bedtimeStr: string, totalHoursStr: string): string | null => {
+  try {
+    if (!bedtimeStr || !totalHoursStr) return null;
+    const [bh, bm] = bedtimeStr.split(':').map(Number);
+    const hours = parseFloat(totalHoursStr);
+    if (isNaN(bh) || isNaN(bm) || isNaN(hours) || hours <= 0) return null;
+    const durMins = Math.round((hours * 60) / 5) * 5;
+    const endMins = (bh * 60 + bm + durMins) % (24 * 60);
+    const endH = Math.floor(endMins / 60) % 24;
+    const endM = endMins % 60;
+    return `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+  } catch {
+    return null;
+  }
 };
 
 /**
