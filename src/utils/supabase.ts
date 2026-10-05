@@ -1,8 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { UserProfile, UserSettings, CaffeineItem } from '../types';
 
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://qqbifwrmzwqrrwybjhaq.supabase.co';
+const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxYmlmd3JtendxcnJ3eWJqaGFxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyMTQwOTgsImV4cCI6MjEwNTc5MDA5OH0.Gdbcx20gNLmL7gYEdtjPjYUqHJGxWCS0wFn9r_iJe1k';
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
