@@ -767,6 +767,14 @@ export default function App() {
 
     if (isRegistered) {
       // FLOW A: Existing Registered User
+      if (googleUser.sub) {
+        setStoredAuthUserId(googleUser.sub);
+        // Force an immediate sync of local data to Supabase
+        const accounts = getStoredAccounts();
+        if (accounts[email]) {
+          syncAccountToSupabase(googleUser.sub, accounts[email]).catch(() => {});
+        }
+      }
       handleLoginWithEmail(email);
       setRegistrationNotice('');
       setPrefilledGoogleUser(null);

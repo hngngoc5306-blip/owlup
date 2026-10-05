@@ -4,6 +4,7 @@ import { Logo } from './Logo';
 import { TimePickerInput } from './TimePickerInput';
 import { formatDisplayTime } from '../utils/timeFormat';
 import { signInWithGooglePopup, GoogleUserData } from '../utils/googleAuth';
+import { setStoredAuthUserId } from '../utils/supabase';
 
 interface OnboardingProps {
   isOpen: boolean;
@@ -283,6 +284,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {}
+      if (prefilledGoogleUser.sub) {
+        setStoredAuthUserId(prefilledGoogleUser.sub);
+      }
       onCompleteProfile({
         language: language || 'en',
         name: nicknameFromQ6,
@@ -339,6 +343,9 @@ export const OnboardingModal: React.FC<OnboardingProps> = ({
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {}
+      if (gUser.sub) {
+        setStoredAuthUserId(gUser.sub);
+      }
       onCompleteProfile({
         language: language || 'en',
         name: nicknameFromQ6,
