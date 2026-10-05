@@ -46,6 +46,8 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
   todayWakeTime: todayWakeTimeProp,
   tomorrowWakeTime: tomorrowWakeTimeProp,
   currentTime: currentTimeProp,
+  totalSleepHours,
+  currentGoal,
   commitments: commitmentsProp,
   caffeineLog = [],
   napStart: napStartProp,

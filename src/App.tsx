@@ -399,7 +399,9 @@ export default function App() {
             setPlannedNap(userData.planned_nap || userData.plannedNap);
           }
           if (userData.history) {
-            setHistory(userData.history);
+            try {
+              localStorage.setItem('owlup_history', JSON.stringify(userData.history));
+            } catch {}
           }
 
           setShowLandingScreen(false);
