@@ -936,9 +936,15 @@ export default function App() {
       if (Array.isArray(account.commitments) && account.commitments.length > 0) {
         setCommitments(account.commitments);
         localStorage.setItem('owlup_commitments', JSON.stringify(account.commitments));
+        localStorage.setItem('owlup_schedule_applied', 'true');
+        localStorage.setItem('owlup_schedule_date', todayStr);
       } else {
         setCommitments([]);
         localStorage.removeItem('owlup_commitments');
+        if (account.plannedNap || account.bedtime) {
+          localStorage.setItem('owlup_schedule_applied', 'true');
+          localStorage.setItem('owlup_schedule_date', todayStr);
+        }
       }
     }
 
