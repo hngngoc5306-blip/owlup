@@ -750,6 +750,9 @@ export default function App() {
       try {
         const storedId = getStoredAuthUserId();
         let remoteRecord = storedId ? await fetchUserData(storedId) : null;
+        if (remoteRecord && remoteRecord.email && remoteRecord.email.toLowerCase() !== email) {
+          remoteRecord = null; // Stored ID belongs to a different user!
+        }
         if (!remoteRecord) {
           remoteRecord = await fetchUserDataByEmail(email);
         }
@@ -1000,6 +1003,7 @@ export default function App() {
       localStorage.removeItem('owlup_active_email');
       localStorage.removeItem('owlup_onboarding_completed');
       localStorage.removeItem('owlup_registration_draft');
+      localStorage.removeItem('owlup_supabase_user_id');
     } catch {}
     setPrefilledGoogleUser(null);
     setRegistrationNotice('');
