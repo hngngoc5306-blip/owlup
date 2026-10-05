@@ -944,9 +944,9 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
     setIsFreeAllDay(false);
     setHasUserModified(true);
     try {
-      localStorage.setItem('owlup_commitments', JSON.stringify(list));
+      localStorage.setItem('owlup_commitments', JSON.stringify(list)); window.dispatchEvent(new Event('owlup_sync_request'));
       localStorage.removeItem('owlup_is_free_all_day');
-      localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+      localStorage.setItem('owlup_schedule_date', getTodayDateStr()); window.dispatchEvent(new Event('owlup_sync_request'));
       if (onUpdateCommitments) onUpdateCommitments(list);
     } catch {}
 
@@ -966,8 +966,8 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
       } catch {}
     }
     try {
-      localStorage.setItem('owlup_commitments', JSON.stringify(updated));
-      localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+      localStorage.setItem('owlup_commitments', JSON.stringify(updated)); window.dispatchEvent(new Event('owlup_sync_request'));
+      localStorage.setItem('owlup_schedule_date', getTodayDateStr()); window.dispatchEvent(new Event('owlup_sync_request'));
       if (onUpdateCommitments) onUpdateCommitments(updated);
     } catch {}
   };
@@ -1226,7 +1226,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                       setCommitments([]);
                       setHasUserModified(true);
                       try {
-                        localStorage.setItem('owlup_is_free_all_day', 'true');
+                        localStorage.setItem('owlup_is_free_all_day', 'true'); window.dispatchEvent(new Event('owlup_sync_request'));
                         localStorage.removeItem('owlup_commitments');
                         if (onUpdateCommitments) onUpdateCommitments([]);
                       } catch {}
@@ -1320,7 +1320,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                     onChange={(val) => {
                       if (val !== latestWakeUpTime) setHasUserModified(true);
                       setLatestWakeUpTime(val);
-                      try { localStorage.setItem('owlup_latest_waketime', val); } catch {}
+                      try { localStorage.setItem('owlup_latest_waketime', val); window.dispatchEvent(new Event('owlup_sync_request')); } catch {}
                     }}
                     isEn={isEn}
                     placeholder="07:00"
@@ -1654,17 +1654,17 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                         setNapStart(recNapStart);
                         setNapDuration(recNapDurationMins.toString());
                         try {
-                          localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
-                          localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
+                          localStorage.setItem('owlup_commitments', JSON.stringify(commitments)); window.dispatchEvent(new Event('owlup_sync_request'));
+                          localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced'); window.dispatchEvent(new Event('owlup_sync_request'));
                           recordTomorrowWakePlan(recWake);
-                          localStorage.setItem('owlup_bedtime', recBedtime);
-                          localStorage.setItem('owlup_total_sleep_hours', recSleepDuration);
-                          localStorage.setItem('owlup_schedule_applied', 'true');
-                          localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                          localStorage.setItem('owlup_bedtime', recBedtime); window.dispatchEvent(new Event('owlup_sync_request'));
+                          localStorage.setItem('owlup_total_sleep_hours', recSleepDuration); window.dispatchEvent(new Event('owlup_sync_request'));
+                          localStorage.setItem('owlup_schedule_applied', 'true'); window.dispatchEvent(new Event('owlup_sync_request'));
+                          localStorage.setItem('owlup_schedule_date', getTodayDateStr()); window.dispatchEvent(new Event('owlup_sync_request'));
                           let napObj = null;
                           if (canNapToday && recNapDurationMins > 0) {
                             napObj = { start: recNapStart, end: recNapEnd, duration: recNapDurationMins };
-                            localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
+                            localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj)); window.dispatchEvent(new Event('owlup_sync_request'));
                           } else {
                             localStorage.removeItem('owlup_planned_nap');
                           }
@@ -1920,14 +1920,14 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                   onClick={() => {
                     if (isStep3Valid) {
                       try {
-                        localStorage.setItem('owlup_commitments', JSON.stringify(commitments));
-                        localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced');
+                        localStorage.setItem('owlup_commitments', JSON.stringify(commitments)); window.dispatchEvent(new Event('owlup_sync_request'));
+                        localStorage.setItem('owlup_recovery_goal', selectedGoal || 'healthy_balanced'); window.dispatchEvent(new Event('owlup_sync_request'));
                         recordTomorrowWakePlan(customWakeTime);
-                        localStorage.setItem('owlup_bedtime', customBedtime);
+                        localStorage.setItem('owlup_bedtime', customBedtime); window.dispatchEvent(new Event('owlup_sync_request'));
                         const finalHours = (liveDurationMins / 60).toFixed(1);
-                        localStorage.setItem('owlup_total_sleep_hours', finalHours);
-                        localStorage.setItem('owlup_schedule_applied', 'true');
-                        localStorage.setItem('owlup_schedule_date', getTodayDateStr());
+                        localStorage.setItem('owlup_total_sleep_hours', finalHours); window.dispatchEvent(new Event('owlup_sync_request'));
+                        localStorage.setItem('owlup_schedule_applied', 'true'); window.dispatchEvent(new Event('owlup_sync_request'));
+                        localStorage.setItem('owlup_schedule_date', getTodayDateStr()); window.dispatchEvent(new Event('owlup_sync_request'));
                         const dur = parseInt(napDuration || '0');
                         let napObj = null;
                         if (napStart && dur > 0) {
@@ -1937,7 +1937,7 @@ export const RecoveryPlanner: React.FC<RecoveryPlannerProps> = ({
                           const endM = endMins % 60;
                           const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
                           napObj = { start: napStart, end: endStr, duration: dur };
-                          localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj));
+                          localStorage.setItem('owlup_planned_nap', JSON.stringify(napObj)); window.dispatchEvent(new Event('owlup_sync_request'));
                         } else {
                           localStorage.removeItem('owlup_planned_nap');
                         }

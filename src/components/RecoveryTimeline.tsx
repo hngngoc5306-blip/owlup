@@ -740,7 +740,7 @@ export const RecoveryTimeline: React.FC<RecoveryTimelineProps> = ({
                           e.stopPropagation();
                           const updated = activeDrinks.filter((it: any) => it.id !== evt.drinkId);
                           onUpdateCaffeineLog(updated);
-                          try { localStorage.setItem('owlup_caffeine_log', JSON.stringify(updated)); } catch {}
+                          try { localStorage.setItem('owlup_caffeine_log', JSON.stringify(updated)); window.dispatchEvent(new Event('owlup_sync_request')); } catch {}
                         }}
                         title={isEn ? "Remove this drink" : "Xóa đồ uống này"}
                         className="p-1 text-slate-400 hover:text-red-500 transition-colors cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 ml-1"

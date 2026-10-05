@@ -243,7 +243,7 @@ export const CaffeineAdvisor: React.FC<CaffeineAdvisorProps> = ({
       const updated = loggedItems.map(item => item.id === editingDrink.id ? { ...item, timestamp: updatedDate } : item);
       onUpdateLoggedItems(updated);
       try {
-        localStorage.setItem('owlup_caffeine_log', JSON.stringify(updated));
+        localStorage.setItem('owlup_caffeine_log', JSON.stringify(updated)); window.dispatchEvent(new Event('owlup_sync_request'));
       } catch {}
       setEditingDrink(null);
     } catch {}

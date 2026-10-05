@@ -348,6 +348,52 @@ export default function App() {
   const [prefilledGoogleUser, setPrefilledGoogleUser] = useState<GoogleUserData | null>(null);
   const [registrationNotice, setRegistrationNotice] = useState<string>('');
 
+  
+  // Global sync listener to catch local storage changes from child components
+  useEffect(() => {
+    let syncTimeout;
+    const handleStorageChange = () => {
+      clearTimeout(syncTimeout);
+      syncTimeout = setTimeout(() => {
+        const activeEmail = localStorage.getItem('owlup_active_email');
+        const activeUserId = getStoredAuthUserId();
+        if (!activeEmail || activeEmail === 'guest') return;
+
+        const accounts = getStoredAccounts();
+        const existing = accounts[activeEmail] || {};
+        
+        const profileStr = localStorage.getItem('owlup_user_profile');
+        const profile = profileStr ? JSON.parse(profileStr) : existing.profile;
+        
+        const updatedAccount = {
+          ...existing,
+          profile,
+          bedtime: localStorage.getItem('owlup_bedtime') || existing.bedtime,
+          wakeTime: localStorage.getItem('owlup_waketime') || existing.wakeTime,
+          totalSleepHours: localStorage.getItem('owlup_total_sleep_hours') || existing.totalSleepHours,
+          caffeineLog: JSON.parse(localStorage.getItem('owlup_caffeine_log') || '[]'),
+          commitments: JSON.parse(localStorage.getItem('owlup_commitments') || '[]'),
+          plannedNap: JSON.parse(localStorage.getItem('owlup_planned_nap') || 'null'),
+          recoveryGoal: localStorage.getItem('owlup_recovery_goal') || existing.recoveryGoal,
+        };
+
+        accounts[activeEmail] = updatedAccount;
+        localStorage.setItem('owlup_accounts', JSON.stringify(accounts));
+
+        if (activeUserId && isSupabaseConfigured) {
+          syncAccountToSupabase(activeUserId, updatedAccount).catch(() => {});
+        }
+      }, 500); // debounce 500ms
+    };
+
+    window.addEventListener('owlup_sync_request', handleStorageChange);
+    return () => {
+      window.removeEventListener('owlup_sync_request', handleStorageChange);
+      clearTimeout(syncTimeout);
+    };
+  }, []);
+
+
   // Security route guard: verify session authorization on mount / refresh
   useEffect(() => {
     if (!checkIsSessionAuthorized()) {
