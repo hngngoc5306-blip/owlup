@@ -37,13 +37,18 @@ const getRealHistoryData = (): Record<string, DayData> => {
     const hasAppliedSchedule = localStorage.getItem('owlup_schedule_applied') === 'true';
     let sleepHours = 0;
     if (hasAppliedSchedule) {
-      const bed = localStorage.getItem('owlup_bedtime') || '23:00';
-      const wake = localStorage.getItem('owlup_waketime') || '07:00';
-      const [bh, bm] = bed.split(':').map(Number);
-      const [wh, wm] = wake.split(':').map(Number);
-      let sleepMins = (wh * 60 + wm) - (bh * 60 + bm);
-      if (sleepMins < 0) sleepMins += 24 * 60;
-      sleepHours = Number((sleepMins / 60).toFixed(1));
+      const storedTotal = localStorage.getItem('owlup_total_sleep_hours');
+      if (storedTotal) {
+        sleepHours = parseFloat(storedTotal);
+      } else {
+        const bed = localStorage.getItem('owlup_bedtime') || '23:00';
+        const wake = localStorage.getItem('owlup_waketime') || '07:00';
+        const [bh, bm] = bed.split(':').map(Number);
+        const [wh, wm] = wake.split(':').map(Number);
+        let sleepMins = (wh * 60 + wm) - (bh * 60 + bm);
+        if (sleepMins < 0) sleepMins += 24 * 60;
+        sleepHours = Number((sleepMins / 60).toFixed(1));
+      }
     }
     
     if (totalCaf > 0 || sleepHours > 0) {
