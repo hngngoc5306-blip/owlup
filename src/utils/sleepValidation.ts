@@ -77,13 +77,20 @@ export const validateSleepSchedule = (
     }
   }
 
-  // Relaxation: Allow past bedtimes (Grace Period / Retroactive Planning)
-  // We remove the rigid "future only" block so users can log a bedtime 
-  // that just passed (e.g. inputting 0:35 at 0:51).
-  // The schedule will still be validated by the 4-14 hours sleep duration rule.
-  /* 
-  if (bedContMins <= curMins) { ... } 
-  */
+  // Check if bedtime has already passed
+  // Example: Current time = 20:00, User selects 18:00 -> invalid, because that bedtime has already passed.
+  if (bedContMins <= curMins) {
+    const curTimeFormatted = `${String(curH).padStart(2, '0')}:${String(curM).padStart(2, '0')}`;
+    return {
+      isValid: false,
+      errorKey: 'bedtime_past',
+      messageEn: `Bedtime tonight (${bedtimeStr}) has already passed (current time: ${curTimeFormatted}). Please select a future bedtime.`,
+      messageVi: `Giờ đi ngủ đêm nay (${bedtimeStr}) đã trôi qua so với giờ hiện tại (${curTimeFormatted}). Vui lòng chọn giờ ngủ sau thời điểm hiện tại.`,
+      bedContMins,
+      wakeContMins: 0,
+      sleepDurationMins: 0,
+    };
+  }
 
   // ── 2. Wake-up Tomorrow Morning Continuous Minutes ─────────────────────────
   // Wake-up Tomorrow Morning must always represent the intended wake-up time
